@@ -45,6 +45,12 @@
         "projectId": "c0bf7aa1-a1b9-437d-9277-181306a4d986"
       }
     },
-    "owner": "acondinos-team"
+    "owner": "acondinos-team",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c0bf7aa1-a1b9-437d-9277-181306a4d986"
+    }
   }
 }

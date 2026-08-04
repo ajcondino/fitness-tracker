@@ -39,6 +39,17 @@ Set up per Expo's [Unit testing with Jest](https://docs.expo.dev/develop/unit-te
 - Test files live in `__tests__` directories colocated with the code under test (e.g. `src/app/__tests__/index.test.tsx`).
 - `tsconfig.json` includes `"jest"` in `compilerOptions.types` so Jest globals (`describe`, `it`, `expect`) type-check without imports.
 
+## EAS Build & Updates
+
+Android only — iOS is not built or updated (not planned soon). Only a `preview` channel/profile exists so far; there is no `production` profile yet.
+
+- **`eas.json`**: single `preview` build profile — Android, `buildType: apk`, `distribution: internal`, `channel: preview`.
+- **`app.json`**: `runtimeVersion` uses the `fingerprint` policy (not `appVersion`) and `updates.url` points at the EAS project (`extra.eas.projectId`). The `fingerprint` policy is required for the workflow below — it's what lets a build's native fingerprint be matched against an OTA update's fingerprint.
+- **`.eas/workflows/deploy-preview.yml`**: runs on push to `main`. Computes a fingerprint of the native layer → checks whether an Android build already exists for that fingerprint (`get-build`, profile `preview`) → if not, builds Android (`build`, profile `preview`); if one exists, publishes an OTA update to the `preview` channel/branch instead of rebuilding.
+- **One-time manual EAS setup** (not doable from a non-interactive session, needs an authenticated `eas` CLI):
+  - `eas env:create --environment preview` — the workflow's `fingerprint` job runs under an EAS **Environment** named `preview` (env vars/secrets scope, distinct from the update channel); create it if missing or the workflow run fails at that step.
+  - `eas channel:create preview` — ensures the `preview` update branch/channel exists before `publish_android_update` tries to publish to it.
+
 ## Architecture
 
 - **Routing**: file-based routing via `expo-router`, with `typedRoutes` enabled in `app.json`. Route files live in `src/app/`; `src/app/_layout.tsx` is the root layout, wrapping the app in `ThemeProvider` (light/dark from `react-native`'s `useColorScheme`) and rendering `AppTabs`.
