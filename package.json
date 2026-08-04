@@ -29,8 +29,12 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
     "husky": "^9.1.7",
+    "jest": "~29.7.0",
+    "jest-expo": "~57.0.3",
     "lint-staged": "^17.3.0",
     "oxlint": "^1.76.0",
     "prettier": "^3.9.6",
@@ -45,6 +49,7 @@
     "lint": "oxlint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test": "jest",
     "prepare": "husky"
   },
   "private": true,
@@ -56,5 +61,8 @@
     "*.{json,md,css,yml,yaml}": [
       "prettier --write"
     ]
+  },
+  "jest": {
+    "preset": "jest-expo"
   }
 }
