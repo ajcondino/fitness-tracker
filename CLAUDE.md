@@ -27,7 +27,7 @@ Package manager is **pnpm** (`pnpm-lock.yaml` present) — use `pnpm` not `npm`/
 
 ## CI
 
-`.github/workflows/ci.yml` runs `pnpm lint`, `pnpm typecheck`, and `pnpm test` on push/PR to `main` (Node 22, matching Expo SDK 57's documented minimum). Pre-commit (`.husky/pre-commit`) intentionally stays lint-only (`lint-staged`) — running the full test suite on every commit doesn't scale as it grows, so tests are a CI-only gate.
+`.github/workflows/ci.yml` runs `pnpm lint`, `pnpm typecheck`, and `pnpm test` on push/PR to `main` and `develop` (Node 22, matching Expo SDK 57's documented minimum). Pre-commit (`.husky/pre-commit`) intentionally stays lint-only (`lint-staged`) — running the full test suite on every commit doesn't scale as it grows, so tests are a CI-only gate.
 
 ## Testing
 
@@ -45,7 +45,7 @@ Android only — iOS is not built or updated (not planned soon). Only a `preview
 
 - **`eas.json`**: single `preview` build profile — Android, `buildType: apk`, `distribution: internal`, `channel: preview`.
 - **`app.json`**: `runtimeVersion` uses the `fingerprint` policy (not `appVersion`) and `updates.url` points at the EAS project (`extra.eas.projectId`). The `fingerprint` policy is required for the workflow below — it's what lets a build's native fingerprint be matched against an OTA update's fingerprint.
-- **`.eas/workflows/deploy-preview.yml`**: runs on push to `main`. Computes a fingerprint of the native layer → checks whether an Android build already exists for that fingerprint (`get-build`, profile `preview`) → if not, builds Android (`build`, profile `preview`); if one exists, publishes an OTA update to the `preview` channel/branch instead of rebuilding.
+- **`.eas/workflows/deploy-preview.yml`**: runs on push to `main` or `develop`. Computes a fingerprint of the native layer → checks whether an Android build already exists for that fingerprint (`get-build`, profile `preview`) → if not, builds Android (`build`, profile `preview`); if one exists, publishes an OTA update to the `preview` channel/branch instead of rebuilding. Both branches feed the same `preview` channel — there's no `production` profile/channel (this is a training project, not headed to production), so no need to split them by branch.
 - **One-time manual EAS setup** (not doable from a non-interactive session, needs an authenticated `eas` CLI):
   - `eas env:create --environment preview` — the workflow's `fingerprint` job runs under an EAS **Environment** named `preview` (env vars/secrets scope, distinct from the update channel); create it if missing or the workflow run fails at that step.
   - `eas channel:create preview` — ensures the `preview` update branch/channel exists before `publish_android_update` tries to publish to it.
