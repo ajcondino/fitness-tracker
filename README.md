@@ -75,11 +75,11 @@ Linting also runs automatically on staged files via a `husky` pre-commit hook (`
 
 ## OTA updates
 
-This project ships over-the-air updates via [EAS Update](https://docs.expo.dev/eas-update/introduction/), **Android only** — iOS builds/updates aren't set up. There's a single `preview` channel for now; a `production` channel/profile hasn't been added yet.
+This project ships over-the-air updates via [EAS Update](https://docs.expo.dev/eas-update/introduction/), **Android only** — iOS builds/updates aren't set up. There's a single `preview` channel for now; this is a training project with no production plans, so both `main` and `develop` feed the same channel rather than being split into preview/production.
 
-- `.eas/workflows/deploy-preview.yml` runs on every push to `main`: it fingerprints the native layer, checks whether an Android build already exists for that fingerprint, and either builds a new Android binary (`preview` profile) or publishes an OTA update to the `preview` channel — whichever the fingerprint match calls for.
+- `.eas/workflows/deploy-preview.yml` runs on every push to `main` or `develop`: it fingerprints the native layer, checks whether an Android build already exists for that fingerprint, and either builds a new Android binary (`preview` profile) or publishes an OTA update to the `preview` channel — whichever the fingerprint match calls for.
 - `app.json` uses `runtimeVersion: { policy: "fingerprint" }` so builds and updates can be matched by native fingerprint rather than app version.
-- To publish or build manually instead of waiting on a push to `main`:
+- To publish or build manually instead of waiting on a push:
 
   ```bash
   pnpm dlx eas-cli update --branch preview --platform android
@@ -95,4 +95,4 @@ Branch strategy: `develop` is the staging branch and the base for day-to-day wor
 1. Branch off `develop`.
 2. Make your changes — the pre-commit hook will lint-fix and format staged files automatically.
 3. Before opening a PR, make sure `pnpm lint`, `pnpm typecheck`, and `pnpm test` all pass.
-4. Open a PR into `develop` with a clear description of the change. `develop` gets promoted to `main` for production releases — note that both the GitHub Actions CI and the OTA update workflow currently trigger off pushes/PRs to `main`, not `develop`.
+4. Open a PR into `develop` with a clear description of the change. `develop` gets promoted to `main` periodically — both GitHub Actions CI and the OTA update workflow run on pushes/PRs to either branch.
