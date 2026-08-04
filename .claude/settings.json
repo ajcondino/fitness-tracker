@@ -1,5 +1,28 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(pnpm test)",
+      "Bash(pnpm run lint)"
+    ],
+    "ask": ["Bash(git push:*)", "Bash(git commit:*)", "Bash(pnpm install:*)"],
+    "deny": [
+      "Read(./.env*)",
+      "Read(./secrets/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.gnupg/**)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(rm -rf:*)",
+      "WebFetch"
+    ]
   }
 }
