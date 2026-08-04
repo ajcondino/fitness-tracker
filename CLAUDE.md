@@ -22,7 +22,12 @@ Package manager is **pnpm** (`pnpm-lock.yaml` present) — use `pnpm` not `npm`/
 - `pnpm web` — start the web build (`expo start --web`)
 - `pnpm lint` — lint via `expo lint` (no ESLint config file exists yet in the repo; running it for the first time may prompt to create one)
 - `pnpm reset-project` — moves the starter template code into `app-example/` and creates a blank `src/app`. Do not run this without explicit user instruction — it's a destructive scaffolding reset.
+- `pnpm typecheck` — type-check via `tsc --noEmit`
 - `pnpm test` — run the Jest test suite (`jest`)
+
+## CI
+
+`.github/workflows/ci.yml` runs `pnpm lint`, `pnpm typecheck`, and `pnpm test` on push/PR to `main` (Node 22, matching Expo SDK 57's documented minimum). Pre-commit (`.husky/pre-commit`) intentionally stays lint-only (`lint-staged`) — running the full test suite on every commit doesn't scale as it grows, so tests are a CI-only gate.
 
 ## Testing
 
