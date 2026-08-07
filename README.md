@@ -12,9 +12,15 @@ A React Native fitness-tracking app built with [Expo](https://expo.dev) and Expo
 
 ## Environment variables
 
-None yet. `.env*.local` files are already git-ignored for when they're needed.
+Copy [.env.example](.env.example) to `.env.local` (already git-ignored) and fill in real values:
 
-TODO: document required environment variables here once the app starts reading any (API keys, base URLs, etc.).
+| Variable                 | Description                                                                                                            |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `EXPO_PUBLIC_SENTRY_DSN` | Sentry DSN used by `Sentry.init` in [src/app/_layout.tsx](src/app/_layout.tsx). Leave unset to disable Sentry locally. |
+
+`EXPO_PUBLIC_`-prefixed variables are inlined into the JS bundle at build time and are client-visible — see [Expo's environment variables guide](https://docs.expo.dev/guides/environment-variables/). Don't put secrets that must stay server-only behind this prefix.
+
+For EAS builds/updates, set the same variable in the `preview` EAS Environment (`eas env:create/update --environment preview`) so it's available during CI builds too.
 
 ## Setup
 
