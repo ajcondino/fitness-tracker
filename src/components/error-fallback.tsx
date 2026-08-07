@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 type ErrorFallbackProps = {
   error: Error;
@@ -6,12 +7,14 @@ type ErrorFallbackProps = {
 };
 
 export function ErrorFallback({ error, retry }: ErrorFallbackProps) {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.container} testID="error-fallback">
-      <Text style={styles.title}>Something went wrong</Text>
+      <Text style={styles.title}>{t('errorFallback.title')}</Text>
       <Text style={styles.message}>{error.message}</Text>
       <Pressable style={styles.button} onPress={retry} testID="error-fallback-retry">
-        <Text style={styles.buttonText}>Try again</Text>
+        <Text style={styles.buttonText}>{t('errorFallback.retry')}</Text>
       </Pressable>
     </View>
   );

@@ -1,0 +1,9 @@
+{
+  "index": {
+    "placeholder": "Edit src/app/index.tsx to edit this screen."
+  },
+  "errorFallback": {
+    "title": "Something went wrong",
+    "retry": "Try again"
+  }
+}
