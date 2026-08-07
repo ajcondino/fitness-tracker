@@ -1,0 +1,5 @@
+appId: com.a.condino.fitnesstracker
+---
+- launchApp
+- assertVisible:
+    id: 'index-screen'
