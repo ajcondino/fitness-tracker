@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@expo/ui": "~57.0.8",
+    "@sentry/react-native": "^8.21.0",
     "expo": "~57.0.9",
     "expo-constants": "~57.0.8",
     "expo-dev-client": "~57.0.10",
