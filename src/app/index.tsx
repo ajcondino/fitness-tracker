@@ -1,13 +1,17 @@
-import { Text, View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
+
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { spacing } from '@/constants/theme';
 
 export default function Index() {
   const { t } = useTranslation();
 
   return (
-    <View style={styles.container} testID="index-screen">
-      <Text>{t('index.placeholder')}</Text>
-    </View>
+    <ThemedView style={styles.container} testID="index-screen">
+      <ThemedText>{t('index.placeholder')}</ThemedText>
+    </ThemedView>
   );
 }
 
@@ -16,5 +20,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: spacing.xl,
   },
 });
