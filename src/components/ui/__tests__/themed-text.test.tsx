@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react-native';
 
 import { colors, typography } from '@/constants/theme';
-import { ThemedText } from '@/components/themed-text';
+import { ThemedText } from '@/components/ui/themed-text';
 
 // `fontWeight` is never forwarded to the rendered style: each variant's
 // `fontFamily` already points at the specific static font file for that
