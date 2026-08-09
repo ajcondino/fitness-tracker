@@ -26,7 +26,9 @@ function RootLayout() {
         style={{ flex: 1, backgroundColor: theme.colors.background }}
       >
         <StatusBar style="light" />
-        <Stack />
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
       </SafeAreaView>
     </SafeAreaProvider>
   );

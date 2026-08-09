@@ -1,6 +1,8 @@
 {
-  "index": {
-    "placeholder": "Edit src/app/index.tsx to edit this screen."
+  "tabs": {
+    "home": "Home",
+    "history": "History",
+    "device": "Device"
   },
   "errorFallback": {
     "title": "Something went wrong",

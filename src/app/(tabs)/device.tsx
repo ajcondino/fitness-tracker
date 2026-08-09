@@ -5,12 +5,12 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { spacing } from '@/constants/theme';
 
-export default function Index() {
+export default function Device() {
   const { t } = useTranslation();
 
   return (
-    <ThemedView style={styles.container} testID="index-screen">
-      <ThemedText>{t('index.placeholder')}</ThemedText>
+    <ThemedView style={styles.container}>
+      <ThemedText>{t('tabs.device')}</ThemedText>
     </ThemedView>
   );
 }
