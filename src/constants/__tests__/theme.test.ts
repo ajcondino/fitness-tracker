@@ -17,8 +17,11 @@ describe('theme tokens', () => {
       expect(scale.fontWeight).toBeTruthy();
     });
 
+    // fontFamily is the font file's own PostScript name (e.g. `Archivo-ExtraBold`),
+    // not the bare `Archivo` family DESIGN.md's YAML lists — see theme.ts's
+    // comment above `typography` for why per-weight static fonts need this.
     expect(typography.displayXl).toMatchObject({
-      fontFamily: 'Archivo',
+      fontFamily: 'Archivo-ExtraBold',
       fontSize: 132,
       fontWeight: 800,
       lineHeight: 138,

@@ -41,6 +41,18 @@
           "project": "react-native-fitness-tracker",
           "organization": "aljoseph"
         }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Archivo-Regular.ttf",
+            "./assets/fonts/Archivo-Bold.ttf",
+            "./assets/fonts/Archivo-ExtraBold.ttf",
+            "./assets/fonts/JetBrainsMono-Regular.ttf",
+            "./assets/fonts/JetBrainsMono-Bold.ttf"
+          ]
+        }
       ]
     ],
     "experiments": {

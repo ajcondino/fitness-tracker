@@ -10,7 +10,11 @@ export default function History() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText>{t('tabs.history')}</ThemedText>
+      {/* See index.tsx for why these sibling tab stubs share the h2 role. */}
+      <ThemedText variant="h2">{t('tabs.history')}</ThemedText>
+      <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.subtitle}>
+        {t('tabs.historySubtitle')}
+      </ThemedText>
     </ThemedView>
   );
 }
@@ -21,5 +25,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
+  },
+  subtitle: {
+    marginTop: spacing.sm,
   },
 });

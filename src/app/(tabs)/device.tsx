@@ -10,7 +10,11 @@ export default function Device() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText>{t('tabs.device')}</ThemedText>
+      {/* See index.tsx for why these sibling tab stubs share the h2 role. */}
+      <ThemedText variant="h2">{t('tabs.device')}</ThemedText>
+      <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.subtitle}>
+        {t('tabs.deviceSubtitle')}
+      </ThemedText>
     </ThemedView>
   );
 }
@@ -21,5 +25,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
+  },
+  subtitle: {
+    marginTop: spacing.sm,
   },
 });

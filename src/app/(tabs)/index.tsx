@@ -10,7 +10,14 @@ export default function Index() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText>{t('tabs.home')}</ThemedText>
+      {/* DESIGN.md's hierarchy table only names a heading role for Home (h1,
+          "Home greeting") and History/Device ("Pairing, History" -> h2). Using
+          h2 for all three sibling tab stubs; h1 stays reserved for a future
+          personalized Home greeting rather than this plain screen title. */}
+      <ThemedText variant="h2">{t('tabs.home')}</ThemedText>
+      <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.subtitle}>
+        {t('tabs.homeSubtitle')}
+      </ThemedText>
     </ThemedView>
   );
 }
@@ -21,5 +28,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
+  },
+  subtitle: {
+    marginTop: spacing.sm,
   },
 });
