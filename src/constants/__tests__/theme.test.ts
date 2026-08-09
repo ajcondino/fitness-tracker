@@ -1,4 +1,4 @@
-import { colors, rounded, spacing, theme, typography } from '@/constants/theme';
+import { colors, layout, rounded, spacing, theme, typography } from '@/constants/theme';
 
 describe('theme tokens', () => {
   it('has exactly the color tokens defined in DESIGN.md', () => {
@@ -36,7 +36,16 @@ describe('theme tokens', () => {
     expect(rounded).toEqual({ sm: 12, md: 16, lg: 18, xl: 22, full: 999 });
   });
 
+  it('has exactly the tab bar layout tokens defined in DESIGN.md', () => {
+    expect(layout).toEqual({
+      tabBarHeight: 64,
+      tabBarHorizontalInset: 24,
+      tabBarBottomOffset: 16,
+      tabBarClearance: 104,
+    });
+  });
+
   it('composes a single flat theme object with no light/dark split', () => {
-    expect(theme).toEqual({ colors, typography, spacing, rounded });
+    expect(theme).toEqual({ colors, typography, spacing, rounded, layout });
   });
 });

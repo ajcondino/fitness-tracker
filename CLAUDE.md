@@ -52,7 +52,7 @@ The app is **dark-only** (`userInterfaceStyle: "dark"` in `app.json`). Accent is
 ## Architecture
 
 - **Routing** — `expo-router` file-based, `typedRoutes` on. Routes in `src/app/`; `src/app/_layout.tsx` is the root layout.
-- **Tabs** — `src/components/app-tabs.tsx` uses `expo-router/unstable-native-tabs` (`NativeTabs`), which is experimental and distinct from the older `Tabs` API. `app-tabs.web.tsx` is the web override; follow this platform-extension convention (`.web.tsx`) for web-only implementations.
+- **Tabs** — `src/app/(tabs)/_layout.tsx` uses `expo-router`'s JS `<Tabs>` with a custom `tabBar` render prop, not `expo-router/unstable-native-tabs`. NativeTabs was tried first and dropped: it can't render the DESIGN.md tab bar (mono uppercase labels with letter-spacing, floating rounded pill). `src/components/TabBar.tsx` is the presentational bar — it reads `state`/`descriptors` from the `<Tabs>` render prop and calls back into `navigation`; it holds no navigation logic of its own. Follow the `.web.tsx` platform-extension convention only if a web-specific bar becomes necessary — none exists yet.
 - **Path aliases** — `@/*` → `src/*`, `@/assets/*` → `assets/*`. Use these, not relative paths across directories.
 - **React Compiler** is enabled (`reactCompiler` experiment). Skip manual `useMemo`/`useCallback` the compiler handles, and respect its constraints: rules of hooks, no mutating props or state.
 - **Native projects** — `android/` is generated and checked in. Change config via `app.json` and config plugins; hand-edit native files only as a last resort, and say why.

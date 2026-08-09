@@ -218,7 +218,19 @@ export const rounded = {
   full: 999,
 } as const;
 
-export const theme = { colors, typography, spacing, rounded } as const;
+/**
+ * Layout tokens for the floating tab bar (DESIGN.md > Components > Tab bar).
+ * `tabBarClearance` is the bottom padding a scrollable tabbed screen reserves,
+ * on top of its own safe-area bottom inset, so content clears the bar.
+ */
+export const layout = {
+  tabBarHeight: 64,
+  tabBarHorizontalInset: spacing.xl,
+  tabBarBottomOffset: spacing.lg,
+  tabBarClearance: 104,
+} as const;
+
+export const theme = { colors, typography, spacing, rounded, layout } as const;
 
 export type Theme = typeof theme;
 export type ColorToken = keyof typeof colors;

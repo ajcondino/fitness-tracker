@@ -21,10 +21,14 @@ function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView
-        edges={['top', 'bottom']}
-        style={{ flex: 1, backgroundColor: theme.colors.background }}
-      >
+      {/*
+        Bottom edge intentionally excluded: the floating tab bar (TabBar) owns
+        the bottom safe-area inset itself via useSafeAreaInsets, since it's
+        pinned above the gesture area rather than flush with it. Consuming
+        'bottom' here too would double the inset. Any future non-tab screen
+        pushed on this Stack is responsible for its own bottom inset.
+      */}
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <StatusBar style="light" />
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
