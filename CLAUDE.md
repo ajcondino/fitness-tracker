@@ -14,9 +14,10 @@ This project pins **Expo SDK ~57**, which is newer than your training data. Befo
 - **Plan before diff.** For anything touching more than one file, propose the plan — files added/changed, component boundaries, prop shapes — and stop. The plan is the review gate.
 - **Don't invent cross-cutting structure.** Shared components, navigation structure, and theme tokens are decided by hand. Consume what exists; if something shared is missing, say so rather than creating it.
 - **Additive diffs on working screens.** When adding to a screen that already works, don't restructure or tidy surrounding code in the same change.
+- **Component file naming.** All component files are kebab-case (`tab-bar.tsx`, not `TabBar.tsx`) — component _names_ stay PascalCase (`TabBar`), only the filename is kebab. `src/components/ui/` holds primitive, presentation-only building blocks (`themed-text.tsx`, `themed-view.tsx`); composed/feature components (e.g. `tab-bar.tsx`) live directly under `src/components/`.
 - **Exemplars** — match the patterns in these files rather than inferring from the wider codebase:
   - Screen: `<TODO: path>`
-  - Presentational component: `<TODO: path>`
+  - Presentational component: `src/components/ui/themed-text.tsx`
   - Test: `<TODO: path>`
 
 ## Documentation layout
@@ -45,14 +46,14 @@ Package manager is **pnpm** (`pnpm-lock.yaml`) — never `npm` or `yarn`.
 The app is **dark-only** (`userInterfaceStyle: "dark"` in `app.json`). Accent is `#F5C518`, which sits at ~1.6:1 on white — light mode is not a cheap addition and is not planned. Do not add light-mode branches, `useColorScheme` conditionals, or paired light/dark token sets.
 
 - Tokens live in `src/constants/theme.ts`; resolve them via `src/hooks/use-theme.ts`.
-- Consume through `themed-text.tsx` / `themed-view.tsx`. Never hardcode a colour or spacing value in a screen.
+- Consume through `src/components/ui/themed-text.tsx` / `themed-view.tsx`. Never hardcode a colour or spacing value in a screen.
 - Any new token must exist in `DESIGN.md` first.
 - Styling is `StyleSheet.create` fed from `constants/theme.ts`. `src/global.css` only declares CSS custom properties for web font stacks — this is **not** Tailwind/NativeWind.
 
 ## Architecture
 
 - **Routing** — `expo-router` file-based, `typedRoutes` on. Routes in `src/app/`; `src/app/_layout.tsx` is the root layout.
-- **Tabs** — `src/components/app-tabs.tsx` uses `expo-router/unstable-native-tabs` (`NativeTabs`), which is experimental and distinct from the older `Tabs` API. `app-tabs.web.tsx` is the web override; follow this platform-extension convention (`.web.tsx`) for web-only implementations.
+- **Tabs** — `src/app/(tabs)/_layout.tsx` uses `expo-router`'s JS `<Tabs>` with a custom `tabBar` render prop, not `expo-router/unstable-native-tabs`. NativeTabs was tried first and dropped: it can't render the DESIGN.md tab bar (mono uppercase labels with letter-spacing, floating rounded pill). `src/components/tab-bar.tsx` is the presentational bar — it reads `state`/`descriptors` from the `<Tabs>` render prop and calls back into `navigation`; it holds no navigation logic of its own. Follow the `.web.tsx` platform-extension convention only if a web-specific bar becomes necessary — none exists yet.
 - **Path aliases** — `@/*` → `src/*`, `@/assets/*` → `assets/*`. Use these, not relative paths across directories.
 - **React Compiler** is enabled (`reactCompiler` experiment). Skip manual `useMemo`/`useCallback` the compiler handles, and respect its constraints: rules of hooks, no mutating props or state.
 - **Native projects** — `android/` is generated and checked in. Change config via `app.json` and config plugins; hand-edit native files only as a last resort, and say why.

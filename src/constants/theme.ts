@@ -46,10 +46,30 @@ export const colors = {
 type TypographyToken = {
   fontFamily: string;
   fontSize: number;
+  /**
+   * The static font file's own weight, kept here to match DESIGN.md's
+   * declared value exactly. Not forwarded into a rendered `<Text>` style —
+   * see `ThemedText` for why.
+   */
   fontWeight: TextStyle['fontWeight'];
   lineHeight?: number;
   letterSpacing?: number;
 };
+
+/**
+ * Registered via the `expo-font` config plugin (see app.json) as static,
+ * per-weight TTFs — not variable fonts. Each `fontFamily` below is the
+ * font file's own embedded PostScript name (verified with `fc-scan`, since
+ * Android resolves custom fonts by that name, not by filename convention).
+ * There is deliberately no shared "Archivo" / "JetBrains Mono" family entry
+ * spanning weights: with per-weight static files, `fontFamily` alone
+ * selects the correct file.
+ */
+const archivoRegular = 'Archivo-Regular';
+const archivoBold = 'Archivo-Bold';
+const archivoExtraBold = 'Archivo-ExtraBold';
+const monoRegular = 'JetBrainsMono-Regular';
+const monoBold = 'JetBrainsMono-Bold';
 
 type TypographyKey =
   | 'displayXl'
@@ -76,125 +96,125 @@ type TypographyKey =
 
 export const typography: Record<TypographyKey, TypographyToken> = {
   displayXl: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoExtraBold,
     fontSize: 132,
     fontWeight: 800,
     lineHeight: 138,
     letterSpacing: -6,
   },
   displayLg: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoExtraBold,
     fontSize: 56,
     fontWeight: 800,
     lineHeight: 60,
     letterSpacing: -2,
   },
   h1: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoExtraBold,
     fontSize: 34,
     fontWeight: 800,
     lineHeight: 38,
     letterSpacing: -0.8,
   },
   h2: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoExtraBold,
     fontSize: 32,
     fontWeight: 800,
     lineHeight: 36,
     letterSpacing: -0.7,
   },
   h3: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoExtraBold,
     fontSize: 26,
     fontWeight: 800,
     letterSpacing: -0.6,
   },
   statMd: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoExtraBold,
     fontSize: 22,
     fontWeight: 800,
     letterSpacing: -0.5,
   },
   statSm: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoExtraBold,
     fontSize: 20,
     fontWeight: 800,
   },
   titleMd: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoBold,
     fontSize: 17,
     fontWeight: 700,
   },
   titleSm: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoBold,
     fontSize: 15,
     fontWeight: 700,
   },
   bodyMd: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoRegular,
     fontSize: 15,
     fontWeight: 400,
     lineHeight: 22,
   },
   bodySm: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoRegular,
     fontSize: 14,
     fontWeight: 400,
   },
   caption: {
-    fontFamily: 'Archivo',
+    fontFamily: archivoRegular,
     fontSize: 12,
     fontWeight: 400,
     lineHeight: 19,
   },
   actionLg: {
-    fontFamily: 'JetBrains Mono',
+    fontFamily: monoBold,
     fontSize: 15,
     fontWeight: 700,
     letterSpacing: 2.4,
   },
   actionMd: {
-    fontFamily: 'JetBrains Mono',
+    fontFamily: monoBold,
     fontSize: 14,
     fontWeight: 700,
     letterSpacing: 2.2,
   },
   actionSm: {
-    fontFamily: 'JetBrains Mono',
+    fontFamily: monoBold,
     fontSize: 12,
     fontWeight: 700,
     letterSpacing: 1.4,
   },
   dataMd: {
-    fontFamily: 'JetBrains Mono',
+    fontFamily: monoRegular,
     fontSize: 12,
     fontWeight: 400,
   },
   dataSm: {
-    fontFamily: 'JetBrains Mono',
+    fontFamily: monoRegular,
     fontSize: 11,
     fontWeight: 400,
   },
   labelCaps: {
-    fontFamily: 'JetBrains Mono',
+    fontFamily: monoRegular,
     fontSize: 11,
     fontWeight: 400,
     letterSpacing: 2,
   },
   labelMicro: {
-    fontFamily: 'JetBrains Mono',
+    fontFamily: monoRegular,
     fontSize: 10,
     fontWeight: 400,
     letterSpacing: 1.6,
   },
   wordmark: {
-    fontFamily: 'JetBrains Mono',
+    fontFamily: monoRegular,
     fontSize: 12,
     fontWeight: 400,
     letterSpacing: 3.4,
   },
   tabLabel: {
-    fontFamily: 'JetBrains Mono',
+    fontFamily: monoRegular,
     fontSize: 9,
     fontWeight: 400,
     letterSpacing: 1,
@@ -218,7 +238,19 @@ export const rounded = {
   full: 999,
 } as const;
 
-export const theme = { colors, typography, spacing, rounded } as const;
+/**
+ * Layout tokens for the floating tab bar (DESIGN.md > Components > Tab bar).
+ * `tabBarClearance` is the bottom padding a scrollable tabbed screen reserves,
+ * on top of its own safe-area bottom inset, so content clears the bar.
+ */
+export const layout = {
+  tabBarHeight: 64,
+  tabBarHorizontalInset: spacing.xl,
+  tabBarBottomOffset: spacing.lg,
+  tabBarClearance: 104,
+} as const;
+
+export const theme = { colors, typography, spacing, rounded, layout } as const;
 
 export type Theme = typeof theme;
 export type ColorToken = keyof typeof colors;

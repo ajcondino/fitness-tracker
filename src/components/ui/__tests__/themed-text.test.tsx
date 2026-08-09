@@ -1,7 +1,16 @@
 import { render, screen } from '@testing-library/react-native';
 
 import { colors, typography } from '@/constants/theme';
-import { ThemedText } from '@/components/themed-text';
+import { ThemedText } from '@/components/ui/themed-text';
+
+// `fontWeight` is never forwarded to the rendered style: each variant's
+// `fontFamily` already points at the specific static font file for that
+// weight, and re-requesting a weight on top of it breaks Android's custom
+// font lookup (see themed-text.tsx).
+function withoutFontWeight(variant: (typeof typography)[keyof typeof typography]) {
+  const { fontWeight: _fontWeight, ...rest } = variant;
+  return rest;
+}
 
 describe('<ThemedText />', () => {
   it('defaults to the bodyMd variant and onSurface color', async () => {
@@ -9,7 +18,7 @@ describe('<ThemedText />', () => {
 
     const node = screen.getByText('Hello');
     expect(node.props.style).toEqual(
-      expect.arrayContaining([typography.bodyMd, { color: colors.onSurface }]),
+      expect.arrayContaining([withoutFontWeight(typography.bodyMd), { color: colors.onSurface }]),
     );
   });
 
@@ -22,7 +31,7 @@ describe('<ThemedText />', () => {
 
     const node = screen.getByText('Alert');
     expect(node.props.style).toEqual(
-      expect.arrayContaining([typography.h1, { color: colors.danger }]),
+      expect.arrayContaining([withoutFontWeight(typography.h1), { color: colors.danger }]),
     );
   });
 

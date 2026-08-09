@@ -165,6 +165,7 @@ components:
   screen:
     backgroundColor: '{colors.background}'
     padding: 24px
+    tabBarClearance: 104px # bottom padding scrollable content on tabbed screens reserves, on top of the device's own safe-area bottom inset — see tab-bar
   wordmark:
     textColor: '{colors.primary}'
     typography: '{typography.wordmark}'
@@ -227,11 +228,14 @@ components:
     typography: '{typography.data-sm}'
     rounded: '{rounded.full}'
     padding: 12px
-  tab-bar:
+  tab-bar: # floating, JS-rendered — not a native tab bar; see Components > Tab bar
     backgroundColor: '{colors.surface-muted}'
     textColor: '{colors.on-surface-faint}'
     typography: '{typography.tab-label}'
     rounded: '{rounded.xl}'
+    height: 64px
+    horizontalInset: 24px # from each screen edge, matching the grid gutter
+    bottomOffset: 16px # above the device's safe-area bottom inset — additive, not a replacement for it
     padding: 12px
   tab-bar-active:
     backgroundColor: '{colors.surface-muted}'
@@ -453,7 +457,8 @@ instead.
 5. Section header — `label-caps` left, an optional `SEE ALL` in yellow
    right
 6. List — rows at 10px gaps
-7. Tab bar — pinned, inset from the gutters
+7. Tab bar — floating, inset from the gutters and the safe area (see
+   Components > Tab bar)
 
 **Touch targets.** Buttons are 56–66px. Rows are ~64px tall. Chips and
 the avatar are 34–42px, at the floor of what is acceptable; do not go
@@ -560,10 +565,16 @@ stays legible.
 **Signal bars** — four 3px columns at rising heights; filled bars use
 `primary`, empty use `outline-emphasis`.
 
-**Tab bar** — `surface-muted` on `outline`, `xl` radius, three items
-(HOME, HISTORY, DEVICE), 18px glyph over a `tab-label`. Active is
-`primary`, inactive `on-surface-faint`. The device tab's glyph is a
-circle; the others are squares.
+**Tab bar** — a JS-rendered floating pill, not a native tab bar (native
+tab bars can't express mono uppercase labels or this shape). `64px`
+tall, `xl` radius, `24px` inset from each screen edge, floating `16px`
+above the device's safe-area bottom inset. `surface-muted` on
+`outline`, three items (HOME, HISTORY, DEVICE), 18px glyph over a
+`tab-label` (mono, uppercase, `1px` tracking). Active is `primary`,
+inactive `on-surface-faint`. The device tab's glyph is a circle; the
+others are squares. Screens with scrollable content reserve
+`tabBarClearance` (104px) of bottom padding, in addition to the
+device's safe-area bottom inset, so content never sits under the bar.
 
 **Toast** — absolutely positioned 24px from each gutter, 110px from the
 bottom so it clears the tab bar. `surface-raised` on `outline-strong`,

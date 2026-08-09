@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react-native';
 
 import { colors } from '@/constants/theme';
-import { ThemedView } from '@/components/themed-view';
+import { ThemedView } from '@/components/ui/themed-view';
 
 describe('<ThemedView />', () => {
   it('defaults to the background color token', async () => {

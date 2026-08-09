@@ -1,6 +1,11 @@
 {
-  "index": {
-    "placeholder": "Edit src/app/index.tsx to edit this screen."
+  "tabs": {
+    "home": "Home",
+    "homeSubtitle": "Start, monitor, and stop your workout session.",
+    "history": "History",
+    "historySubtitle": "A log of past workout sessions.",
+    "device": "Device",
+    "deviceSubtitle": "Pair and manage your heart-rate monitor."
   },
   "errorFallback": {
     "title": "Something went wrong",
