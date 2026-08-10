@@ -53,6 +53,13 @@
             "./assets/fonts/JetBrainsMono-Bold.ttf"
           ]
         }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "neverForLocation": true
+        }
       ]
     ],
     "experiments": {
