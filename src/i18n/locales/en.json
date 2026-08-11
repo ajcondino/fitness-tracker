@@ -10,5 +10,38 @@
   "errorFallback": {
     "title": "Something went wrong",
     "retry": "Try again"
+  },
+  "pairing": {
+    "scanStatus": {
+      "undetermined": "BLUETOOTH ACCESS NEEDED",
+      "requesting": "REQUESTING ACCESS…",
+      "granted": "BLUETOOTH ACCESS GRANTED",
+      "partialScanOnly": "CAN'T CONNECT TO DEVICES",
+      "partialScanOnlyDetail": "Bluetooth connect access is off.",
+      "partialConnectOnly": "CAN'T SEE NEARBY DEVICES",
+      "partialConnectOnlyDetail": "Bluetooth scan access is off.",
+      "denied": "BLUETOOTH ACCESS DENIED",
+      "blocked": "BLUETOOTH ACCESS BLOCKED",
+      "blockedDetail": "Turn it on in system settings to continue.",
+      "grantAction": "GRANT ACCESS",
+      "retryAction": "TRY AGAIN",
+      "openSettingsAction": "OPEN SETTINGS"
+    },
+    "nearbyDevices": {
+      "header": "NEARBY DEVICES",
+      "empty": "No devices found yet."
+    },
+    "previouslyPaired": {
+      "header": "PREVIOUSLY PAIRED",
+      "emptyGranted": "No previously paired devices yet.",
+      "emptyNoAccess": "Grant Bluetooth access to see previously paired devices."
+    }
+  },
+  "home": {
+    "deviceCard": {
+      "title": "No monitor connected",
+      "subtitle": "Tap to pair a heart-rate monitor"
+    },
+    "connectCta": "CONNECT A MONITOR"
   }
 }
