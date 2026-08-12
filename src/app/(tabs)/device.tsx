@@ -1,15 +1,45 @@
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import type { ConnectionState, DiscoveredDevice } from '@/ble/pairing-types';
+import { selectDeviceDisplayName } from '@/ble/pairing-types';
+import { DeviceRow } from '@/components/device-row';
+import type { DeviceRowProps } from '@/components/device-row';
 import { ScanStatusBar } from '@/components/scan-status-bar';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
 import { useBlePermissionStatus } from '@/hooks/use-ble-permission-status';
+import { useDevicePairing } from '@/hooks/use-device-pairing';
+
+function selectRowStatus(
+  device: DiscoveredDevice,
+  connection: ConnectionState,
+): DeviceRowProps['status'] {
+  if (connection.kind === 'connected' && connection.deviceId === device.id) {
+    return 'connected';
+  }
+  if (connection.kind === 'connecting' && connection.deviceId === device.id) {
+    return 'connecting';
+  }
+  if (connection.kind === 'connectionFailed' && connection.deviceId === device.id) {
+    return 'failed';
+  }
+  return 'available';
+}
 
 export default function Device() {
   const { t } = useTranslation();
   const { status, requestAccess, openSettings } = useBlePermissionStatus();
+  const {
+    scanBarState,
+    devices,
+    connection,
+    connect,
+    cancelConnect,
+    retryScan,
+    openBluetoothSettings,
+  } = useDevicePairing(status === 'granted');
 
   return (
     <ThemedView style={styles.container}>
@@ -24,19 +54,47 @@ export default function Device() {
           status={status}
           onRequestAccess={requestAccess}
           onOpenSettings={openSettings}
+          scanBarState={scanBarState}
+          onRetryScan={retryScan}
+          onOpenBluetoothSettings={openBluetoothSettings}
         />
 
-        {/* No scanning happens yet (see SPEC.md's Constraints) — this
-            section only ever shows once permission is granted, and only
-            its empty copy, since there's nothing to scan for regardless. */}
         {status === 'granted' ? (
           <View style={styles.section}>
             <ThemedText variant="labelCaps" color="onSurfaceFaint">
               {t('pairing.nearbyDevices.header')}
             </ThemedText>
-            <ThemedText variant="bodyMd" color="onSurfaceMuted">
-              {t('pairing.nearbyDevices.empty')}
-            </ThemedText>
+            {devices.length > 0 ? (
+              devices.map((device) => {
+                const rowStatus = selectRowStatus(device, connection);
+                const { text, isFallback } = selectDeviceDisplayName(
+                  device,
+                  t('pairing.deviceRow.unknownDevice'),
+                );
+
+                return (
+                  <DeviceRow
+                    key={device.id}
+                    name={text}
+                    isNameFallback={isFallback}
+                    rssi={device.medianRssi}
+                    status={rowStatus}
+                    disabled={connection.kind === 'connecting' && connection.deviceId !== device.id}
+                    onPress={() => {
+                      if (rowStatus === 'connecting') {
+                        cancelConnect();
+                      } else if (rowStatus === 'available' || rowStatus === 'failed') {
+                        connect(device.id);
+                      }
+                    }}
+                  />
+                );
+              })
+            ) : (
+              <ThemedText variant="bodyMd" color="onSurfaceMuted">
+                {t('pairing.nearbyDevices.empty')}
+              </ThemedText>
+            )}
           </View>
         ) : null}
 
