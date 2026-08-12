@@ -220,10 +220,16 @@ export function useDevicePairing(permissionGranted: boolean): {
       clearTimeout(connectTimeoutRef.current);
       connectTimeoutRef.current = null;
     }
-    bleManager.cancelDeviceConnection(previousId).catch(() => {
-      // Cancelling an attempt that already resolved or was never fully
-      // established natively is an expected no-op, not a bug to surface.
-    });
+    // Only cancel the native attempt when it did NOT land on `connected` —
+    // `cancelDeviceConnection` disconnects an already-connected device, so
+    // calling it after a successful connect would tear the pairing right
+    // back down.
+    if (connection.kind !== 'connected') {
+      bleManager.cancelDeviceConnection(previousId).catch(() => {
+        // Cancelling an attempt that already resolved or was never fully
+        // established natively is an expected no-op, not a bug to surface.
+      });
+    }
   }, [connection]);
 
   function retryScan() {

@@ -117,6 +117,35 @@ describe('usePairingStore', () => {
       expect(usePairingStore.getState().connection).toEqual({ kind: 'disconnected' });
     });
 
+    it('connectSucceeded is a no-op for the same deviceId once that attempt already failed (e.g. timed out)', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectFailed('device-1', 'timeout');
+
+      // The native promise resolves successfully after the timeout already
+      // moved this attempt to connectionFailed — deviceId still matches, but
+      // the attempt is no longer in flight, so this must not flip it back.
+      usePairingStore.getState().connectSucceeded('device-1');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionFailed',
+        deviceId: 'device-1',
+        reason: 'timeout',
+      });
+    });
+
+    it('connectSucceeded is a no-op for the same deviceId once already connected', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+
+      // A second, redundant success signal for the same device.
+      usePairingStore.getState().connectSucceeded('device-1');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connected',
+        deviceId: 'device-1',
+      });
+    });
+
     it('connectFailed transitions connecting to connectionFailed with the given reason for the matching deviceId', () => {
       usePairingStore.getState().connectRequested('device-1', 0);
       usePairingStore.getState().connectFailed('device-1', 'timeout');
@@ -133,6 +162,19 @@ describe('usePairingStore', () => {
       expect(usePairingStore.getState().connection.kind).toBe('connecting');
     });
 
+    it('connectFailed is a no-op for the same deviceId once already connected', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+
+      // A late rejection for an attempt that already succeeded.
+      usePairingStore.getState().connectFailed('device-1', 'unknown');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connected',
+        deviceId: 'device-1',
+      });
+    });
+
     it('connectCancelled transitions connecting to disconnected for the matching deviceId', () => {
       usePairingStore.getState().connectRequested('device-1', 0);
       usePairingStore.getState().connectCancelled('device-1');
@@ -143,6 +185,18 @@ describe('usePairingStore', () => {
       usePairingStore.getState().connectRequested('device-1', 0);
       usePairingStore.getState().connectCancelled('device-2');
       expect(usePairingStore.getState().connection.kind).toBe('connecting');
+    });
+
+    it('connectCancelled is a no-op for the same deviceId once already connected', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+
+      usePairingStore.getState().connectCancelled('device-1');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connected',
+        deviceId: 'device-1',
+      });
     });
   });
 

@@ -77,17 +77,20 @@ export const usePairingStore = create<PairingStore>()((set, get) => ({
     const connection = get().connection;
     // Stale — a delayed native callback arriving after this ticket's own
     // CONNECT_TIMEOUT_MS (or a later attempt) already resolved another way.
-    if (!('deviceId' in connection) || connection.deviceId !== deviceId) return;
+    // `kind === 'connecting'` (not just a matching `deviceId`, which
+    // `connected`/`connectionFailed` also carry) is what "this attempt is
+    // still actually in flight" means.
+    if (connection.kind !== 'connecting' || connection.deviceId !== deviceId) return;
     set({ connection: { kind: 'connected', deviceId } });
   },
   connectFailed: (deviceId, reason) => {
     const connection = get().connection;
-    if (!('deviceId' in connection) || connection.deviceId !== deviceId) return;
+    if (connection.kind !== 'connecting' || connection.deviceId !== deviceId) return;
     set({ connection: { kind: 'connectionFailed', deviceId, reason } });
   },
   connectCancelled: (deviceId) => {
     const connection = get().connection;
-    if (!('deviceId' in connection) || connection.deviceId !== deviceId) return;
+    if (connection.kind !== 'connecting' || connection.deviceId !== deviceId) return;
     set({ connection: { kind: 'disconnected' } });
   },
 

@@ -344,7 +344,7 @@ describe('useDevicePairing', () => {
       });
     });
 
-    it('reports connectSucceeded on resolution', async () => {
+    it('reports connectSucceeded on resolution and does NOT cancel the newly-established connection', async () => {
       mockedConnectToDevice.mockResolvedValue({} as unknown as Device);
       const { result } = await renderHook(() => useDevicePairing(false));
 
@@ -355,6 +355,46 @@ describe('useDevicePairing', () => {
       expect(usePairingStore.getState().connection).toEqual({
         kind: 'connected',
         deviceId: 'device-1',
+      });
+      // Regression: the connection-cleanup effect fires on any transition
+      // away from 'connecting', including into 'connected' — it must not
+      // call cancelDeviceConnection for that case, or every successful
+      // pairing would be torn down immediately after it succeeds.
+      expect(mockedCancelDeviceConnection).not.toHaveBeenCalled();
+    });
+
+    it('a native promise that resolves successfully after the attempt already timed out does not flip connectionFailed back to connected', async () => {
+      let resolveConnect!: (device: Device) => void;
+      mockedConnectToDevice.mockReturnValue(
+        new Promise<Device>((resolve) => {
+          resolveConnect = resolve;
+        }),
+      );
+      const { result } = await renderHook(() => useDevicePairing(false));
+
+      await act(async () => {
+        result.current.connect('device-1');
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(CONNECT_TIMEOUT_MS);
+      });
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionFailed',
+        deviceId: 'device-1',
+        reason: 'timeout',
+      });
+
+      // The original native promise resolves late, after the timeout already
+      // gave up on this attempt.
+      await act(async () => {
+        resolveConnect({} as unknown as Device);
+      });
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionFailed',
+        deviceId: 'device-1',
+        reason: 'timeout',
       });
     });
 
