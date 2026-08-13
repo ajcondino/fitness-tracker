@@ -35,6 +35,8 @@ function mockPairing(overrides: Partial<ReturnType<typeof useDevicePairing>> = {
     cancelConnect: jest.fn(),
     retryScan: jest.fn(),
     openBluetoothSettings: jest.fn(),
+    savedDevice: null,
+    forgetDevice: jest.fn(),
     ...overrides,
   } as ReturnType<typeof useDevicePairing>;
   mockedUseDevicePairing.mockReturnValue(value);
@@ -241,6 +243,45 @@ describe('<Device />', () => {
       expect(
         screen.getByText('Grant Bluetooth access to see previously paired devices.'),
       ).toBeOnTheScreen();
+    },
+  );
+
+  it('renders a SavedDeviceRow for PREVIOUSLY PAIRED when granted with a saved device', async () => {
+    mockStatus('granted');
+    const { forgetDevice } = mockPairing({ savedDevice: { id: 'saved-1', name: 'Pulse HRM' } });
+
+    await render(<Device />);
+
+    expect(screen.getByText('PREVIOUSLY PAIRED')).toBeOnTheScreen();
+    expect(screen.getByText('Pulse HRM')).toBeOnTheScreen();
+    expect(screen.queryByText('No previously paired devices yet.')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('saved-device-row-forget'));
+
+    expect(forgetDevice).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the unknown-device label for a saved device with no name', async () => {
+    mockStatus('granted');
+    mockPairing({ savedDevice: { id: 'saved-1', name: null } });
+
+    await render(<Device />);
+
+    expect(screen.getByText('Unknown device')).toBeOnTheScreen();
+  });
+
+  it.each(NOT_GRANTED_STATUSES)(
+    'keeps the no-access empty copy for PREVIOUSLY PAIRED when %s, even with a saved device',
+    async (status) => {
+      mockStatus(status);
+      mockPairing({ savedDevice: { id: 'saved-1', name: 'Pulse HRM' } });
+
+      await render(<Device />);
+
+      expect(
+        screen.getByText('Grant Bluetooth access to see previously paired devices.'),
+      ).toBeOnTheScreen();
+      expect(screen.queryByText('Pulse HRM')).toBeNull();
     },
   );
 

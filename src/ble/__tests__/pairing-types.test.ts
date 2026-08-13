@@ -106,7 +106,12 @@ describe('selectDeviceDisplayName', () => {
 });
 
 describe('canScan', () => {
-  const context = { permissionGranted: true, isFocused: true, isAppActive: true };
+  const context = {
+    permissionGranted: true,
+    isFocused: true,
+    isAppActive: true,
+    autoReconnectPending: false,
+  };
 
   it('is true when permission, focus, app-active, and adapter are all satisfied and not connecting/connected', () => {
     expect(canScan({ adapter: 'poweredOn', connection: DISCONNECTED }, context)).toBe(true);
@@ -116,6 +121,7 @@ describe('canScan', () => {
     ['permission not granted', { ...context, permissionGranted: false }],
     ['not focused', { ...context, isFocused: false }],
     ['app not active', { ...context, isAppActive: false }],
+    ['auto-reconnect pending', { ...context, autoReconnectPending: true }],
   ] as const)('is false when %s', (_label, ctx) => {
     expect(canScan({ adapter: 'poweredOn', connection: DISCONNECTED }, ctx)).toBe(false);
   });
