@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import Index from '@/app/(tabs)/index';
+import { usePairingStore } from '@/ble/pairing-store';
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
@@ -15,6 +16,7 @@ describe('<Index /> (Home)', () => {
   beforeEach(() => {
     navigate.mockClear();
     mockedUseRouter.mockReturnValue({ navigate } as unknown as ReturnType<typeof useRouter>);
+    usePairingStore.getState().reset();
   });
 
   it('keeps the existing header copy', async () => {
@@ -44,5 +46,27 @@ describe('<Index /> (Home)', () => {
     fireEvent.press(cta);
 
     expect(navigate).toHaveBeenCalledWith('/device');
+  });
+
+  it('disables the Start Workout control with a hint when no device is connected, and press is a no-op', async () => {
+    await render(<Index />);
+
+    expect(screen.getByText('Connect a device first')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId('home-start-workout-cta'));
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('enables the Start Workout control with no hint when a device is connected, and navigates to /live-workout on press', async () => {
+    usePairingStore.setState({ connection: { kind: 'connected', deviceId: 'device-1' } });
+
+    await render(<Index />);
+
+    expect(screen.queryByText('Connect a device first')).not.toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId('home-start-workout-cta'));
+
+    expect(navigate).toHaveBeenCalledWith('/live-workout');
   });
 });
