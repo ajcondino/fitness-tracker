@@ -24,6 +24,8 @@ import {
 import { bleManager } from '@/ble/manager';
 import type { ScanAggregator } from '@/ble/scan-aggregator';
 import { createScanAggregator } from '@/ble/scan-aggregator';
+import type { SavedDevice } from '@/ble/saved-device';
+import { clearSavedDevice, loadSavedDevice, saveDevice } from '@/ble/saved-device';
 
 /**
  * The only I/O layer this ticket introduces: wires `bleManager`, `AppState`,
@@ -40,11 +42,18 @@ export function useDevicePairing(permissionGranted: boolean): {
   cancelConnect: () => void;
   retryScan: () => void;
   openBluetoothSettings: () => void;
+  savedDevice: SavedDevice | null;
+  forgetDevice: () => void;
 } {
   const { t } = useTranslation();
   const isFocused = useIsFocused();
   const [isAppActive, setIsAppActive] = useState(AppState.currentState === 'active');
   const [scanEpoch, setScanEpoch] = useState(0);
+  const [savedDevice, setSavedDevice] = useState<SavedDevice | null | undefined>(undefined);
+  // undefined = not yet loaded from storage; null = loaded, nothing saved;
+  // SavedDevice = loaded, and this is the remembered device.
+  const [autoReconnectPending, setAutoReconnectPending] = useState(true);
+  const autoReconnectDeviceIdRef = useRef<string | null>(null);
 
   const adapter = usePairingStore((state) => state.adapter);
   const scan = usePairingStore((state) => state.scan);
@@ -66,6 +75,53 @@ export function useDevicePairing(permissionGranted: boolean): {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load the saved device once per mount. Declared after the reset() effect
+  // above so reset() always applies first within the initial commit —
+  // though the async read guarantees this ordering regardless of
+  // declaration position.
+  useEffect(() => {
+    let cancelled = false;
+    loadSavedDevice().then((device) => {
+      if (!cancelled) setSavedDevice(device);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fire the single auto-reconnect attempt once every gating condition is
+  // met: the saved-device read has resolved, there is one to try, no
+  // attempt has been made yet this mount, the user has granted BLE
+  // permission, and the adapter has reached 'poweredOn' (never against an
+  // unknown/off adapter).
+  useEffect(() => {
+    if (savedDevice === undefined) return; // still loading
+    if (savedDevice === null) {
+      setAutoReconnectPending(false); // nothing to try — unblock scanning
+      return;
+    }
+    if (autoReconnectDeviceIdRef.current != null) return; // already attempted
+    if (!permissionGranted || adapter !== 'poweredOn') return; // wait for both
+    autoReconnectDeviceIdRef.current = savedDevice.id;
+    connect(savedDevice.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedDevice, permissionGranted, adapter]);
+
+  // Once the attempt fired above has left 'connecting' (succeeded or
+  // failed — connect()'s own CONNECT_TIMEOUT_MS and error handling apply
+  // unchanged, so this is a single attempt with the same timeout ceiling
+  // any manual connect already has, not a new timeout), unblock scanning.
+  useEffect(() => {
+    if (autoReconnectDeviceIdRef.current == null) return;
+    if (
+      connection.kind === 'connecting' &&
+      connection.deviceId === autoReconnectDeviceIdRef.current
+    ) {
+      return; // still in flight
+    }
+    setAutoReconnectPending(false);
+  }, [connection]);
+
   // Adapter subscription: mount → unmount, independent of focus/background.
   useEffect(() => {
     const subscription = bleManager.onStateChange((state) => {
@@ -84,7 +140,10 @@ export function useDevicePairing(permissionGranted: boolean): {
     return () => subscription.remove();
   }, []);
 
-  const eligible = canScan({ adapter, connection }, { permissionGranted, isFocused, isAppActive });
+  const eligible = canScan(
+    { adapter, connection },
+    { permissionGranted, isFocused, isAppActive, autoReconnectPending },
+  );
 
   // Scan start/stop effect. One dependency-array-driven effect covers
   // stopping on unmount, on focus loss, on app background, and on the
@@ -168,12 +227,15 @@ export function useDevicePairing(permissionGranted: boolean): {
     }, CONNECT_TIMEOUT_MS);
 
     bleManager.connectToDevice(deviceId).then(
-      () => {
+      (device) => {
         if (connectTimeoutRef.current != null) {
           clearTimeout(connectTimeoutRef.current);
           connectTimeoutRef.current = null;
         }
         usePairingStore.getState().connectSucceeded(deviceId);
+        const saved: SavedDevice = { id: deviceId, name: device.name ?? device.localName ?? null };
+        setSavedDevice(saved);
+        void saveDevice(saved);
       },
       (error: BleError) => {
         if (connectTimeoutRef.current != null) {
@@ -265,6 +327,15 @@ export function useDevicePairing(permissionGranted: boolean): {
     }
   }
 
+  // Scoped exactly to clearing this app's own reference — it does not call
+  // bleManager, does not touch connection, and cannot attempt any OS-level
+  // unpairing (see SPEC.md's Android-bonding note). A live connection to the
+  // forgotten device, if any, is left running untouched.
+  function forgetDevice() {
+    setSavedDevice(null);
+    void clearSavedDevice();
+  }
+
   const scanBarState = deriveScanBarState(
     { adapter, scan, devices, connection },
     t('pairing.deviceRow.unknownDevice'),
@@ -279,5 +350,7 @@ export function useDevicePairing(permissionGranted: boolean): {
     cancelConnect,
     retryScan,
     openBluetoothSettings,
+    savedDevice: savedDevice ?? null, // collapses 'still loading' to 'none' for callers
+    forgetDevice,
   };
 }

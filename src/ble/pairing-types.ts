@@ -181,12 +181,18 @@ export function deriveScanBarState(
 
 export function canScan(
   snapshot: { adapter: AdapterPowerState; connection: ConnectionState },
-  context: { permissionGranted: boolean; isFocused: boolean; isAppActive: boolean },
+  context: {
+    permissionGranted: boolean;
+    isFocused: boolean;
+    isAppActive: boolean;
+    autoReconnectPending: boolean;
+  },
 ): boolean {
   return (
     context.permissionGranted &&
     context.isFocused &&
     context.isAppActive &&
+    !context.autoReconnectPending &&
     snapshot.adapter === 'poweredOn' &&
     snapshot.connection.kind !== 'connecting' &&
     snapshot.connection.kind !== 'connected' &&

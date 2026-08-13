@@ -34,7 +34,8 @@
     "previouslyPaired": {
       "header": "PREVIOUSLY PAIRED",
       "emptyGranted": "No previously paired devices yet.",
-      "emptyNoAccess": "Grant Bluetooth access to see previously paired devices."
+      "emptyNoAccess": "Grant Bluetooth access to see previously paired devices.",
+      "forgetAction": "FORGET"
     },
     "scanBar": {
       "checkingAdapter": "CHECKING BLUETOOTH…",

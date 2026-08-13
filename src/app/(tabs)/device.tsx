@@ -6,6 +6,7 @@ import { selectDeviceDisplayName } from '@/ble/pairing-types';
 import { DeviceRow } from '@/components/device-row';
 import type { DeviceRowProps } from '@/components/device-row';
 import { ScanStatusBar } from '@/components/scan-status-bar';
+import { SavedDeviceRow } from '@/components/saved-device-row';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
@@ -39,6 +40,8 @@ export default function Device() {
     cancelConnect,
     retryScan,
     openBluetoothSettings,
+    savedDevice,
+    forgetDevice,
   } = useDevicePairing(status === 'granted');
 
   return (
@@ -102,11 +105,19 @@ export default function Device() {
           <ThemedText variant="labelCaps" color="onSurfaceFaint">
             {t('pairing.previouslyPaired.header')}
           </ThemedText>
-          <ThemedText variant="bodyMd" color="onSurfaceMuted">
-            {status === 'granted'
-              ? t('pairing.previouslyPaired.emptyGranted')
-              : t('pairing.previouslyPaired.emptyNoAccess')}
-          </ThemedText>
+          {status === 'granted' && savedDevice != null ? (
+            <SavedDeviceRow
+              name={savedDevice.name ?? t('pairing.deviceRow.unknownDevice')}
+              isNameFallback={savedDevice.name == null}
+              onForget={forgetDevice}
+            />
+          ) : (
+            <ThemedText variant="bodyMd" color="onSurfaceMuted">
+              {status === 'granted'
+                ? t('pairing.previouslyPaired.emptyGranted')
+                : t('pairing.previouslyPaired.emptyNoAccess')}
+            </ThemedText>
+          )}
         </View>
       </View>
     </ThemedView>

@@ -11,9 +11,11 @@ import {
   DEVICE_COMMIT_INTERVAL_MS,
   SCAN_TIMEOUT_MS,
 } from '@/ble/pairing-types';
+import { clearSavedDevice, loadSavedDevice, saveDevice } from '@/ble/saved-device';
 import { useDevicePairing } from '@/hooks/use-device-pairing';
 
 jest.mock('expo-router', () => ({ useIsFocused: jest.fn() }));
+jest.mock('@/ble/saved-device');
 
 const mockedUseIsFocused = useIsFocused as jest.MockedFunction<typeof useIsFocused>;
 const mockedOnStateChange = jest.mocked(bleManager.onStateChange);
@@ -22,6 +24,9 @@ const mockedStopDeviceScan = jest.mocked(bleManager.stopDeviceScan);
 const mockedConnectToDevice = jest.mocked(bleManager.connectToDevice);
 const mockedCancelDeviceConnection = jest.mocked(bleManager.cancelDeviceConnection);
 const mockedOnDeviceDisconnected = jest.mocked(bleManager.onDeviceDisconnected);
+const mockedLoadSavedDevice = jest.mocked(loadSavedDevice);
+const mockedSaveDevice = jest.mocked(saveDevice);
+const mockedClearSavedDevice = jest.mocked(clearSavedDevice);
 
 let capturedStateListener: (state: State) => void = () => {};
 let capturedScanListener: (error: BleError | null, device: Device | null) => void = () => {};
@@ -65,6 +70,13 @@ describe('useDevicePairing', () => {
     mockedStopDeviceScan.mockReset().mockResolvedValue(undefined);
     mockedConnectToDevice.mockReset();
     mockedCancelDeviceConnection.mockReset().mockResolvedValue({} as unknown as Device);
+
+    // Default: no saved device, so every pre-existing test in this file
+    // (written before this ticket) keeps its byte-for-byte-unchanged mount
+    // behavior — auto-reconnect resolves to "nothing to try" immediately.
+    mockedLoadSavedDevice.mockReset().mockResolvedValue(null);
+    mockedSaveDevice.mockReset().mockResolvedValue(undefined);
+    mockedClearSavedDevice.mockReset().mockResolvedValue(undefined);
   });
 
   afterEach(async () => {
@@ -370,6 +382,36 @@ describe('useDevicePairing', () => {
       expect(mockedCancelDeviceConnection).not.toHaveBeenCalled();
     });
 
+    it('persists the resolved device name via saveDevice on a successful manual connect', async () => {
+      mockedConnectToDevice.mockResolvedValue({
+        name: 'Pulse HRM',
+        localName: null,
+      } as unknown as Device);
+      const { result } = await renderHook(() => useDevicePairing(false));
+
+      await act(async () => {
+        result.current.connect('device-1');
+      });
+
+      expect(mockedSaveDevice).toHaveBeenCalledWith({ id: 'device-1', name: 'Pulse HRM' });
+      expect(result.current.savedDevice).toEqual({ id: 'device-1', name: 'Pulse HRM' });
+    });
+
+    it('falls back to localName, then null, for a successful connect whose Device has no name', async () => {
+      mockedConnectToDevice.mockResolvedValue({
+        name: null,
+        localName: 'Local HRM',
+      } as unknown as Device);
+      const { result } = await renderHook(() => useDevicePairing(false));
+
+      await act(async () => {
+        result.current.connect('device-1');
+      });
+
+      expect(mockedSaveDevice).toHaveBeenCalledWith({ id: 'device-1', name: 'Local HRM' });
+      expect(result.current.savedDevice).toEqual({ id: 'device-1', name: 'Local HRM' });
+    });
+
     it('a native promise that resolves successfully after the attempt already timed out does not flip connectionFailed back to connected', async () => {
       let resolveConnect!: (device: Device) => void;
       mockedConnectToDevice.mockReturnValue(
@@ -536,6 +578,139 @@ describe('useDevicePairing', () => {
         deviceId: 'device-1',
         reason: 'deviceDisconnected',
       });
+    });
+  });
+
+  describe('saved device / auto-reconnect', () => {
+    it('with no saved device, scanning starts exactly as today and connectToDevice is never called before a manual connect()', async () => {
+      mockedLoadSavedDevice.mockResolvedValue(null);
+
+      await renderHook(() => useDevicePairing(true));
+
+      expect(mockedStartDeviceScan).toHaveBeenCalledTimes(1);
+      expect(mockedConnectToDevice).not.toHaveBeenCalled();
+    });
+
+    it('attempts connectToDevice with the saved id when adapter is poweredOn and permission is granted, and never starts a scan once it succeeds', async () => {
+      mockedLoadSavedDevice.mockResolvedValue({ id: 'saved-1', name: 'Saved HRM' });
+      mockedConnectToDevice.mockResolvedValue({
+        name: 'Saved HRM',
+        localName: null,
+      } as unknown as Device);
+
+      await renderHook(() => useDevicePairing(true));
+
+      expect(mockedConnectToDevice).toHaveBeenCalledWith('saved-1');
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connected',
+        deviceId: 'saved-1',
+      });
+      expect(mockedSaveDevice).toHaveBeenCalledWith({ id: 'saved-1', name: 'Saved HRM' });
+      // canScan's existing 'connected' exclusion means no scan is ever
+      // started for the remainder of this mount.
+      expect(mockedStartDeviceScan).not.toHaveBeenCalled();
+    });
+
+    it('starts scanning only after a failed auto-reconnect attempt settles, never before', async () => {
+      mockedLoadSavedDevice.mockResolvedValue({ id: 'saved-1', name: 'Saved HRM' });
+      let rejectConnect!: (error: BleError) => void;
+      mockedConnectToDevice.mockReturnValue(
+        new Promise<Device>((_resolve, reject) => {
+          rejectConnect = reject;
+        }),
+      );
+
+      await renderHook(() => useDevicePairing(true));
+
+      expect(mockedConnectToDevice).toHaveBeenCalledWith('saved-1');
+      expect(mockedStartDeviceScan).not.toHaveBeenCalled();
+
+      await act(async () => {
+        rejectConnect({ errorCode: BleErrorCode.DeviceNotFound } as unknown as BleError);
+      });
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionFailed',
+        deviceId: 'saved-1',
+        reason: 'deviceUnavailable',
+      });
+      expect(mockedStartDeviceScan).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for the adapter to reach poweredOn before attempting the saved device', async () => {
+      mockedLoadSavedDevice.mockResolvedValue({ id: 'saved-1', name: 'Saved HRM' });
+      mockedOnStateChange.mockReset().mockImplementation((listener, emitCurrentState) => {
+        capturedStateListener = listener;
+        if (emitCurrentState) {
+          listener(State.PoweredOff);
+        }
+        return { remove: jest.fn() };
+      });
+      mockedConnectToDevice.mockResolvedValue({} as unknown as Device);
+
+      await renderHook(() => useDevicePairing(true));
+
+      expect(mockedConnectToDevice).not.toHaveBeenCalled();
+
+      await act(async () => {
+        capturedStateListener(State.PoweredOn);
+      });
+
+      expect(mockedConnectToDevice).toHaveBeenCalledWith('saved-1');
+    });
+
+    it('waits for permission to be granted before attempting the saved device', async () => {
+      mockedLoadSavedDevice.mockResolvedValue({ id: 'saved-1', name: 'Saved HRM' });
+      mockedConnectToDevice.mockResolvedValue({} as unknown as Device);
+
+      const { rerender } = await renderHook(
+        ({ granted }: { granted: boolean }) => useDevicePairing(granted),
+        { initialProps: { granted: false } },
+      );
+
+      expect(mockedConnectToDevice).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await rerender({ granted: true });
+      });
+
+      expect(mockedConnectToDevice).toHaveBeenCalledWith('saved-1');
+    });
+
+    it('only ever attempts connectToDevice once for the saved device, regardless of later adapter/permission changes', async () => {
+      mockedLoadSavedDevice.mockResolvedValue({ id: 'saved-1', name: 'Saved HRM' });
+      mockedConnectToDevice.mockReturnValue(new Promise<Device>(() => {}));
+
+      await renderHook(() => useDevicePairing(true));
+
+      expect(mockedConnectToDevice).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        capturedStateListener(State.PoweredOff);
+      });
+      await act(async () => {
+        capturedStateListener(State.PoweredOn);
+      });
+
+      expect(mockedConnectToDevice).toHaveBeenCalledTimes(1);
+    });
+
+    it('forgetDevice() calls clearSavedDevice() and flips the returned savedDevice to null, without touching bleManager or connection', async () => {
+      mockedLoadSavedDevice.mockResolvedValue({ id: 'saved-1', name: 'Saved HRM' });
+      mockedConnectToDevice.mockReturnValue(new Promise<Device>(() => {}));
+
+      const { result } = await renderHook(() => useDevicePairing(true));
+
+      expect(result.current.savedDevice).toEqual({ id: 'saved-1', name: 'Saved HRM' });
+
+      await act(async () => {
+        result.current.forgetDevice();
+      });
+
+      expect(mockedClearSavedDevice).toHaveBeenCalledTimes(1);
+      expect(result.current.savedDevice).toBeNull();
+      expect(mockedCancelDeviceConnection).not.toHaveBeenCalled();
+      expect(usePairingStore.getState().connection.kind).toBe('connecting');
     });
   });
 });
