@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
+import { usePairingStore } from '@/ble/pairing-store';
 import { DeviceCard } from '@/components/device-card';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
@@ -12,8 +13,14 @@ export default function Index() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
+  const connection = usePairingStore((state) => state.connection);
 
   const goToDevice = () => router.navigate('/device');
+  const isConnected = connection.kind === 'connected';
+  const goToLiveWorkout = () => {
+    if (!isConnected) return;
+    router.navigate('/live-workout');
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -55,6 +62,37 @@ export default function Index() {
             {t('home.connectCta')}
           </ThemedText>
         </Pressable>
+
+        {/* A new, separate control — not a reused button-hero — per
+            SPEC.md's UI decision: enabled only while connected, disabled
+            with a hint otherwise, navigating only to Live Workout. The
+            existing DeviceCard/hero button above are unaffected. */}
+        <View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !isConnected }}
+            disabled={!isConnected}
+            onPress={goToLiveWorkout}
+            testID="home-start-workout-cta"
+            style={({ pressed }) => [
+              styles.startWorkoutButton,
+              {
+                backgroundColor: isConnected ? theme.colors.primary : theme.colors.surfaceRaised,
+                borderRadius: theme.rounded.xl,
+                opacity: pressed && isConnected ? 0.82 : 1,
+              },
+            ]}
+          >
+            <ThemedText variant="actionMd" color={isConnected ? 'onPrimary' : 'onSurfaceMuted'}>
+              {t('home.startWorkoutCta')}
+            </ThemedText>
+          </Pressable>
+          {!isConnected && (
+            <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.startWorkoutHint}>
+              {t('home.startWorkoutHint')}
+            </ThemedText>
+          )}
+        </View>
       </View>
     </ThemedView>
   );
@@ -87,5 +125,14 @@ const styles = StyleSheet.create({
     borderLeftWidth: 12,
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
+  },
+  startWorkoutButton: {
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startWorkoutHint: {
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
 });

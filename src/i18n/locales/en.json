@@ -70,6 +70,24 @@
       "title": "No monitor connected",
       "subtitle": "Tap to pair a heart-rate monitor"
     },
-    "connectCta": "CONNECT A MONITOR"
+    "connectCta": "CONNECT A MONITOR",
+    "startWorkoutCta": "START WORKOUT",
+    "startWorkoutHint": "Connect a device first"
+  },
+  "liveWorkout": {
+    "title": "LIVE WORKOUT",
+    "bpmUnit": "BPM",
+    "status": {
+      "live": "LIVE",
+      "signalLost": "SIGNAL LOST",
+      "waiting": "WAITING FOR SIGNAL…"
+    },
+    "discard": "DISCARD",
+    "save": "SAVE",
+    "devSimulateDropout": "SIMULATE DROPOUT (DEV)",
+    "noDevice": {
+      "title": "No monitor connected",
+      "subtitle": "Go back and connect a heart-rate monitor to start a workout."
+    }
   }
 }
