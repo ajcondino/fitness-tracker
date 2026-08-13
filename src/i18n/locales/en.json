@@ -35,6 +35,34 @@
       "header": "PREVIOUSLY PAIRED",
       "emptyGranted": "No previously paired devices yet.",
       "emptyNoAccess": "Grant Bluetooth access to see previously paired devices."
+    },
+    "scanBar": {
+      "checkingAdapter": "CHECKING BLUETOOTH…",
+      "adapterOff": "BLUETOOTH IS OFF",
+      "adapterOffDetail": "Turn on Bluetooth to scan for devices.",
+      "adapterOffAction": "TURN ON BLUETOOTH",
+      "adapterResetting": "BLUETOOTH RESTARTING…",
+      "adapterUnsupported": "BLUETOOTH NOT SUPPORTED",
+      "adapterUnsupportedDetail": "This device can't scan for Bluetooth peripherals.",
+      "adapterUnauthorized": "BLUETOOTH ACCESS RESTRICTED",
+      "adapterUnauthorizedDetail": "The system has restricted Bluetooth for this app.",
+      "scanning": "SCANNING… / {{count}} FOUND",
+      "scanReady": "BLUETOOTH READY",
+      "scanComplete": "SCAN COMPLETE / {{count}} FOUND",
+      "scanAgainAction": "SCAN AGAIN",
+      "scanErrorStartFailed": "SCAN FAILED TO START",
+      "scanErrorLocationServicesDisabled": "LOCATION SERVICES OFF",
+      "scanErrorLocationServicesDisabledDetail": "Turn on Location Services to scan for devices.",
+      "scanErrorUnknown": "SCAN ERROR",
+      "connectingTo": "CONNECTING TO {{name}}…",
+      "connectedTo": "CONNECTED TO {{name}}"
+    },
+    "deviceRow": {
+      "unknownDevice": "Unknown device",
+      "rssi": "{{rssi}} dBm",
+      "connecting": "CONNECTING…",
+      "connected": "CONNECTED",
+      "retry": "RETRY"
     }
   },
   "home": {
