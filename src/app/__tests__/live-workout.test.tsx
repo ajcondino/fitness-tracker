@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import LiveWorkout from '@/app/live-workout';
@@ -128,6 +128,22 @@ describe('<LiveWorkout />', () => {
 
       expect(back).not.toHaveBeenCalled();
       expect(usePairingStore.getState().connection).toEqual(connectionBefore);
+    });
+
+    it('does not flip to the guard branch when connection transitions to connectionLost mid-session', async () => {
+      mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale' });
+
+      await render(<LiveWorkout />);
+
+      await act(async () => {
+        usePairingStore.getState().connectionLost('device-1', 'deviceDisconnected');
+      });
+
+      expect(screen.queryByText('No monitor connected')).not.toBeOnTheScreen();
+      expect(screen.getByText('LIVE WORKOUT')).toBeOnTheScreen();
+      expect(screen.getByText('Pulse HRM')).toBeOnTheScreen();
+      expect(screen.getByText('128')).toBeOnTheScreen();
+      expect(screen.getByText('SIGNAL LOST')).toBeOnTheScreen();
     });
 
     describe('__DEV__-only simulate-dropout trigger', () => {

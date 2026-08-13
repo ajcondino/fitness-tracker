@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -32,12 +33,17 @@ export default function LiveWorkout() {
   const theme = useTheme();
   const router = useRouter();
 
-  const connection = usePairingStore((state) => state.connection);
   const devices = usePairingStore((state) => state.devices);
 
   // No navigation param — reads the connected device straight from the
-  // store, per SPEC.md.
-  const deviceId = connection.kind === 'connected' ? connection.deviceId : null;
+  // store, per SPEC.md. Captured once at mount rather than derived from a
+  // live `connection` selector: `connection` can leave 'connected' mid-session
+  // (see ble-connection-loss-detection's spec) and this screen's behavior
+  // must not change when that happens.
+  const [deviceId] = useState(() => {
+    const connection = usePairingStore.getState().connection;
+    return connection.kind === 'connected' ? connection.deviceId : null;
+  });
   const device = devices.find((candidate) => candidate.id === deviceId) ?? null;
 
   const { bpm, status } = useLiveHeartRate(deviceId);

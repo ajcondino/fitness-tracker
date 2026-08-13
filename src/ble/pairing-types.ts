@@ -26,11 +26,16 @@ export type ConnectionFailureReason =
   | 'adapterOff' // adapter left `poweredOn` while this device was connecting
   | 'unknown';
 
+export type ConnectionLossReason =
+  | 'adapterOff' // phone Bluetooth turned off while this device was connected
+  | 'deviceDisconnected'; // the device itself dropped: out of range, dead battery, powered off
+
 export type ConnectionState =
   | { kind: 'disconnected' }
   | { kind: 'connecting'; deviceId: string; startedAt: number }
   | { kind: 'connected'; deviceId: string }
-  | { kind: 'connectionFailed'; deviceId: string; reason: ConnectionFailureReason };
+  | { kind: 'connectionFailed'; deviceId: string; reason: ConnectionFailureReason }
+  | { kind: 'connectionLost'; deviceId: string; reason: ConnectionLossReason };
 
 export type DiscoveredDevice = {
   id: string;
@@ -184,6 +189,7 @@ export function canScan(
     context.isAppActive &&
     snapshot.adapter === 'poweredOn' &&
     snapshot.connection.kind !== 'connecting' &&
-    snapshot.connection.kind !== 'connected'
+    snapshot.connection.kind !== 'connected' &&
+    snapshot.connection.kind !== 'connectionLost'
   );
 }

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type {
   AdapterPowerState,
   ConnectionFailureReason,
+  ConnectionLossReason,
   ConnectionState,
   DiscoveredDevice,
   ScanState,
@@ -33,6 +34,7 @@ export type PairingStore = {
   connectSucceeded: (deviceId: string) => void;
   connectFailed: (deviceId: string, reason: ConnectionFailureReason) => void;
   connectCancelled: (deviceId: string) => void;
+  connectionLost: (deviceId: string, reason: ConnectionLossReason) => void;
   reset: () => void;
 };
 
@@ -53,6 +55,17 @@ export const usePairingStore = create<PairingStore>()((set, get) => ({
           adapter,
           connection: {
             kind: 'connectionFailed',
+            deviceId: state.connection.deviceId,
+            reason: 'adapterOff',
+          },
+        };
+      }
+      if (state.connection.kind === 'connected') {
+        // "adapter turned off while connected"
+        return {
+          adapter,
+          connection: {
+            kind: 'connectionLost',
             deviceId: state.connection.deviceId,
             reason: 'adapterOff',
           },
@@ -92,6 +105,15 @@ export const usePairingStore = create<PairingStore>()((set, get) => ({
     const connection = get().connection;
     if (connection.kind !== 'connecting' || connection.deviceId !== deviceId) return;
     set({ connection: { kind: 'disconnected' } });
+  },
+  connectionLost: (deviceId, reason) => {
+    const connection = get().connection;
+    // Same staleness-guard shape as connectSucceeded/Failed/Cancelled, gated
+    // on 'connected' instead of 'connecting': a no-op if this device isn't
+    // the one currently connected, or if connection has already moved on
+    // (e.g. the adapter-off cascade already won the race).
+    if (connection.kind !== 'connected' || connection.deviceId !== deviceId) return;
+    set({ connection: { kind: 'connectionLost', deviceId, reason } });
   },
 
   reset: () =>

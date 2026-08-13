@@ -21,9 +21,11 @@ const mockedStartDeviceScan = jest.mocked(bleManager.startDeviceScan);
 const mockedStopDeviceScan = jest.mocked(bleManager.stopDeviceScan);
 const mockedConnectToDevice = jest.mocked(bleManager.connectToDevice);
 const mockedCancelDeviceConnection = jest.mocked(bleManager.cancelDeviceConnection);
+const mockedOnDeviceDisconnected = jest.mocked(bleManager.onDeviceDisconnected);
 
 let capturedStateListener: (state: State) => void = () => {};
 let capturedScanListener: (error: BleError | null, device: Device | null) => void = () => {};
+let capturedDisconnectListener: (error: BleError | null, device: Device) => void = () => {};
 
 function mockAppState() {
   let listener: (state: string) => void = () => {};
@@ -43,7 +45,12 @@ describe('useDevicePairing', () => {
 
     capturedStateListener = () => {};
     capturedScanListener = () => {};
+    capturedDisconnectListener = () => {};
 
+    mockedOnDeviceDisconnected.mockReset().mockImplementation((_deviceId, listener) => {
+      capturedDisconnectListener = listener;
+      return { remove: jest.fn() };
+    });
     mockedOnStateChange.mockReset().mockImplementation((listener, emitCurrentState) => {
       capturedStateListener = listener;
       if (emitCurrentState) {
@@ -422,6 +429,113 @@ describe('useDevicePairing', () => {
 
       expect(usePairingStore.getState().connection).toEqual({ kind: 'disconnected' });
       expect(mockedCancelDeviceConnection).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('connection loss', () => {
+    async function connectDevice1() {
+      mockedConnectToDevice.mockResolvedValue({} as unknown as Device);
+      const rendered = await renderHook(() => useDevicePairing(false));
+
+      await act(async () => {
+        rendered.result.current.connect('device-1');
+      });
+
+      return rendered;
+    }
+
+    it('subscribes via onDeviceDisconnected(deviceId, ...) only once connection becomes connected, not while connecting', async () => {
+      mockedConnectToDevice.mockReturnValue(new Promise<Device>(() => {}));
+      const { result } = await renderHook(() => useDevicePairing(false));
+
+      await act(async () => {
+        result.current.connect('device-1');
+      });
+
+      expect(mockedOnDeviceDisconnected).not.toHaveBeenCalled();
+    });
+
+    it('subscribes exactly once per connected session, once connected', async () => {
+      await connectDevice1();
+
+      expect(mockedOnDeviceDisconnected).toHaveBeenCalledTimes(1);
+      expect(mockedOnDeviceDisconnected).toHaveBeenCalledWith('device-1', expect.any(Function));
+    });
+
+    it('invoking the captured disconnect listener while connected transitions to connectionLost(deviceDisconnected)', async () => {
+      await connectDevice1();
+
+      await act(async () => {
+        capturedDisconnectListener(null, {} as Device);
+      });
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'deviceDisconnected',
+      });
+    });
+
+    it('calls the subscription remove() when connection leaves connected on unmount', async () => {
+      const remove = jest.fn();
+      mockedOnDeviceDisconnected.mockReset().mockImplementation((_deviceId, listener) => {
+        capturedDisconnectListener = listener;
+        return { remove };
+      });
+      const { unmount } = await connectDevice1();
+
+      await unmount();
+
+      expect(remove).toHaveBeenCalled();
+    });
+
+    it('calls the subscription remove() when connection leaves connected via the adapter-off cascade', async () => {
+      const remove = jest.fn();
+      mockedOnDeviceDisconnected.mockReset().mockImplementation((_deviceId, listener) => {
+        capturedDisconnectListener = listener;
+        return { remove };
+      });
+      await connectDevice1();
+
+      await act(async () => {
+        capturedStateListener(State.PoweredOff);
+      });
+
+      expect(remove).toHaveBeenCalled();
+    });
+
+    it('race A: adapter-off arriving first makes a subsequent disconnect-event a no-op', async () => {
+      await connectDevice1();
+
+      await act(async () => {
+        capturedStateListener(State.PoweredOff);
+      });
+      await act(async () => {
+        capturedDisconnectListener(null, {} as Device);
+      });
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'adapterOff',
+      });
+    });
+
+    it('race B: a disconnect event arriving first makes a subsequent adapter-off a no-op', async () => {
+      await connectDevice1();
+
+      await act(async () => {
+        capturedDisconnectListener(null, {} as Device);
+      });
+      await act(async () => {
+        capturedStateListener(State.PoweredOff);
+      });
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'deviceDisconnected',
+      });
     });
   });
 });

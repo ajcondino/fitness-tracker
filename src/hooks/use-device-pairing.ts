@@ -232,6 +232,25 @@ export function useDevicePairing(permissionGranted: boolean): {
     }
   }, [connection]);
 
+  // Device-disconnect subscription: active only while connected, to catch a
+  // genuine mid-session drop (device out of range/dead/powered off). Adapter
+  // loss while connected is instead caught by the onStateChange subscription
+  // above, via adapterStateChanged's own cascade — both may fire for the same
+  // physical cause (Bluetooth off while connected); whichever store action
+  // lands first wins, the second is a no-op via connectionLost's staleness
+  // guard, the same race tolerance already documented for the scan-listener/
+  // onStateChange overlap.
+  useEffect(() => {
+    if (connection.kind !== 'connected') {
+      return;
+    }
+    const deviceId = connection.deviceId;
+    const subscription = bleManager.onDeviceDisconnected(deviceId, () => {
+      usePairingStore.getState().connectionLost(deviceId, 'deviceDisconnected');
+    });
+    return () => subscription.remove();
+  }, [connection]);
+
   function retryScan() {
     // Only meaningful when `canScan` is already true — otherwise this is a
     // harmless no-op since the scan effect's own `eligible` check still

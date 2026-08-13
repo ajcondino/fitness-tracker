@@ -39,6 +39,52 @@ describe('usePairingStore', () => {
       usePairingStore.getState().adapterStateChanged('poweredOff');
       expect(usePairingStore.getState().connection).toEqual({ kind: 'disconnected' });
     });
+
+    it('transitions connection from connected to connectionLost(adapterOff) when the adapter leaves poweredOn', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+      usePairingStore.getState().adapterStateChanged('poweredOff');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'adapterOff',
+      });
+    });
+
+    it('does not touch scan when transitioning connected to connectionLost', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+      usePairingStore.getState().scanStopped();
+      usePairingStore.getState().adapterStateChanged('poweredOff');
+
+      expect(usePairingStore.getState().scan).toEqual({ kind: 'idle' });
+    });
+
+    it('leaves a connectionLost connection unchanged on a further adapterStateChanged call (no double-transition)', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+      usePairingStore.getState().adapterStateChanged('poweredOff');
+      usePairingStore.getState().adapterStateChanged('poweredOff');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'adapterOff',
+      });
+    });
+
+    it('leaves a connectionFailed connection unchanged on a further adapterStateChanged call (no double-transition)', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().adapterStateChanged('poweredOff');
+      usePairingStore.getState().adapterStateChanged('poweredOff');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionFailed',
+        deviceId: 'device-1',
+        reason: 'adapterOff',
+      });
+    });
   });
 
   describe('scan actions', () => {
@@ -197,6 +243,70 @@ describe('usePairingStore', () => {
         kind: 'connected',
         deviceId: 'device-1',
       });
+    });
+  });
+
+  describe('connectionLost', () => {
+    it('transitions connected to connectionLost(deviceDisconnected) for the matching deviceId', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+      usePairingStore.getState().connectionLost('device-1', 'deviceDisconnected');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'deviceDisconnected',
+      });
+    });
+
+    it('transitions connected to connectionLost(adapterOff) for the matching deviceId', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+      usePairingStore.getState().connectionLost('device-1', 'adapterOff');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'adapterOff',
+      });
+    });
+
+    it('is a no-op for a mismatched deviceId', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+      usePairingStore.getState().connectionLost('device-2', 'deviceDisconnected');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connected',
+        deviceId: 'device-1',
+      });
+    });
+
+    it.each([
+      ['disconnected', () => {}],
+      ['connecting', () => usePairingStore.getState().connectRequested('device-1', 0)],
+      [
+        'connectionFailed',
+        () => {
+          usePairingStore.getState().connectRequested('device-1', 0);
+          usePairingStore.getState().connectFailed('device-1', 'timeout');
+        },
+      ],
+      [
+        'already connectionLost',
+        () => {
+          usePairingStore.getState().connectRequested('device-1', 0);
+          usePairingStore.getState().connectSucceeded('device-1');
+          usePairingStore.getState().connectionLost('device-1', 'deviceDisconnected');
+        },
+      ],
+    ] as const)('is a no-op when connection is %s', (_label, setup) => {
+      setup();
+      const before = usePairingStore.getState().connection;
+
+      usePairingStore.getState().connectionLost('device-1', 'adapterOff');
+
+      expect(usePairingStore.getState().connection).toEqual(before);
     });
   });
 
