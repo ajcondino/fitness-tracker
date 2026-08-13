@@ -178,6 +178,20 @@ describe('<Device />', () => {
     expect(connect).toHaveBeenCalledWith('device-1');
   });
 
+  it('renders a connectionLost row as available and tappable to connect() again', async () => {
+    mockStatus('granted');
+    const { connect } = mockPairing({
+      devices: [makeDevice({ id: 'device-1' })],
+      connection: { kind: 'connectionLost', deviceId: 'device-1', reason: 'deviceDisconnected' },
+    });
+
+    await render(<Device />);
+
+    fireEvent.press(screen.getByTestId('device-row'));
+
+    expect(connect).toHaveBeenCalledWith('device-1');
+  });
+
   it('does not call connect for a row disabled by another device connecting', async () => {
     mockStatus('granted');
     const { connect } = mockPairing({

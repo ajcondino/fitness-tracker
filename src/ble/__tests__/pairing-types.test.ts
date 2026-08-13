@@ -133,6 +133,15 @@ describe('canScan', () => {
     const connected: ConnectionState = { kind: 'connected', deviceId: 'd1' };
     expect(canScan({ adapter: 'poweredOn', connection: connected }, context)).toBe(false);
   });
+
+  it('is false when the connection was lost', () => {
+    const connectionLost: ConnectionState = {
+      kind: 'connectionLost',
+      deviceId: 'd1',
+      reason: 'deviceDisconnected',
+    };
+    expect(canScan({ adapter: 'poweredOn', connection: connectionLost }, context)).toBe(false);
+  });
 });
 
 describe('deriveScanBarState', () => {
@@ -191,6 +200,29 @@ describe('deriveScanBarState', () => {
   ] as const)('maps adapter %s to %s when not connecting/connected', (adapter, kind) => {
     const snapshot = { adapter, scan: IDLE, devices: [], connection: DISCONNECTED };
     expect(deriveScanBarState(snapshot, FALLBACK)).toEqual({ kind });
+  });
+
+  it('falls through to the adapter/scan-derived row for a connectionLost connection, exactly like disconnected/connectionFailed', () => {
+    const connectionLost: ConnectionState = {
+      kind: 'connectionLost',
+      deviceId: 'd1',
+      reason: 'deviceDisconnected',
+    };
+    const lostSnapshot = {
+      adapter: 'poweredOn' as const,
+      scan: IDLE,
+      devices: [],
+      connection: connectionLost,
+    };
+    const disconnectedSnapshot = {
+      adapter: 'poweredOn' as const,
+      scan: IDLE,
+      devices: [],
+      connection: DISCONNECTED,
+    };
+    expect(deriveScanBarState(lostSnapshot, FALLBACK)).toEqual(
+      deriveScanBarState(disconnectedSnapshot, FALLBACK),
+    );
   });
 
   it('reports scanError when adapter is poweredOn and scan errored', () => {

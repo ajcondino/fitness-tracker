@@ -24,6 +24,7 @@ export class BleManager {
   stopDeviceScan = jest.fn();
   connectToDevice = jest.fn();
   cancelDeviceConnection = jest.fn();
+  onDeviceDisconnected = jest.fn();
   isDeviceConnected = jest.fn().mockResolvedValue(false);
   discoverAllServicesAndCharacteristicsForDevice = jest.fn();
   monitorCharacteristicForDevice = jest.fn();
