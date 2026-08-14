@@ -511,7 +511,9 @@ Corners are generous and consistent — nothing in Pulse is sharp.
 Radius tracks size: the larger the element, the larger the corner. A
 60px-tall button gets `xl`; a 44px row gets `md`.
 
-Ancillary shapes: status dots are 7–9px circles; signal bars are 3px
+Ancillary shapes: icons are outline-only, drawn on a 24px grid at
+1.9px stroke with round caps and joins and rendered at 20px; status
+dots are 7–9px circles; signal bars are 3px
 wide at 5/8/11/14px heights with a 1px radius and a 2px gap; trace bars
 are 2px-radius columns with a 3px minimum height so an empty slot still
 reads as a slot.
@@ -569,10 +571,18 @@ stays legible.
 tab bars can't express mono uppercase labels or this shape). `64px`
 tall, `xl` radius, `24px` inset from each screen edge, floating `16px`
 above the device's safe-area bottom inset. `surface-muted` on
-`outline`, three items (HOME, HISTORY, DEVICE), 18px glyph over a
+`outline`, three items (HOME, HISTORY, DEVICE), 20px glyph over a
 `tab-label` (mono, uppercase, `1px` tracking). Active is `primary`,
-inactive `on-surface-faint`. The device tab's glyph is a circle; the
-others are squares. Screens with scrollable content reserve
+inactive `on-surface-faint` — the icon takes the same color as its
+label, so state is carried by color alone and never by a filled shape.
+
+The glyphs are outline icons drawn on a 24px grid at 1.9px stroke with
+round caps and joins, no fill: **HOME** a house, **HISTORY** a clock
+with a counter-clockwise restore arrow, **DEVICE** a heart with a pulse
+line through it. They live in `src/components/icons.js` as
+`react-native-svg` paths taking a `color` prop; any icon added later
+must match that grid, weight, and cap style rather than arriving from
+an icon font. Screens with scrollable content reserve
 `tabBarClearance` (104px) of bottom padding, in addition to the
 device's safe-area bottom inset, so content never sits under the bar.
 
@@ -620,6 +630,9 @@ bottom so it clears the tab bar. `surface-raised` on `outline-strong`,
   ramp tops out at `#F2F3F5` and bottoms at `#0A0A0B`.
 - Don't animate anything except the live dot and the BPM ring. This is
   an app people look at mid-effort.
+- Don't use filled or duotone icons, and don't mix in an icon font.
+  Every glyph is a 1.9px outline path on the 24px grid, colored by the
+  same token as the text beside it.
 
 ## Motion
 
@@ -658,7 +671,8 @@ raised #191919 with #333333. Text #F2F3F5, muted #8A9099. One accent:
 #F5C518, on black ink #141414 — live numbers and the single primary
 action only. Archivo 800 for headings with negative tracking; JetBrains
 Mono for all numbers, units, and uppercase labels with positive
-tracking. Radii 12/16/18/22, pills at 999. Spacing 4/8/12/16/24/32,
+tracking. Radii 12/16/18/22, pills at 999. Icons are 20px outline
+paths on a 24px grid, 1.9px stroke, round caps. Spacing 4/8/12/16/24/32,
 24px gutters. No shadows, no second accent, no light mode.
 ```
 
