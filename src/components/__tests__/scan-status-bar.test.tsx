@@ -126,10 +126,10 @@ type ScanBarRow = {
 };
 
 // Mirrors SPEC.md's screen-states-and-copy table verbatim for every
-// `ScanBarState.kind` except `scanning`/`connected`, live once
-// `status === 'granted'` and a `scanBarState` is supplied. `scanning` and
-// `connected` render via their own dedicated "live row" (LiveDot +
-// label/count split, `scanning` additionally with the sweep) — see the
+// `ScanBarState.kind` except `scanning`/`connecting`/`connected`, live once
+// `status === 'granted'` and a `scanBarState` is supplied. Those three
+// render via their own dedicated "live row" (LiveDot + label/right-text
+// split, `scanning` and `connecting` additionally with the sweep) — see the
 // "live row" describe block below.
 const SCAN_BAR_ROWS: ScanBarRow[] = [
   {
@@ -197,11 +197,6 @@ const SCAN_BAR_ROWS: ScanBarRow[] = [
     color: colors.danger,
     actionLabel: 'SCAN AGAIN',
     actionTarget: 'retryScan',
-  },
-  {
-    scanBarState: { kind: 'connecting', deviceId: 'd1', name: 'Pulse HRM' },
-    text: '○ CONNECTING TO Pulse HRM…',
-    color: colors.primary,
   },
 ];
 
@@ -284,7 +279,7 @@ describe('<ScanStatusBar /> granted / scanBarState', () => {
   });
 });
 
-describe('<ScanStatusBar /> live row (scanning / connected)', () => {
+describe('<ScanStatusBar /> live row (scanning / connecting / connected)', () => {
   it('renders the scanning row: LiveDot + label in primary, count muted', async () => {
     await render(
       <ScanStatusBar
@@ -315,6 +310,45 @@ describe('<ScanStatusBar /> live row (scanning / connected)', () => {
         onRequestAccess={jest.fn()}
         onOpenSettings={jest.fn()}
         scanBarState={{ kind: 'scanning', count: 0 }}
+      />,
+    );
+
+    expect(screen.queryByTestId('scan-status-bar-action')).toBeNull();
+  });
+
+  it('renders the connecting row: LiveDot + "SCANNING…" label in primary, right-side "connecting"', async () => {
+    await render(
+      <ScanStatusBar
+        status="granted"
+        onRequestAccess={jest.fn()}
+        onOpenSettings={jest.fn()}
+        scanBarState={{ kind: 'connecting', deviceId: 'd1', name: 'Pulse HRM' }}
+      />,
+    );
+
+    expect(screen.getByTestId('scan-status-bar-live-dot').props.style).toEqual(
+      expect.objectContaining({ backgroundColor: colors.primary }),
+    );
+
+    const label = screen.getByText('SCANNING…');
+    expect(label.props.style).toEqual(expect.arrayContaining([{ color: colors.primary }]));
+
+    const rightText = screen.getByText('connecting');
+    expect(rightText.props.style).toEqual(
+      expect.arrayContaining([{ color: colors.onSurfaceMuted }]),
+    );
+
+    expect(screen.queryByText(/Pulse HRM/)).toBeNull();
+    expect(screen.queryByText(/CONNECTING/)).toBeNull();
+  });
+
+  it('renders no action for the connecting row', async () => {
+    await render(
+      <ScanStatusBar
+        status="granted"
+        onRequestAccess={jest.fn()}
+        onOpenSettings={jest.fn()}
+        scanBarState={{ kind: 'connecting', deviceId: 'd1', name: 'Pulse HRM' }}
       />,
     );
 

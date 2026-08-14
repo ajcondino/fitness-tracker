@@ -178,8 +178,11 @@ function deriveGrantedRowContent(
       };
     }
     case 'connecting':
+      // Unused for display — `deriveLiveRowContent` below renders
+      // `connecting` via its own dedicated row instead. Kept here only so
+      // this switch stays exhaustive over `ScanBarState.kind`.
       return {
-        text: t('pairing.scanBar.connectingTo', { name: scanBarState.name }),
+        text: t('pairing.scanBar.connecting'),
         color: 'primary',
         filled: false,
       };
@@ -195,17 +198,22 @@ function deriveGrantedRowContent(
   }
 }
 
-// The two `ScanBarState` kinds rendered via the dedicated "live row" (LiveDot
-// + label on the left, found-count on the right) instead of the shared
-// text-line layout every other kind above uses — see
-// ble-device-scanning/SPEC.md. `scanning` additionally gets the animated
-// gradient sweep; `connected` doesn't (a settled connection isn't "in
-// progress"). Both reuse the same `color` for the dot and the label, per
-// this app's "a status is a dot plus a word, same color" convention.
+// The three `ScanBarState` kinds rendered via the dedicated "live row"
+// (LiveDot + label on the left, a second line of text on the right) instead
+// of the shared text-line layout every other kind above uses — see
+// ble-device-scanning/SPEC.md. `scanning` and `connecting` additionally get
+// the animated gradient sweep; `connected` doesn't (a settled connection
+// isn't "in progress"). All three reuse the same `color` for the dot and
+// the label, per this app's "a status is a dot plus a word, same color"
+// convention. `connecting` borrows `scanning`'s own label and sweep —
+// scanning has just stopped to make room for the connect attempt, so the
+// bar keeps reading as "still working," with the right-hand text swapping
+// from a found-count to the word "connecting" to say what's actually
+// happening now.
 type LiveRowContent = {
   color: ColorToken;
   label: string;
-  count: number;
+  rightText: string;
   sweep: boolean;
 };
 
@@ -218,14 +226,21 @@ function deriveLiveRowContent(
       return {
         color: 'primary',
         label: t('pairing.scanBar.scanningLabel'),
-        count: scanBarState.count,
+        rightText: t('pairing.scanBar.foundCount', { count: scanBarState.count }),
+        sweep: true,
+      };
+    case 'connecting':
+      return {
+        color: 'primary',
+        label: t('pairing.scanBar.scanningLabel'),
+        rightText: t('pairing.scanBar.connecting'),
         sweep: true,
       };
     case 'connected':
       return {
         color: 'success',
         label: t('pairing.scanBar.connectedLabel'),
-        count: scanBarState.count,
+        rightText: t('pairing.scanBar.foundCount', { count: scanBarState.count }),
         sweep: false,
       };
     default:
@@ -372,7 +387,7 @@ export function ScanStatusBar(props: ScanStatusBarProps) {
             </ThemedText>
           </View>
           <ThemedText variant="dataMd" color="onSurfaceMuted">
-            {t('pairing.scanBar.foundCount', { count: liveRow.count })}
+            {liveRow.rightText}
           </ThemedText>
         </>
       ) : (

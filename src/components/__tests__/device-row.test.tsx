@@ -4,7 +4,7 @@ import { DeviceRow } from '@/components/device-row';
 import { colors } from '@/constants/theme';
 
 describe('<DeviceRow />', () => {
-  it('renders the name, RSSI, and a chevron for an available device', async () => {
+  it('renders the name, RSSI with a signal qualifier, and a CONNECT pill for a strong-signal available device', async () => {
     await render(
       <DeviceRow
         name="Pulse HRM"
@@ -17,8 +17,8 @@ describe('<DeviceRow />', () => {
     );
 
     expect(screen.getByText('Pulse HRM')).toBeOnTheScreen();
-    expect(screen.getByText('-52 dBm')).toBeOnTheScreen();
-    expect(screen.getByText('›')).toBeOnTheScreen();
+    expect(screen.getByText('−52 dBm · Strong')).toBeOnTheScreen();
+    expect(screen.getByText('CONNECT')).toBeOnTheScreen();
   });
 
   it('dims the title when isNameFallback is true', async () => {
@@ -54,11 +54,31 @@ describe('<DeviceRow />', () => {
   });
 
   it.each([
-    ['connecting', 'CONNECTING…', colors.onSurfaceFaint],
+    ['−70 dBm · Fair', -70],
+    ['−60 dBm · Good', -60],
+    ['−52 dBm · Strong', -52],
+    ['−90 dBm · Weak', -90],
+  ] as const)('formats %s for an RSSI of %i dBm', async (text, rssi) => {
+    await render(
+      <DeviceRow
+        name="Pulse HRM"
+        isNameFallback={false}
+        rssi={rssi}
+        status="available"
+        disabled={false}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText(text)).toBeOnTheScreen();
+  });
+
+  it.each([
+    ['connecting', 'PAIRING', colors.onPrimary],
     ['connected', 'CONNECTED', colors.success],
     ['failed', 'RETRY', colors.primary],
   ] as const)(
-    'renders %s with trailing copy %s in the right color',
+    'renders %s with trailing pill copy %s in the right label color',
     async (status, text, color) => {
       await render(
         <DeviceRow
@@ -75,6 +95,22 @@ describe('<DeviceRow />', () => {
       expect(node.props.style).toEqual(expect.arrayContaining([{ color }]));
     },
   );
+
+  it('renders an available device with a weaker signal with an outline pill, not the filled one', async () => {
+    await render(
+      <DeviceRow
+        name="Pulse HRM"
+        isNameFallback={false}
+        rssi={-70}
+        status="available"
+        disabled={false}
+        onPress={jest.fn()}
+      />,
+    );
+
+    const node = screen.getByText('CONNECT');
+    expect(node.props.style).toEqual(expect.arrayContaining([{ color: colors.onSurfaceSoft }]));
+  });
 
   it('calls onPress when enabled', async () => {
     const onPress = jest.fn();
