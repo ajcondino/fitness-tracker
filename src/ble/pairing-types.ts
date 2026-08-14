@@ -148,7 +148,7 @@ export type ScanBarState =
   | { kind: 'scanIdle'; count: number } // stopped: pre-first-scan (count 0) or post-timeout
   | { kind: 'scanError'; reason: 'startFailed' | 'locationServicesDisabled' | 'unknown' }
   | { kind: 'connecting'; deviceId: string; name: string }
-  | { kind: 'connected'; deviceId: string; name: string };
+  | { kind: 'connected'; deviceId: string; name: string; count: number };
 
 // Takes a plain snapshot shape (structurally what the store holds) so this
 // stays testable with a hand-built object literal — no store import needed.
@@ -169,7 +169,7 @@ export function deriveScanBarState(
       ? selectDeviceDisplayName(device, unknownDeviceLabel).text
       : unknownDeviceLabel;
     return connection.kind === 'connected'
-      ? { kind: 'connected', deviceId: connection.deviceId, name }
+      ? { kind: 'connected', deviceId: connection.deviceId, name, count: devices.length }
       : { kind: 'connecting', deviceId: connection.deviceId, name };
   }
 

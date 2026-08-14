@@ -292,11 +292,9 @@ describe('<Device />', () => {
       [{ kind: 'adapterResetting' }, 'BLUETOOTH RESTARTING…'],
       [{ kind: 'adapterUnsupported' }, 'BLUETOOTH NOT SUPPORTED'],
       [{ kind: 'adapterUnauthorized' }, 'BLUETOOTH ACCESS RESTRICTED'],
-      [{ kind: 'scanning', count: 4 }, 'SCANNING… / 4 FOUND'],
       [{ kind: 'scanIdle', count: 0 }, 'BLUETOOTH READY'],
       [{ kind: 'scanError', reason: 'unknown' }, 'SCAN ERROR'],
       [{ kind: 'connecting', deviceId: 'd1', name: 'Pulse HRM' }, 'CONNECTING TO Pulse HRM…'],
-      [{ kind: 'connected', deviceId: 'd1', name: 'Pulse HRM' }, 'CONNECTED TO Pulse HRM'],
     ] as const)('renders the scan bar for %o', async (scanBarState, expectedText) => {
       mockStatus('granted');
       mockPairing({ scanBarState: scanBarState as ScanBarState });
@@ -306,6 +304,32 @@ describe('<Device />', () => {
       expect(
         screen.getByText(new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))),
       ).toBeOnTheScreen();
+    });
+
+    // `scanning`/`connected` render via the dedicated live row (LiveDot +
+    // label/count split) instead of a single combined text node — see
+    // scan-status-bar.test.tsx for the full assertions; this just confirms
+    // the wiring reaches the screen.
+    it('renders the scanning live row', async () => {
+      mockStatus('granted');
+      mockPairing({ scanBarState: { kind: 'scanning', count: 4 } });
+
+      await render(<Device />);
+
+      expect(screen.getByText('SCANNING…')).toBeOnTheScreen();
+      expect(screen.getByText('4 found')).toBeOnTheScreen();
+    });
+
+    it('renders the connected live row without the device name', async () => {
+      mockStatus('granted');
+      mockPairing({
+        scanBarState: { kind: 'connected', deviceId: 'd1', name: 'Pulse HRM', count: 4 },
+      });
+
+      await render(<Device />);
+
+      expect(screen.getByText('CONNECTED')).toBeOnTheScreen();
+      expect(screen.getByText('4 found')).toBeOnTheScreen();
     });
 
     it('wires retryScan to the scan bar action', async () => {

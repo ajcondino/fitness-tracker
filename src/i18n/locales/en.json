@@ -47,7 +47,8 @@
       "adapterUnsupportedDetail": "This device can't scan for Bluetooth peripherals.",
       "adapterUnauthorized": "BLUETOOTH ACCESS RESTRICTED",
       "adapterUnauthorizedDetail": "The system has restricted Bluetooth for this app.",
-      "scanning": "SCANNING… / {{count}} FOUND",
+      "scanningLabel": "SCANNING…",
+      "foundCount": "{{count}} found",
       "scanReady": "BLUETOOTH READY",
       "scanComplete": "SCAN COMPLETE / {{count}} FOUND",
       "scanAgainAction": "SCAN AGAIN",
@@ -56,7 +57,7 @@
       "scanErrorLocationServicesDisabledDetail": "Turn on Location Services to scan for devices.",
       "scanErrorUnknown": "SCAN ERROR",
       "connectingTo": "CONNECTING TO {{name}}…",
-      "connectedTo": "CONNECTED TO {{name}}"
+      "connectedLabel": "CONNECTED"
     },
     "deviceRow": {
       "unknownDevice": "Unknown device",

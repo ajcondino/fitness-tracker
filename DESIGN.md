@@ -628,19 +628,28 @@ bottom so it clears the tab bar. `surface-raised` on `outline-strong`,
   brand decision and not in scope.
 - Don't use white (`#FFFFFF`) or pure black (`#000000`) anywhere. The
   ramp tops out at `#F2F3F5` and bottoms at `#0A0A0B`.
-- Don't animate anything except the live dot and the BPM ring. This is
-  an app people look at mid-effort.
+- Don't animate anything except the live dot, the BPM ring, and the
+  scan-bar sweep (scoped to the scan status bar's `scanning` state — see
+  Motion). This is an app people look at mid-effort.
 - Don't use filled or duotone icons, and don't mix in an icon font.
   Every glyph is a 1.9px outline path on the 24px grid, colored by the
   same token as the text beside it.
 
 ## Motion
 
-Minimal and slow. Two loops only:
+Minimal and slow. Three loops only:
 
 - **Live dot** — opacity 1 → 0.35 → 1, 1400ms, `ease-in-out`, native
   driver.
 - **BPM ring** — the same easing at 1200ms.
+- **Scan-bar sweep** — a soft `primary` gradient band (~30% of the bar's
+  width) sweeping left → right across the scan status bar while a scan is
+  in progress, 2400ms, `linear`, looping. Peaks at ~10% opacity of
+  `primary` at the band's center, transparent at both edges. Scoped to
+  `scan-status-bar.tsx`'s `scanning` state only — the one motion exception
+  outside the live dot and BPM ring, justified by the same "yellow means
+  now" rule that colors `connecting` primary (see Components > Live dot
+  and the `ble-device-scanning` spec).
 
 Pressed states are instant opacity changes (0.82), not transitions.
 Screen transitions use the platform default. Anything faster than

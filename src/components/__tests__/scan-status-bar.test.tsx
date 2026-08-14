@@ -126,8 +126,11 @@ type ScanBarRow = {
 };
 
 // Mirrors SPEC.md's screen-states-and-copy table verbatim for every
-// `ScanBarState.kind`, live once `status === 'granted'` and a `scanBarState`
-// is supplied.
+// `ScanBarState.kind` except `scanning`/`connected`, live once
+// `status === 'granted'` and a `scanBarState` is supplied. `scanning` and
+// `connected` render via their own dedicated "live row" (LiveDot +
+// label/count split, `scanning` additionally with the sweep) — see the
+// "live row" describe block below.
 const SCAN_BAR_ROWS: ScanBarRow[] = [
   {
     scanBarState: { kind: 'checkingAdapter' },
@@ -158,11 +161,6 @@ const SCAN_BAR_ROWS: ScanBarRow[] = [
     text: '● BLUETOOTH ACCESS RESTRICTED',
     color: colors.danger,
     detail: 'The system has restricted Bluetooth for this app.',
-  },
-  {
-    scanBarState: { kind: 'scanning', count: 3 },
-    text: '● SCANNING… / 3 FOUND',
-    color: colors.success,
   },
   {
     scanBarState: { kind: 'scanIdle', count: 0 },
@@ -204,11 +202,6 @@ const SCAN_BAR_ROWS: ScanBarRow[] = [
     scanBarState: { kind: 'connecting', deviceId: 'd1', name: 'Pulse HRM' },
     text: '○ CONNECTING TO Pulse HRM…',
     color: colors.primary,
-  },
-  {
-    scanBarState: { kind: 'connected', deviceId: 'd1', name: 'Pulse HRM' },
-    text: '● CONNECTED TO Pulse HRM',
-    color: colors.success,
   },
 ];
 
@@ -287,6 +280,81 @@ describe('<ScanStatusBar /> granted / scanBarState', () => {
     );
 
     expect(screen.getByText('● BLUETOOTH ACCESS GRANTED')).toBeOnTheScreen();
+    expect(screen.queryByTestId('scan-status-bar-action')).toBeNull();
+  });
+});
+
+describe('<ScanStatusBar /> live row (scanning / connected)', () => {
+  it('renders the scanning row: LiveDot + label in primary, count muted', async () => {
+    await render(
+      <ScanStatusBar
+        status="granted"
+        onRequestAccess={jest.fn()}
+        onOpenSettings={jest.fn()}
+        scanBarState={{ kind: 'scanning', count: 3 }}
+      />,
+    );
+
+    expect(screen.getByTestId('scan-status-bar-live-dot').props.style).toEqual(
+      expect.objectContaining({ backgroundColor: colors.primary }),
+    );
+
+    const label = screen.getByText('SCANNING…');
+    expect(label.props.style).toEqual(expect.arrayContaining([{ color: colors.primary }]));
+
+    const count = screen.getByText('3 found');
+    expect(count.props.style).toEqual(expect.arrayContaining([{ color: colors.onSurfaceMuted }]));
+
+    expect(screen.queryByText('SCANNING… / 3 FOUND')).toBeNull();
+  });
+
+  it('renders no action for the scanning row', async () => {
+    await render(
+      <ScanStatusBar
+        status="granted"
+        onRequestAccess={jest.fn()}
+        onOpenSettings={jest.fn()}
+        scanBarState={{ kind: 'scanning', count: 0 }}
+      />,
+    );
+
+    expect(screen.queryByTestId('scan-status-bar-action')).toBeNull();
+  });
+
+  it('renders the connected row: LiveDot + bare "CONNECTED" in success, name omitted, count still shown', async () => {
+    await render(
+      <ScanStatusBar
+        status="granted"
+        onRequestAccess={jest.fn()}
+        onOpenSettings={jest.fn()}
+        scanBarState={{ kind: 'connected', deviceId: 'd1', name: 'Pulse HRM', count: 2 }}
+      />,
+    );
+
+    expect(screen.getByTestId('scan-status-bar-live-dot').props.style).toEqual(
+      expect.objectContaining({ backgroundColor: colors.success }),
+    );
+
+    const label = screen.getByText('CONNECTED');
+    expect(label.props.style).toEqual(expect.arrayContaining([{ color: colors.success }]));
+
+    const count = screen.getByText('2 found');
+    expect(count.props.style).toEqual(expect.arrayContaining([{ color: colors.onSurfaceMuted }]));
+
+    expect(screen.queryByText(/Pulse HRM/)).toBeNull();
+    expect(screen.queryByText('CONNECTED TO Pulse HRM')).toBeNull();
+  });
+
+  it('renders no action for the connected row', async () => {
+    await render(
+      <ScanStatusBar
+        status="granted"
+        onRequestAccess={jest.fn()}
+        onOpenSettings={jest.fn()}
+        scanBarState={{ kind: 'connected', deviceId: 'd1', name: 'Pulse HRM', count: 0 }}
+      />,
+    );
+
     expect(screen.queryByTestId('scan-status-bar-action')).toBeNull();
   });
 });
