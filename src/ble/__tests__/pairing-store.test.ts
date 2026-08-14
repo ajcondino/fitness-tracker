@@ -85,6 +85,21 @@ describe('usePairingStore', () => {
         reason: 'adapterOff',
       });
     });
+
+    it('transitions connection from reconnecting to connectionLost(adapterOff) when the adapter leaves poweredOn', () => {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+      usePairingStore.getState().connectionLost('device-1', 'deviceDisconnected');
+      usePairingStore.getState().reconnectAttemptStarted('device-1', 1);
+
+      usePairingStore.getState().adapterStateChanged('poweredOff');
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'adapterOff',
+      });
+    });
   });
 
   describe('scan actions', () => {
@@ -307,6 +322,138 @@ describe('usePairingStore', () => {
       usePairingStore.getState().connectionLost('device-1', 'adapterOff');
 
       expect(usePairingStore.getState().connection).toEqual(before);
+    });
+  });
+
+  describe('reconnect actions', () => {
+    function loseConnection(reason: 'deviceDisconnected' | 'adapterOff' = 'deviceDisconnected') {
+      usePairingStore.getState().connectRequested('device-1', 0);
+      usePairingStore.getState().connectSucceeded('device-1');
+      usePairingStore.getState().connectionLost('device-1', reason);
+    }
+
+    describe('reconnectAttemptStarted', () => {
+      it('transitions connectionLost(deviceDisconnected) to reconnecting with the given attempt', () => {
+        loseConnection('deviceDisconnected');
+        usePairingStore.getState().reconnectAttemptStarted('device-1', 1);
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'reconnecting',
+          deviceId: 'device-1',
+          attempt: 1,
+        });
+      });
+
+      it('transitions reconnecting to reconnecting with a later attempt for the same deviceId', () => {
+        loseConnection('deviceDisconnected');
+        usePairingStore.getState().reconnectAttemptStarted('device-1', 1);
+        usePairingStore.getState().reconnectAttemptStarted('device-1', 2);
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'reconnecting',
+          deviceId: 'device-1',
+          attempt: 2,
+        });
+      });
+
+      it('is a no-op when the connection was lost to adapterOff, not deviceDisconnected', () => {
+        loseConnection('adapterOff');
+        usePairingStore.getState().reconnectAttemptStarted('device-1', 1);
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'connectionLost',
+          deviceId: 'device-1',
+          reason: 'adapterOff',
+        });
+      });
+
+      it('is a no-op for a mismatched deviceId', () => {
+        loseConnection('deviceDisconnected');
+        usePairingStore.getState().reconnectAttemptStarted('device-2', 1);
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'connectionLost',
+          deviceId: 'device-1',
+          reason: 'deviceDisconnected',
+        });
+      });
+
+      it('is a no-op when not currently connectionLost/reconnecting', () => {
+        usePairingStore.getState().reconnectAttemptStarted('device-1', 1);
+        expect(usePairingStore.getState().connection).toEqual({ kind: 'disconnected' });
+      });
+    });
+
+    describe('reconnectSucceeded', () => {
+      it('transitions reconnecting to connected for the matching deviceId', () => {
+        loseConnection('deviceDisconnected');
+        usePairingStore.getState().reconnectAttemptStarted('device-1', 1);
+        usePairingStore.getState().reconnectSucceeded('device-1');
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'connected',
+          deviceId: 'device-1',
+        });
+      });
+
+      it('is a no-op for a mismatched deviceId', () => {
+        loseConnection('deviceDisconnected');
+        usePairingStore.getState().reconnectAttemptStarted('device-1', 1);
+        usePairingStore.getState().reconnectSucceeded('device-2');
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'reconnecting',
+          deviceId: 'device-1',
+          attempt: 1,
+        });
+      });
+
+      it('is a no-op when not currently reconnecting', () => {
+        loseConnection('deviceDisconnected');
+        usePairingStore.getState().reconnectSucceeded('device-1');
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'connectionLost',
+          deviceId: 'device-1',
+          reason: 'deviceDisconnected',
+        });
+      });
+    });
+
+    describe('reconnectFailed', () => {
+      it('transitions reconnecting to reconnectFailed for the matching deviceId', () => {
+        loseConnection('deviceDisconnected');
+        usePairingStore.getState().reconnectAttemptStarted('device-1', 3);
+        usePairingStore.getState().reconnectFailed('device-1');
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'reconnectFailed',
+          deviceId: 'device-1',
+        });
+      });
+
+      it('is a no-op for a mismatched deviceId', () => {
+        loseConnection('deviceDisconnected');
+        usePairingStore.getState().reconnectAttemptStarted('device-1', 3);
+        usePairingStore.getState().reconnectFailed('device-2');
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'reconnecting',
+          deviceId: 'device-1',
+          attempt: 3,
+        });
+      });
+
+      it('is a no-op when not currently reconnecting', () => {
+        loseConnection('deviceDisconnected');
+        usePairingStore.getState().reconnectFailed('device-1');
+
+        expect(usePairingStore.getState().connection).toEqual({
+          kind: 'connectionLost',
+          deviceId: 'device-1',
+          reason: 'deviceDisconnected',
+        });
+      });
     });
   });
 

@@ -23,8 +23,17 @@ export type LiveHeartRateStatus = 'awaitingFirstReading' | 'live' | 'stale';
  *
  * Always called unconditionally (rules of hooks) — `deviceId` is the gate.
  * When `deviceId` is `null`, this is a no-op for the life of that render.
+ *
+ * `isConnected` gates the same effect: a drop that flips it to `false` tears
+ * the subscription down (guard makes the re-run a no-op), and a later
+ * reconnect flipping it back to `true` re-runs discovery + monitor against
+ * the new native connection — this is what resumes BPM after
+ * auto-reconnect-after-drop without a remount.
  */
-export function useLiveHeartRate(deviceId: string | null): {
+export function useLiveHeartRate(
+  deviceId: string | null,
+  isConnected: boolean,
+): {
   bpm: number | null;
   status: LiveHeartRateStatus;
 } {
@@ -33,7 +42,7 @@ export function useLiveHeartRate(deviceId: string | null): {
   const lastReadingAtRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (deviceId == null) return;
+    if (deviceId == null || !isConnected) return;
 
     let cancelled = false;
     let subscription: Subscription | null = null;
@@ -80,7 +89,7 @@ export function useLiveHeartRate(deviceId: string | null): {
       clearInterval(intervalId);
       subscription?.remove();
     };
-  }, [deviceId]);
+  }, [deviceId, isConnected]);
 
   const status: LiveHeartRateStatus =
     bpm === null ? 'awaitingFirstReading' : isStale ? 'stale' : 'live';

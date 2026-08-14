@@ -35,7 +35,9 @@ export type ConnectionState =
   | { kind: 'connecting'; deviceId: string; startedAt: number }
   | { kind: 'connected'; deviceId: string }
   | { kind: 'connectionFailed'; deviceId: string; reason: ConnectionFailureReason }
-  | { kind: 'connectionLost'; deviceId: string; reason: ConnectionLossReason };
+  | { kind: 'connectionLost'; deviceId: string; reason: ConnectionLossReason }
+  | { kind: 'reconnecting'; deviceId: string; attempt: number }
+  | { kind: 'reconnectFailed'; deviceId: string };
 
 export type DiscoveredDevice = {
   id: string;
@@ -73,6 +75,24 @@ export const SCAN_TIMEOUT_MS = 30_000;
 /** How long a single connect attempt is allowed to hang before this spec's
  * own timeout fires. */
 export const CONNECT_TIMEOUT_MS = 15_000;
+
+/** Up to this many direct-connect attempts per drop, per the ticket. */
+export const RECONNECT_MAX_ATTEMPTS = 3;
+
+/** Delay before attempt N (1-indexed) — index 0 is the wait before attempt 1,
+ * so "Reconnecting…" is visible from the moment the drop is detected, not
+ * only once the first native call is actually in flight. Educated-guess
+ * defaults per the ticket brief (~2s/4s/8s) — MUST be re-verified against a
+ * real device before this ships; see auto-reconnect-after-drop's Constraints. */
+export const RECONNECT_BACKOFF_MS = [2_000, 4_000, 8_000];
+
+/** Per-attempt ceiling, independent of CONNECT_TIMEOUT_MS. A reconnect is a
+ * direct connect to an already-bonded, recently-seen address — no scan, no
+ * fresh discovery — so it should resolve faster than a first-time connect;
+ * a full CONNECT_TIMEOUT_MS (15s) per attempt would let one drop's full
+ * retry cycle run past a minute. This spec's own default — see
+ * auto-reconnect-after-drop's Constraints. */
+export const RECONNECT_ATTEMPT_TIMEOUT_MS = 5_000;
 
 export function toAdapterPowerState(state: BleState): AdapterPowerState {
   switch (state) {
@@ -196,6 +216,7 @@ export function canScan(
     snapshot.adapter === 'poweredOn' &&
     snapshot.connection.kind !== 'connecting' &&
     snapshot.connection.kind !== 'connected' &&
-    snapshot.connection.kind !== 'connectionLost'
+    snapshot.connection.kind !== 'connectionLost' &&
+    snapshot.connection.kind !== 'reconnecting'
   );
 }

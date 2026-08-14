@@ -17,6 +17,9 @@ import {
   CONNECT_TIMEOUT_MS,
   DEVICE_COMMIT_INTERVAL_MS,
   deriveScanBarState,
+  RECONNECT_ATTEMPT_TIMEOUT_MS,
+  RECONNECT_BACKOFF_MS,
+  RECONNECT_MAX_ATTEMPTS,
   SCAN_TIMEOUT_MS,
   selectSortedDevices,
   toAdapterPowerState,
@@ -214,9 +217,21 @@ export function useDevicePairing(permissionGranted: boolean): {
   // connection-cleanup effect below so either side can clear it.
   const connectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Takes `deviceId` explicitly rather than reading `device.id` — matches
+  // the pre-existing inline logic this was extracted from, which always
+  // persisted the id it dialed rather than trusting the resolved `Device`
+  // to echo it back.
+  function persistConnectedDevice(deviceId: string, device: Device) {
+    const saved: SavedDevice = { id: deviceId, name: device.name ?? device.localName ?? null };
+    setSavedDevice(saved);
+    void saveDevice(saved);
+  }
+
   function connect(deviceId: string) {
-    if (usePairingStore.getState().connection.kind === 'connecting') {
-      // Never issue a second concurrent attempt.
+    const currentKind = usePairingStore.getState().connection.kind;
+    if (currentKind === 'connecting' || currentKind === 'reconnecting') {
+      // Never issue a second concurrent attempt, and never clobber an
+      // automatic retry that's already running for some device.
       return;
     }
 
@@ -233,9 +248,7 @@ export function useDevicePairing(permissionGranted: boolean): {
           connectTimeoutRef.current = null;
         }
         usePairingStore.getState().connectSucceeded(deviceId);
-        const saved: SavedDevice = { id: deviceId, name: device.name ?? device.localName ?? null };
-        setSavedDevice(saved);
-        void saveDevice(saved);
+        persistConnectedDevice(deviceId, device);
       },
       (error: BleError) => {
         if (connectTimeoutRef.current != null) {
@@ -312,6 +325,88 @@ export function useDevicePairing(permissionGranted: boolean): {
     });
     return () => subscription.remove();
   }, [connection]);
+
+  // Auto-reconnect-after-drop retry loop. Pending backoff/attempt-timeout
+  // handle, shared between scheduleReconnectAttempt/runReconnectAttempt and
+  // the unmount-cleanup effect below.
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Identity-compared "current attempt" token — see runReconnectAttempt. A
+  // fresh object per attempt makes a superseded attempt's async handlers
+  // no-ops, the same "cancel stale async work" shape as
+  // previousConnectingIdRef, adapted for a sequence of attempts under one
+  // continuous retry cycle instead of a single in-flight one.
+  const currentReconnectRef = useRef<{ deviceId: string; attempt: number } | null>(null);
+
+  function scheduleReconnectAttempt(deviceId: string, attempt: number, delayMs: number) {
+    const token = { deviceId, attempt };
+    currentReconnectRef.current = token;
+    usePairingStore.getState().reconnectAttemptStarted(deviceId, attempt);
+    reconnectTimeoutRef.current = setTimeout(
+      () => runReconnectAttempt(deviceId, attempt, token),
+      delayMs,
+    );
+  }
+
+  function runReconnectAttempt(
+    deviceId: string,
+    attempt: number,
+    token: { deviceId: string; attempt: number },
+  ) {
+    const isCurrent = () => currentReconnectRef.current === token;
+
+    const fail = () => {
+      if (!isCurrent()) return; // superseded by a timeout/rejection race — see below
+      if (attempt >= RECONNECT_MAX_ATTEMPTS) {
+        usePairingStore.getState().reconnectFailed(deviceId);
+        return;
+      }
+      scheduleReconnectAttempt(deviceId, attempt + 1, RECONNECT_BACKOFF_MS[attempt]);
+    };
+
+    reconnectTimeoutRef.current = setTimeout(fail, RECONNECT_ATTEMPT_TIMEOUT_MS);
+
+    bleManager.connectToDevice(deviceId).then(
+      (device) => {
+        if (reconnectTimeoutRef.current != null) clearTimeout(reconnectTimeoutRef.current);
+        if (!isCurrent()) {
+          // This attempt's own RECONNECT_ATTEMPT_TIMEOUT_MS already fired and
+          // a later attempt has superseded it — accepting this late success
+          // would leave two native connections contending. Tear this one back
+          // down instead of adopting it.
+          bleManager.cancelDeviceConnection(deviceId).catch(() => {});
+          return;
+        }
+        usePairingStore.getState().reconnectSucceeded(deviceId);
+        persistConnectedDevice(deviceId, device);
+      },
+      () => {
+        if (reconnectTimeoutRef.current != null) clearTimeout(reconnectTimeoutRef.current);
+        fail();
+      },
+    );
+  }
+
+  // The driver effect — fires exactly once per qualifying drop. Guarded on
+  // the literal reason, per the ticket's non-negotiable scope: 'adapterOff'
+  // never reaches this branch. Re-fires are naturally inert: once
+  // scheduleReconnectAttempt runs, connection.kind becomes 'reconnecting' on
+  // the next render, so this effect's own guard fails on every subsequent
+  // invocation for the same drop.
+  useEffect(() => {
+    if (connection.kind !== 'connectionLost' || connection.reason !== 'deviceDisconnected') {
+      return;
+    }
+    scheduleReconnectAttempt(connection.deviceId, 1, RECONNECT_BACKOFF_MS[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection]);
+
+  // Defensive cleanup: per SPEC.md this hook effectively never unmounts
+  // mid-session, but a pending timer must not outlive the hook.
+  useEffect(() => {
+    return () => {
+      if (reconnectTimeoutRef.current != null) clearTimeout(reconnectTimeoutRef.current);
+    };
+  }, []);
 
   function retryScan() {
     // Only meaningful when `canScan` is already true — otherwise this is a

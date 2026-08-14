@@ -85,6 +85,7 @@
     },
     "discard": "DISCARD",
     "save": "SAVE",
+    "reconnecting": "RECONNECTING…",
     "devSimulateDropout": "SIMULATE DROPOUT (DEV)",
     "noDevice": {
       "title": "No monitor connected",

@@ -146,6 +146,64 @@ describe('<LiveWorkout />', () => {
       expect(screen.getByText('SIGNAL LOST')).toBeOnTheScreen();
     });
 
+    describe('auto-reconnect after a mid-session drop', () => {
+      it('renders "RECONNECTING…" without changing the BPM readout or status line', async () => {
+        mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale' });
+
+        await render(<LiveWorkout />);
+
+        await act(async () => {
+          usePairingStore.setState({
+            connection: { kind: 'reconnecting', deviceId: 'device-1', attempt: 1 },
+          });
+        });
+
+        expect(screen.getByText('RECONNECTING…')).toBeOnTheScreen();
+        expect(screen.getByText('128')).toBeOnTheScreen();
+        expect(screen.getByText('SIGNAL LOST')).toBeOnTheScreen();
+      });
+
+      it('resumes a live BPM/status render and hides "RECONNECTING…" once connection returns to connected, with no remount', async () => {
+        mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale' });
+
+        await render(<LiveWorkout />);
+
+        await act(async () => {
+          usePairingStore.setState({
+            connection: { kind: 'reconnecting', deviceId: 'device-1', attempt: 1 },
+          });
+        });
+        expect(screen.getByText('RECONNECTING…')).toBeOnTheScreen();
+
+        mockedUseLiveHeartRate.mockReturnValue({ bpm: 132, status: 'live' });
+        await act(async () => {
+          usePairingStore.setState({ connection: { kind: 'connected', deviceId: 'device-1' } });
+        });
+
+        expect(screen.queryByText('RECONNECTING…')).not.toBeOnTheScreen();
+        expect(screen.getByText('132')).toBeOnTheScreen();
+        expect(screen.getByText('LIVE')).toBeOnTheScreen();
+        // Same rendered tree throughout — no fresh render() call, i.e. no remount.
+        expect(screen.getByText('LIVE WORKOUT')).toBeOnTheScreen();
+      });
+
+      it('reverts to the existing unrecovered-drop presentation once reconnectFailed is reached, with no new UI', async () => {
+        mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale' });
+
+        await render(<LiveWorkout />);
+
+        await act(async () => {
+          usePairingStore.setState({
+            connection: { kind: 'reconnectFailed', deviceId: 'device-1' },
+          });
+        });
+
+        expect(screen.queryByText('RECONNECTING…')).not.toBeOnTheScreen();
+        expect(screen.getByText('128')).toBeOnTheScreen();
+        expect(screen.getByText('SIGNAL LOST')).toBeOnTheScreen();
+      });
+    });
+
     describe('__DEV__-only simulate-dropout trigger', () => {
       const originalDev = __DEV__;
 
