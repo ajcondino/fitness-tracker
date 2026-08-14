@@ -9,6 +9,9 @@ import { usePairingStore } from '@/ble/pairing-store';
 import {
   CONNECT_TIMEOUT_MS,
   DEVICE_COMMIT_INTERVAL_MS,
+  RECONNECT_ATTEMPT_TIMEOUT_MS,
+  RECONNECT_BACKOFF_MS,
+  RECONNECT_MAX_ATTEMPTS,
   SCAN_TIMEOUT_MS,
 } from '@/ble/pairing-types';
 import { clearSavedDevice, loadSavedDevice, saveDevice } from '@/ble/saved-device';
@@ -504,17 +507,20 @@ describe('useDevicePairing', () => {
       expect(mockedOnDeviceDisconnected).toHaveBeenCalledWith('device-1', expect.any(Function));
     });
 
-    it('invoking the captured disconnect listener while connected transitions to connectionLost(deviceDisconnected)', async () => {
+    it('invoking the captured disconnect listener while connected transitions to connectionLost(deviceDisconnected), which the auto-reconnect driver effect immediately advances to reconnecting', async () => {
       await connectDevice1();
 
       await act(async () => {
         capturedDisconnectListener(null, {} as Device);
       });
 
+      // Since auto-reconnect-after-drop, a 'deviceDisconnected' loss is
+      // followed with no further input by the driver effect scheduling
+      // attempt 1 — visible immediately per SPEC.md's own Data Model note.
       expect(usePairingStore.getState().connection).toEqual({
-        kind: 'connectionLost',
+        kind: 'reconnecting',
         deviceId: 'device-1',
-        reason: 'deviceDisconnected',
+        attempt: 1,
       });
     });
 
@@ -563,12 +569,18 @@ describe('useDevicePairing', () => {
       });
     });
 
-    it('race B: a disconnect event arriving first makes a subsequent adapter-off a no-op', async () => {
+    it('race B: a disconnect event arriving first starts a reconnect, and a subsequent adapter-off ends it at connectionLost(adapterOff)', async () => {
       await connectDevice1();
 
       await act(async () => {
         capturedDisconnectListener(null, {} as Device);
       });
+      // Since auto-reconnect-after-drop, the disconnect event's own
+      // connectionLost('deviceDisconnected') is immediately superseded by
+      // the driver effect's 'reconnecting' — no longer a resting state this
+      // adapter-off can find as a no-op target.
+      expect(usePairingStore.getState().connection.kind).toBe('reconnecting');
+
       await act(async () => {
         capturedStateListener(State.PoweredOff);
       });
@@ -576,7 +588,231 @@ describe('useDevicePairing', () => {
       expect(usePairingStore.getState().connection).toEqual({
         kind: 'connectionLost',
         deviceId: 'device-1',
-        reason: 'deviceDisconnected',
+        reason: 'adapterOff',
+      });
+    });
+  });
+
+  describe('auto-reconnect after a mid-session drop', () => {
+    async function connectAndDrop() {
+      mockedConnectToDevice.mockResolvedValueOnce({} as unknown as Device);
+      const rendered = await renderHook(() => useDevicePairing(false));
+
+      await act(async () => {
+        rendered.result.current.connect('device-1');
+      });
+
+      await act(async () => {
+        capturedDisconnectListener(null, {} as Device);
+      });
+
+      return rendered;
+    }
+
+    it('shows reconnecting attempt 1 immediately on the drop, then retries only after RECONNECT_BACKOFF_MS[0]', async () => {
+      await connectAndDrop();
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'reconnecting',
+        deviceId: 'device-1',
+        attempt: 1,
+      });
+      expect(mockedConnectToDevice).toHaveBeenCalledTimes(1); // just the initial manual connect
+
+      mockedConnectToDevice.mockReturnValue(new Promise<Device>(() => {}));
+      await act(async () => {
+        jest.advanceTimersByTime(RECONNECT_BACKOFF_MS[0]);
+      });
+
+      expect(mockedConnectToDevice).toHaveBeenCalledTimes(2);
+      expect(mockedConnectToDevice).toHaveBeenLastCalledWith('device-1');
+    });
+
+    it('a rejected attempt before the last schedules the next attempt after the correct backoff, incrementing connection.attempt', async () => {
+      await connectAndDrop();
+
+      let rejectAttempt1!: (error: BleError) => void;
+      mockedConnectToDevice.mockReturnValue(
+        new Promise<Device>((_resolve, reject) => {
+          rejectAttempt1 = reject;
+        }),
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(RECONNECT_BACKOFF_MS[0]);
+      });
+      await act(async () => {
+        rejectAttempt1({ errorCode: BleErrorCode.DeviceNotFound } as unknown as BleError);
+      });
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'reconnecting',
+        deviceId: 'device-1',
+        attempt: 2,
+      });
+
+      mockedConnectToDevice.mockReturnValue(new Promise<Device>(() => {}));
+      await act(async () => {
+        jest.advanceTimersByTime(RECONNECT_BACKOFF_MS[1]);
+      });
+
+      expect(mockedConnectToDevice).toHaveBeenCalledTimes(3); // initial + attempt 1 + attempt 2
+    });
+
+    it('a successful resolution during a later attempt transitions to connected, persists the device, and stops further attempts', async () => {
+      await connectAndDrop();
+
+      let rejectAttempt1!: (error: BleError) => void;
+      mockedConnectToDevice.mockReturnValue(
+        new Promise<Device>((_resolve, reject) => {
+          rejectAttempt1 = reject;
+        }),
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(RECONNECT_BACKOFF_MS[0]);
+      });
+      await act(async () => {
+        rejectAttempt1({ errorCode: BleErrorCode.DeviceNotFound } as unknown as BleError);
+      });
+
+      mockedConnectToDevice.mockResolvedValue({
+        name: 'Pulse HRM',
+        localName: null,
+      } as unknown as Device);
+      await act(async () => {
+        jest.advanceTimersByTime(RECONNECT_BACKOFF_MS[1]);
+      });
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connected',
+        deviceId: 'device-1',
+      });
+      expect(mockedSaveDevice).toHaveBeenCalledWith({ id: 'device-1', name: 'Pulse HRM' });
+
+      const callsBefore = mockedConnectToDevice.mock.calls.length;
+      await act(async () => {
+        jest.advanceTimersByTime(RECONNECT_BACKOFF_MS[2] + RECONNECT_ATTEMPT_TIMEOUT_MS + 60_000);
+      });
+
+      expect(mockedConnectToDevice).toHaveBeenCalledTimes(callsBefore);
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connected',
+        deviceId: 'device-1',
+      });
+    });
+
+    it('all RECONNECT_MAX_ATTEMPTS attempts failing lands on reconnectFailed and schedules no further attempt', async () => {
+      await connectAndDrop();
+
+      for (let attempt = 0; attempt < RECONNECT_MAX_ATTEMPTS; attempt++) {
+        let rejectAttempt!: (error: BleError) => void;
+        mockedConnectToDevice.mockReturnValue(
+          new Promise<Device>((_resolve, reject) => {
+            rejectAttempt = reject;
+          }),
+        );
+        await act(async () => {
+          jest.advanceTimersByTime(RECONNECT_BACKOFF_MS[attempt]);
+        });
+        await act(async () => {
+          rejectAttempt({ errorCode: BleErrorCode.DeviceNotFound } as unknown as BleError);
+        });
+      }
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'reconnectFailed',
+        deviceId: 'device-1',
+      });
+
+      const callsBefore = mockedConnectToDevice.mock.calls.length;
+      await act(async () => {
+        jest.advanceTimersByTime(60_000);
+      });
+
+      expect(mockedConnectToDevice).toHaveBeenCalledTimes(callsBefore);
+    });
+
+    it('a connectionLost with reason adapterOff never starts a reconnect attempt', async () => {
+      mockedConnectToDevice.mockResolvedValueOnce({} as unknown as Device);
+      const { result } = await renderHook(() => useDevicePairing(false));
+
+      await act(async () => {
+        result.current.connect('device-1');
+      });
+
+      await act(async () => {
+        // Bluetooth itself turned off while connected.
+        capturedStateListener(State.PoweredOff);
+      });
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'adapterOff',
+      });
+
+      const callsBefore = mockedConnectToDevice.mock.calls.length;
+      await act(async () => {
+        jest.advanceTimersByTime(60_000);
+      });
+
+      expect(mockedConnectToDevice).toHaveBeenCalledTimes(callsBefore);
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'connectionLost',
+        deviceId: 'device-1',
+        reason: 'adapterOff',
+      });
+    });
+
+    it('connect() while reconnecting is a no-op: no connectRequested call, connection unchanged', async () => {
+      const { result } = await connectAndDrop();
+
+      const before = usePairingStore.getState().connection;
+      const callsBefore = mockedConnectToDevice.mock.calls.length;
+
+      await act(async () => {
+        result.current.connect('device-2');
+      });
+
+      expect(usePairingStore.getState().connection).toEqual(before);
+      expect(mockedConnectToDevice).toHaveBeenCalledTimes(callsBefore);
+    });
+
+    it('a late resolution from a superseded attempt (its own timeout already fired, next attempt started) calls cancelDeviceConnection and does not mutate connection or call reconnectSucceeded', async () => {
+      await connectAndDrop();
+
+      let resolveAttempt1!: (device: Device) => void;
+      mockedConnectToDevice.mockReturnValue(
+        new Promise<Device>((resolve) => {
+          resolveAttempt1 = resolve;
+        }),
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(RECONNECT_BACKOFF_MS[0]);
+      });
+
+      // Attempt 1's own RECONNECT_ATTEMPT_TIMEOUT_MS elapses unresolved,
+      // superseding it with attempt 2.
+      mockedConnectToDevice.mockReturnValue(new Promise<Device>(() => {}));
+      await act(async () => {
+        jest.advanceTimersByTime(RECONNECT_ATTEMPT_TIMEOUT_MS);
+      });
+
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'reconnecting',
+        deviceId: 'device-1',
+        attempt: 2,
+      });
+
+      // Attempt 1's native promise now resolves late.
+      await act(async () => {
+        resolveAttempt1({} as unknown as Device);
+      });
+
+      expect(mockedCancelDeviceConnection).toHaveBeenCalledWith('device-1');
+      expect(usePairingStore.getState().connection).toEqual({
+        kind: 'reconnecting',
+        deviceId: 'device-1',
+        attempt: 2,
       });
     });
   });

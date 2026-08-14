@@ -35,6 +35,9 @@ export type PairingStore = {
   connectFailed: (deviceId: string, reason: ConnectionFailureReason) => void;
   connectCancelled: (deviceId: string) => void;
   connectionLost: (deviceId: string, reason: ConnectionLossReason) => void;
+  reconnectAttemptStarted: (deviceId: string, attempt: number) => void;
+  reconnectSucceeded: (deviceId: string) => void;
+  reconnectFailed: (deviceId: string) => void;
   reset: () => void;
 };
 
@@ -62,6 +65,21 @@ export const usePairingStore = create<PairingStore>()((set, get) => ({
       }
       if (state.connection.kind === 'connected') {
         // "adapter turned off while connected"
+        return {
+          adapter,
+          connection: {
+            kind: 'connectionLost',
+            deviceId: state.connection.deviceId,
+            reason: 'adapterOff',
+          },
+        };
+      }
+      if (state.connection.kind === 'reconnecting') {
+        // Bluetooth itself went off mid-retry — stop pretending a retry is
+        // still meaningful; land on the same resting state a plain "adapter
+        // off while connected" drop would produce, so the user's next move
+        // (turn Bluetooth back on, reconnect manually) is identical either
+        // way.
         return {
           adapter,
           connection: {
@@ -114,6 +132,26 @@ export const usePairingStore = create<PairingStore>()((set, get) => ({
     // (e.g. the adapter-off cascade already won the race).
     if (connection.kind !== 'connected' || connection.deviceId !== deviceId) return;
     set({ connection: { kind: 'connectionLost', deviceId, reason } });
+  },
+  reconnectAttemptStarted: (deviceId, attempt) => {
+    const connection = get().connection;
+    const eligible =
+      (connection.kind === 'connectionLost' &&
+        connection.deviceId === deviceId &&
+        connection.reason === 'deviceDisconnected') ||
+      (connection.kind === 'reconnecting' && connection.deviceId === deviceId);
+    if (!eligible) return;
+    set({ connection: { kind: 'reconnecting', deviceId, attempt } });
+  },
+  reconnectSucceeded: (deviceId) => {
+    const connection = get().connection;
+    if (connection.kind !== 'reconnecting' || connection.deviceId !== deviceId) return;
+    set({ connection: { kind: 'connected', deviceId } });
+  },
+  reconnectFailed: (deviceId) => {
+    const connection = get().connection;
+    if (connection.kind !== 'reconnecting' || connection.deviceId !== deviceId) return;
+    set({ connection: { kind: 'reconnectFailed', deviceId } });
   },
 
   reset: () =>

@@ -34,6 +34,7 @@ export default function LiveWorkout() {
   const router = useRouter();
 
   const devices = usePairingStore((state) => state.devices);
+  const connection = usePairingStore((state) => state.connection);
 
   // No navigation param — reads the connected device straight from the
   // store, per SPEC.md. Captured once at mount rather than derived from a
@@ -46,7 +47,16 @@ export default function LiveWorkout() {
   });
   const device = devices.find((candidate) => candidate.id === deviceId) ?? null;
 
-  const { bpm, status } = useLiveHeartRate(deviceId);
+  // Scoped to the frozen device: whether it's currently connected, and
+  // whether an auto-reconnect-after-drop retry is in flight for it. The
+  // screen still does not otherwise react to `connection.kind` — see
+  // auto-reconnect-after-drop's spec.
+  const isConnected =
+    deviceId != null && connection.kind === 'connected' && connection.deviceId === deviceId;
+  const isReconnecting =
+    deviceId != null && connection.kind === 'reconnecting' && connection.deviceId === deviceId;
+
+  const { bpm, status } = useLiveHeartRate(deviceId, isConnected);
 
   const discard = () => router.back();
 
@@ -110,6 +120,12 @@ export default function LiveWorkout() {
       <ThemedText variant="dataSm" color={statusCopy.color} style={styles.status}>
         {statusCopy.text}
       </ThemedText>
+
+      {isReconnecting && (
+        <ThemedText variant="dataSm" color="onSurfaceMuted" style={styles.reconnecting}>
+          {t('liveWorkout.reconnecting')}
+        </ThemedText>
+      )}
 
       <View style={styles.readoutContainer}>
         {/* Never dimmed/re-colored when stale — the status line alone
@@ -219,6 +235,10 @@ const styles = StyleSheet.create({
   },
   status: {
     marginTop: spacing.lg,
+    textAlign: 'center',
+  },
+  reconnecting: {
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
   readoutContainer: {

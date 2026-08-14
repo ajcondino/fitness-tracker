@@ -148,6 +148,16 @@ describe('canScan', () => {
     };
     expect(canScan({ adapter: 'poweredOn', connection: connectionLost }, context)).toBe(false);
   });
+
+  it('is false while an automatic reconnect is in flight', () => {
+    const reconnecting: ConnectionState = { kind: 'reconnecting', deviceId: 'd1', attempt: 1 };
+    expect(canScan({ adapter: 'poweredOn', connection: reconnecting }, context)).toBe(false);
+  });
+
+  it('is true once every automatic reconnect attempt has been exhausted', () => {
+    const reconnectFailed: ConnectionState = { kind: 'reconnectFailed', deviceId: 'd1' };
+    expect(canScan({ adapter: 'poweredOn', connection: reconnectFailed }, context)).toBe(true);
+  });
 });
 
 describe('deriveScanBarState', () => {
