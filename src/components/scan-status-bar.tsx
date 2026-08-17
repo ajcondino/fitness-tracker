@@ -1,13 +1,82 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Defs, LinearGradient, Rect, Stop, Svg } from 'react-native-svg';
 
 import type { ScanBarState } from '@/ble/pairing-types';
+import { LiveDot } from '@/components/ui/live-dot';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import type { ColorToken } from '@/constants/theme';
 import { spacing } from '@/constants/theme';
 import type { BlePermissionStatus } from '@/hooks/use-ble-permission-status';
 import { useTheme } from '@/hooks/use-theme';
+
+// DESIGN.md > Motion > "Scan-bar sweep": a soft `primary` gradient band
+// sweeping left-to-right across the bar while a scan is in progress — the
+// one motion exception outside the live dot / BPM ring.
+const SWEEP_DURATION_MS = 2400;
+const SWEEP_WIDTH_RATIO = 0.3;
+const SWEEP_PEAK_OPACITY = 0.1;
+
+function ScanSweep() {
+  const theme = useTheme();
+  const gradientId = useId();
+  const [width, setWidth] = useState(0);
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (width === 0) {
+      return undefined;
+    }
+    translateX.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(translateX, {
+        toValue: 1,
+        duration: SWEEP_DURATION_MS,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [width, translateX]);
+
+  const bandWidth = width * SWEEP_WIDTH_RATIO;
+  const translate = translateX.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-bandWidth, width || 1],
+  });
+
+  return (
+    <View
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+    >
+      {width > 0 ? (
+        <Animated.View
+          style={[styles.sweepBand, { width: bandWidth, transform: [{ translateX: translate }] }]}
+        >
+          <Svg width="100%" height="100%">
+            <Defs>
+              <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={theme.colors.primary} stopOpacity={0} />
+                <Stop
+                  offset="0.5"
+                  stopColor={theme.colors.primary}
+                  stopOpacity={SWEEP_PEAK_OPACITY}
+                />
+                <Stop offset="1" stopColor={theme.colors.primary} stopOpacity={0} />
+              </LinearGradient>
+            </Defs>
+            <Rect width="100%" height="100%" fill={`url(#${gradientId})`} />
+          </Svg>
+        </Animated.View>
+      ) : null}
+    </View>
+  );
+}
 
 export type ScanStatusBarProps = {
   status: BlePermissionStatus;
@@ -70,9 +139,12 @@ function deriveGrantedRowContent(
         filled: true,
       };
     case 'scanning':
+      // Unused for display — `deriveLiveRowContent` below renders `scanning`
+      // via its own dedicated row instead. Kept here only so this switch
+      // stays exhaustive over `ScanBarState.kind`.
       return {
-        text: t('pairing.scanBar.scanning', { count: scanBarState.count }),
-        color: 'success',
+        text: `${t('pairing.scanBar.scanningLabel')} ${t('pairing.scanBar.foundCount', { count: scanBarState.count })}`,
+        color: 'primary',
         filled: true,
       };
     case 'scanIdle':
@@ -106,17 +178,73 @@ function deriveGrantedRowContent(
       };
     }
     case 'connecting':
+      // Unused for display — `deriveLiveRowContent` below renders
+      // `connecting` via its own dedicated row instead. Kept here only so
+      // this switch stays exhaustive over `ScanBarState.kind`.
       return {
-        text: t('pairing.scanBar.connectingTo', { name: scanBarState.name }),
+        text: t('pairing.scanBar.connecting'),
         color: 'primary',
         filled: false,
       };
     case 'connected':
+      // Unused for display — `deriveLiveRowContent` below renders
+      // `connected` via its own dedicated row instead. Kept here only so
+      // this switch stays exhaustive over `ScanBarState.kind`.
       return {
-        text: t('pairing.scanBar.connectedTo', { name: scanBarState.name }),
+        text: `${t('pairing.scanBar.connectedLabel')} ${t('pairing.scanBar.foundCount', { count: scanBarState.count })}`,
         color: 'success',
         filled: true,
       };
+  }
+}
+
+// The three `ScanBarState` kinds rendered via the dedicated "live row"
+// (LiveDot + label on the left, a second line of text on the right) instead
+// of the shared text-line layout every other kind above uses — see
+// ble-device-scanning/SPEC.md. `scanning` and `connecting` additionally get
+// the animated gradient sweep; `connected` doesn't (a settled connection
+// isn't "in progress"). All three reuse the same `color` for the dot and
+// the label, per this app's "a status is a dot plus a word, same color"
+// convention. `connecting` borrows `scanning`'s own label and sweep —
+// scanning has just stopped to make room for the connect attempt, so the
+// bar keeps reading as "still working," with the right-hand text swapping
+// from a found-count to the word "connecting" to say what's actually
+// happening now.
+type LiveRowContent = {
+  color: ColorToken;
+  label: string;
+  rightText: string;
+  sweep: boolean;
+};
+
+function deriveLiveRowContent(
+  scanBarState: ScanBarState,
+  t: ReturnType<typeof useTranslation>['t'],
+): LiveRowContent | null {
+  switch (scanBarState.kind) {
+    case 'scanning':
+      return {
+        color: 'primary',
+        label: t('pairing.scanBar.scanningLabel'),
+        rightText: t('pairing.scanBar.foundCount', { count: scanBarState.count }),
+        sweep: true,
+      };
+    case 'connecting':
+      return {
+        color: 'primary',
+        label: t('pairing.scanBar.scanningLabel'),
+        rightText: t('pairing.scanBar.connecting'),
+        sweep: true,
+      };
+    case 'connected':
+      return {
+        color: 'success',
+        label: t('pairing.scanBar.connectedLabel'),
+        rightText: t('pairing.scanBar.foundCount', { count: scanBarState.count }),
+        sweep: false,
+      };
+    default:
+      return null;
   }
 }
 
@@ -216,6 +344,13 @@ export function ScanStatusBar(props: ScanStatusBarProps) {
       ? deriveGrantedRowContent(scanBarState, t, onRetryScan, onOpenBluetoothSettings)
       : null;
 
+  // `scanning` and `connected` are rendered via their own "live row" —
+  // LiveDot + label on the left, found-count on the right — instead of the
+  // shared text-line layout every other kind below uses. See
+  // ble-device-scanning/SPEC.md.
+  const liveRow =
+    status === 'granted' && scanBarState ? deriveLiveRowContent(scanBarState, t) : null;
+
   const detailKey = DETAIL_KEY_BY_STATUS[status];
   const legacyAction = ACTION_BY_STATUS[status];
 
@@ -242,27 +377,44 @@ export function ScanStatusBar(props: ScanStatusBarProps) {
         { borderColor: theme.colors.outline, borderRadius: theme.rounded.md },
       ]}
     >
-      <View style={styles.message}>
-        <ThemedText variant="actionSm" color={color}>
-          {filled ? '●' : '○'} {text}
-        </ThemedText>
-        {detail ? (
-          <ThemedText variant="bodySm" color="onSurfaceMuted">
-            {detail}
+      {liveRow ? (
+        <>
+          {liveRow.sweep ? <ScanSweep /> : null}
+          <View style={styles.liveRowLeft}>
+            <LiveDot color={liveRow.color} testID="scan-status-bar-live-dot" />
+            <ThemedText variant="actionSm" color={liveRow.color}>
+              {liveRow.label}
+            </ThemedText>
+          </View>
+          <ThemedText variant="dataMd" color="onSurfaceMuted">
+            {liveRow.rightText}
           </ThemedText>
-        ) : null}
-      </View>
-      {actionLabel && onActionPress ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onActionPress}
-          testID="scan-status-bar-action"
-        >
-          <ThemedText variant="actionSm" color="primary">
-            {actionLabel}
-          </ThemedText>
-        </Pressable>
-      ) : null}
+        </>
+      ) : (
+        <>
+          <View style={styles.message}>
+            <ThemedText variant="actionSm" color={color}>
+              {filled ? '●' : '○'} {text}
+            </ThemedText>
+            {detail ? (
+              <ThemedText variant="bodySm" color="onSurfaceMuted">
+                {detail}
+              </ThemedText>
+            ) : null}
+          </View>
+          {actionLabel && onActionPress ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={onActionPress}
+              testID="scan-status-bar-action"
+            >
+              <ThemedText variant="actionSm" color="primary">
+                {actionLabel}
+              </ThemedText>
+            </Pressable>
+          ) : null}
+        </>
+      )}
     </ThemedView>
   );
 }
@@ -275,9 +427,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.lg,
     gap: spacing.md,
+    // Clips the scanning-state gradient sweep to the bar's own rounded
+    // corners — surface, border, radius, and padding are unchanged.
+    overflow: 'hidden',
   },
   message: {
     flex: 1,
     gap: spacing.xs,
+  },
+  liveRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  sweepBand: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
   },
 });

@@ -234,7 +234,7 @@ export type ScanBarState =
   | { kind: 'scanIdle'; count: number } // stopped: pre-first-scan (count 0) or post-timeout
   | { kind: 'scanError'; reason: 'startFailed' | 'locationServicesDisabled' | 'unknown' }
   | { kind: 'connecting'; deviceId: string; name: string }
-  | { kind: 'connected'; deviceId: string; name: string };
+  | { kind: 'connected'; deviceId: string; name: string; count: number };
 
 // Takes a plain snapshot shape (structurally what the store holds) so this
 // stays testable with a hand-built object literal — no store import needed.
@@ -600,27 +600,67 @@ New `en.json` keys, namespaced `pairing.scanBar` and `pairing.deviceRow`
 (the existing `pairing.scanStatus`/`pairing.nearbyDevices`/
 `pairing.previouslyPaired`/`home` keys are unchanged):
 
-| `ScanBarState.kind`   | Dot | Color          | Copy                                                                                                                                                                          | Action                                            |
-| --------------------- | --- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `checkingAdapter`     | ○   | faint          | `CHECKING BLUETOOTH…`                                                                                                                                                         | none                                              |
-| `adapterOff`          | ●   | danger         | `BLUETOOTH IS OFF` + detail `Turn on Bluetooth to scan for devices.`                                                                                                          | `TURN ON BLUETOOTH` → `onOpenBluetoothSettings`   |
-| `adapterResetting`    | ○   | faint          | `BLUETOOTH RESTARTING…`                                                                                                                                                       | none (never rendered as an error — spike finding) |
-| `adapterUnsupported`  | ●   | danger         | `BLUETOOTH NOT SUPPORTED` + detail `This device can't scan for Bluetooth peripherals.`                                                                                        | none (unrecoverable)                              |
-| `adapterUnauthorized` | ●   | danger         | `BLUETOOTH ACCESS RESTRICTED` + detail `The system has restricted Bluetooth for this app.`                                                                                    | none                                              |
-| `scanning`            | ●   | success        | `SCANNING… / {{count}} FOUND`                                                                                                                                                 | none                                              |
-| `scanIdle` (count 0)  | ●   | onSurfaceMuted | `BLUETOOTH READY`                                                                                                                                                             | `SCAN AGAIN` → `onRetryScan`                      |
-| `scanIdle` (count>0)  | ●   | onSurfaceMuted | `SCAN COMPLETE / {{count}} FOUND`                                                                                                                                             | `SCAN AGAIN` → `onRetryScan`                      |
-| `scanError`           | ●   | danger         | `startFailed`: `SCAN FAILED TO START`; `locationServicesDisabled`: `LOCATION SERVICES OFF` + detail `Turn on Location Services to scan for devices.`; `unknown`: `SCAN ERROR` | `SCAN AGAIN` → `onRetryScan`                      |
-| `connecting`          | ○   | primary        | `CONNECTING TO {{name}}…`                                                                                                                                                     | none                                              |
-| `connected`           | ●   | success        | `CONNECTED TO {{name}}`                                                                                                                                                       | none                                              |
+| `ScanBarState.kind`   | Dot                 | Color          | Copy                                                                                                                                                                          | Action                                            |
+| --------------------- | ------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `checkingAdapter`     | ○                   | faint          | `CHECKING BLUETOOTH…`                                                                                                                                                         | none                                              |
+| `adapterOff`          | ●                   | danger         | `BLUETOOTH IS OFF` + detail `Turn on Bluetooth to scan for devices.`                                                                                                          | `TURN ON BLUETOOTH` → `onOpenBluetoothSettings`   |
+| `adapterResetting`    | ○                   | faint          | `BLUETOOTH RESTARTING…`                                                                                                                                                       | none (never rendered as an error — spike finding) |
+| `adapterUnsupported`  | ●                   | danger         | `BLUETOOTH NOT SUPPORTED` + detail `This device can't scan for Bluetooth peripherals.`                                                                                        | none (unrecoverable)                              |
+| `adapterUnauthorized` | ●                   | danger         | `BLUETOOTH ACCESS RESTRICTED` + detail `The system has restricted Bluetooth for this app.`                                                                                    | none                                              |
+| `scanning`            | `LiveDot` (pulsing) | primary        | Split: label `SCANNING…` (primary) + right-side `{{count}} found` (onSurfaceMuted, lowercase)                                                                                 | none                                              |
+| `scanIdle` (count 0)  | ●                   | onSurfaceMuted | `BLUETOOTH READY`                                                                                                                                                             | `SCAN AGAIN` → `onRetryScan`                      |
+| `scanIdle` (count>0)  | ●                   | onSurfaceMuted | `SCAN COMPLETE / {{count}} FOUND`                                                                                                                                             | `SCAN AGAIN` → `onRetryScan`                      |
+| `scanError`           | ●                   | danger         | `startFailed`: `SCAN FAILED TO START`; `locationServicesDisabled`: `LOCATION SERVICES OFF` + detail `Turn on Location Services to scan for devices.`; `unknown`: `SCAN ERROR` | `SCAN AGAIN` → `onRetryScan`                      |
+| `connecting`          | `LiveDot` (pulsing) | primary        | Split: label `SCANNING…` (primary, same label as `scanning`) + right-side `connecting` (onSurfaceMuted, lowercase)                                                            | none                                              |
+| `connected`           | `LiveDot` (pulsing) | success        | Split: label `CONNECTED` (success, name omitted) + right-side `{{count}} found` (onSurfaceMuted, lowercase)                                                                   | none                                              |
 
 Dot-fill rule (extends the existing `FILLED_DOT_STATUSES` convention):
 hollow (`○`) means nothing has settled yet (`checkingAdapter`,
-`adapterResetting`, `connecting`); filled (`●`) means a confirmed, currently
-true state — including `scanning` itself, since "a scan is definitely
-running" is as settled as `granted` was. `primary` for `connecting` is a
-direct application of `DESIGN.md`'s stated rule "Yellow means 'now' or
-'go'" — connecting is exactly the "now" action in progress on this screen.
+`adapterResetting`); filled (`●`) means a confirmed, currently true state —
+including `scanning` itself, since "a scan is definitely running" is as
+settled as `granted` was. `scanning`, `connecting`, and `connected` don't
+use the hollow/filled dot at all — they render the pulsing `LiveDot`
+instead (see below). `primary` for `connecting` is a direct application of
+`DESIGN.md`'s stated rule "Yellow means 'now' or 'go'" — connecting is
+exactly the "now" action in progress on this screen.
+
+`scanning`, `connecting`, and `connected` are the three kinds rendered via a
+dedicated "live row" instead of the shared text-line layout every other
+kind above uses: a `LiveDot` (`src/components/ui/live-dot.tsx`, DESIGN.md >
+Components > Live dot) plus a label on the left, and a second piece of
+text in `onSurfaceMuted` on the right, in a single space-between row.
+
+- `scanning` — `LiveDot` and label colored `primary`, label `SCANNING…`,
+  right-side text `{{count}} found`, plus the animated gradient sweep
+  (DESIGN.md > Motion > Scan-bar sweep) behind the text. The recolor from
+  `success` to `primary` extends the same "now" rule already applied to
+  `connecting` below — a scan actively in progress is as much a "now"
+  action as a connection attempt.
+- `connecting` — reuses `scanning`'s exact label (`SCANNING…`), color
+  (`primary`), `LiveDot`, and sweep — scanning has just stopped to make
+  room for the connect attempt (see `canScan`), so the bar keeps reading as
+  "still working" rather than switching to a different label. Only the
+  right-side text changes, from `{{count}} found` to the bare word
+  `connecting`, to say what's actually happening right now. The device
+  name is not shown (same "no name in the live row" choice `connected`
+  already makes, below) — `ScanBarState`'s `connecting` variant still
+  carries `name`, just unused for display, matching how `connected`
+  carries it too.
+- `connected` — `LiveDot` and label colored `success` (this is in fact the
+  literal case `DESIGN.md`'s Colors section already describes `success`
+  for: "a live connection"), label `CONNECTED` with the device name
+  dropped (the bar no longer needs to name the device once it's the one
+  thing on screen), no sweep — a settled connection isn't "in progress".
+  The found-count from the scan that led to this connection stays visible
+  on the right so it isn't lost the moment a device connects.
+
+`count` on `ScanBarState`'s `connected` variant is `devices.length` at the
+moment of connection, exactly like `scanning`/`scanIdle`'s `count`.
+`connecting` has no `count` in its right-side text — it doesn't need
+`devices.length` at all, since the word `connecting` doesn't interpolate
+anything.
+
+Every other kind's copy, color, and layout are unchanged.
 
 `DeviceRow` copy (`pairing.deviceRow`):
 
@@ -651,7 +691,8 @@ parameter) for a device that has never advertised a name at all, and
       "adapterUnsupportedDetail": "This device can't scan for Bluetooth peripherals.",
       "adapterUnauthorized": "BLUETOOTH ACCESS RESTRICTED",
       "adapterUnauthorizedDetail": "The system has restricted Bluetooth for this app.",
-      "scanning": "SCANNING… / {{count}} FOUND",
+      "scanningLabel": "SCANNING…",
+      "foundCount": "{{count}} found",
       "scanReady": "BLUETOOTH READY",
       "scanComplete": "SCAN COMPLETE / {{count}} FOUND",
       "scanAgainAction": "SCAN AGAIN",
@@ -659,8 +700,8 @@ parameter) for a device that has never advertised a name at all, and
       "scanErrorLocationServicesDisabled": "LOCATION SERVICES OFF",
       "scanErrorLocationServicesDisabledDetail": "Turn on Location Services to scan for devices.",
       "scanErrorUnknown": "SCAN ERROR",
-      "connectingTo": "CONNECTING TO {{name}}…",
-      "connectedTo": "CONNECTED TO {{name}}"
+      "connecting": "connecting",
+      "connectedLabel": "CONNECTED"
     },
     "deviceRow": {
       "unknownDevice": "Unknown device",
@@ -675,30 +716,33 @@ parameter) for a device that has never advertised a name at all, and
 
 ## Files Created
 
-| File                                             | Purpose                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/ble/pairing-types.ts`                       | Types, constants, and pure derivations (`toAdapterPowerState`, `selectSortedDevices`, `selectDeviceDisplayName`, `canScan`, `deriveScanBarState`). Zero BLE-adapter, Zustand, or React dependency.                                                                                                                  |
-| `src/ble/__tests__/pairing-types.test.ts`        | Unit tests for the pure derivations: `canScan`/`deriveScanBarState` precedence, sort-bucket stability, display-name fallback.                                                                                                                                                                                       |
-| `src/ble/scan-aggregator.ts`                     | Stateful, I/O-free dedupe + rolling-median + connectable-filter layer that sits between raw scan callbacks and the store.                                                                                                                                                                                           |
-| `src/ble/__tests__/scan-aggregator.test.ts`      | Unit tests fed hand-built `RawScanSample` objects: dedupe-by-id, true rolling median (not mean), connectable gating, `lastKnownName` stickiness — no BLE adapter, no store.                                                                                                                                         |
-| `src/ble/pairing-store.ts`                       | The Zustand store: `usePairingStore`, holding `adapter`/`scan`/`devices`/`connection` plus the ten actions in Interfaces/API. Never imports `bleManager`.                                                                                                                                                           |
-| `src/ble/__tests__/pairing-store.test.ts`        | Every action called directly against `usePairingStore.getState()` — no BLE adapter, no aggregator, no React tree — covering every transition and failure edge in Interfaces/API (including the three staleness guards).                                                                                             |
-| `src/hooks/use-device-pairing.ts`                | The I/O layer: wires `bleManager`, `AppState`, and `useIsFocused` to the aggregator and the store; owns every timer/interval.                                                                                                                                                                                       |
-| `src/hooks/__tests__/use-device-pairing.test.ts` | Fake-timer-driven tests: scan start/stop/timeout, the commit-interval batching behavior, cleanup on unmount/background/blur/adapter-off, connect success/timeout/device-unavailable/adapter-off-mid-connect/user-cancel, retry after error/timeout, the 102-swallowing behavior, and the mount-time `reset()` call. |
-| `src/components/device-row.tsx`                  | Presentational NEARBY DEVICES row.                                                                                                                                                                                                                                                                                  |
-| `src/components/__tests__/device-row.test.tsx`   | Asserts name/RSSI/trailing-copy/color per `status`, the `isNameFallback` dim, and `disabled` suppressing `onPress`.                                                                                                                                                                                                 |
+| File                                             | Purpose                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/ble/pairing-types.ts`                       | Types, constants, and pure derivations (`toAdapterPowerState`, `selectSortedDevices`, `selectDeviceDisplayName`, `canScan`, `deriveScanBarState`). Zero BLE-adapter, Zustand, or React dependency. Later revised: `ScanBarState`'s `connected` variant gains a `count` field (`devices.length` at connect time), so the live row can still show the found-count once connected. |
+| `src/ble/__tests__/pairing-types.test.ts`        | Unit tests for the pure derivations: `canScan`/`deriveScanBarState` precedence, sort-bucket stability, display-name fallback.                                                                                                                                                                                                                                                   |
+| `src/ble/scan-aggregator.ts`                     | Stateful, I/O-free dedupe + rolling-median + connectable-filter layer that sits between raw scan callbacks and the store.                                                                                                                                                                                                                                                       |
+| `src/ble/__tests__/scan-aggregator.test.ts`      | Unit tests fed hand-built `RawScanSample` objects: dedupe-by-id, true rolling median (not mean), connectable gating, `lastKnownName` stickiness — no BLE adapter, no store.                                                                                                                                                                                                     |
+| `src/ble/pairing-store.ts`                       | The Zustand store: `usePairingStore`, holding `adapter`/`scan`/`devices`/`connection` plus the ten actions in Interfaces/API. Never imports `bleManager`.                                                                                                                                                                                                                       |
+| `src/ble/__tests__/pairing-store.test.ts`        | Every action called directly against `usePairingStore.getState()` — no BLE adapter, no aggregator, no React tree — covering every transition and failure edge in Interfaces/API (including the three staleness guards).                                                                                                                                                         |
+| `src/hooks/use-device-pairing.ts`                | The I/O layer: wires `bleManager`, `AppState`, and `useIsFocused` to the aggregator and the store; owns every timer/interval.                                                                                                                                                                                                                                                   |
+| `src/hooks/__tests__/use-device-pairing.test.ts` | Fake-timer-driven tests: scan start/stop/timeout, the commit-interval batching behavior, cleanup on unmount/background/blur/adapter-off, connect success/timeout/device-unavailable/adapter-off-mid-connect/user-cancel, retry after error/timeout, the 102-swallowing behavior, and the mount-time `reset()` call.                                                             |
+| `src/components/device-row.tsx`                  | Presentational NEARBY DEVICES row.                                                                                                                                                                                                                                                                                                                                              |
+| `src/components/__tests__/device-row.test.tsx`   | Asserts name/RSSI/trailing-copy/color per `status`, the `isNameFallback` dim, and `disabled` suppressing `onPress`.                                                                                                                                                                                                                                                             |
+| `src/components/ui/live-dot.tsx`                 | Shared pulsing-dot primitive (DESIGN.md > Components > Live dot): 7px circle, opacity 1→0.35→1 over 1400ms, native driver, `color`/`size` props.                                                                                                                                                                                                                                |
+| `src/components/ui/__tests__/live-dot.test.tsx`  | Asserts default/overridden color and size, and the opacity loop over fake timers.                                                                                                                                                                                                                                                                                               |
 
 ## Files Modified
 
-| File                                                | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `package.json` / `pnpm-lock.yaml`                   | Add `zustand`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `src/components/scan-status-bar.tsx`                | Add the three new optional props and the `granted`-only `scanBarState` render branch, per Interfaces/API. The six existing status entries and their logic are untouched.                                                                                                                                                                                                                                                                                                         |
-| `src/components/__tests__/scan-status-bar.test.tsx` | Add cases for every `ScanBarState.kind` from the copy table (copy/color/action). Existing seven-row cases (the `ROWS` array) are untouched.                                                                                                                                                                                                                                                                                                                                      |
-| `src/app/(tabs)/device.tsx`                         | Call `useDevicePairing(status === 'granted')`; replace the hardcoded NEARBY DEVICES empty copy with `devices.map(...)` → `DeviceRow`, falling back to the empty copy only when the array is empty; pass `scanBarState`/`onRetryScan`/`onOpenBluetoothSettings` to `ScanStatusBar`.                                                                                                                                                                                               |
-| `src/app/(tabs)/__tests__/device.test.tsx`          | Mock `useDevicePairing` the same way the file already mocks `useBlePermissionStatus`; add cases for populated/empty NEARBY DEVICES, row tap → `connect`, and each `ScanBarState`.                                                                                                                                                                                                                                                                                                |
-| `src/i18n/locales/en.json`                          | Add the `pairing.scanBar` and `pairing.deviceRow` keys shown above.                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `__mocks__/react-native-ble-plx.ts`                 | Add a `BleErrorCode` export with exactly the codes this spec's code reads (`BluetoothPoweredOff: 102`, `ScanStartFailed: 600`, `LocationServicesDisabled: 601`, `DeviceConnectionFailed: 200`, `DeviceNotFound: 204`) — the real module exports far more, but the manual mock only needs what's referenced. `BleManager`/`State` are already sufficient (`startDeviceScan`, `stopDeviceScan`, `connectToDevice`, `cancelDeviceConnection`, `onStateChange` are already stubbed). |
+| File                                                | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `package.json` / `pnpm-lock.yaml`                   | Add `zustand`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `src/components/scan-status-bar.tsx`                | Add the three new optional props and the `granted`-only `scanBarState` render branch, per Interfaces/API. The six existing status entries and their logic are untouched. Later revised to give `scanning` and `connected` their own "live row" (`LiveDot` + label/right-text split, `scanning` also with the gradient sweep) instead of the shared text-line layout; every other kind is untouched. Later still, `connecting` moved into the same live row — reusing `scanning`'s label, color, and sweep, with only the right-side text swapped from a found-count to the word "connecting" — replacing its original plain-text "CONNECTING" row. |
+| `src/components/__tests__/scan-status-bar.test.tsx` | Add cases for every `ScanBarState.kind` from the copy table (copy/color/action). Existing seven-row cases (the `ROWS` array) are untouched. Later revised: `scanning`/`connected` moved out of the shared `SCAN_BAR_ROWS` table into their own dedicated assertions for the new row layout; `connecting` later joined them there once it moved to the live row too.                                                                                                                                                                                                                                                                                |
+| `DESIGN.md`                                         | Add the "Scan-bar sweep" loop to Motion, and name it as the scoped exception in Do's/Don'ts' animation rule.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `src/app/(tabs)/device.tsx`                         | Call `useDevicePairing(status === 'granted')`; replace the hardcoded NEARBY DEVICES empty copy with `devices.map(...)` → `DeviceRow`, falling back to the empty copy only when the array is empty; pass `scanBarState`/`onRetryScan`/`onOpenBluetoothSettings` to `ScanStatusBar`.                                                                                                                                                                                                                                                                                                                                                                 |
+| `src/app/(tabs)/__tests__/device.test.tsx`          | Mock `useDevicePairing` the same way the file already mocks `useBlePermissionStatus`; add cases for populated/empty NEARBY DEVICES, row tap → `connect`, and each `ScanBarState`. Later revised: `scanning`/`connected` moved out of the shared it.each table into their own dedicated live-row assertions; `connecting` joined them there once it moved to the live row too.                                                                                                                                                                                                                                                                      |
+| `src/i18n/locales/en.json`                          | Add the `pairing.scanBar` and `pairing.deviceRow` keys shown above.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `__mocks__/react-native-ble-plx.ts`                 | Add a `BleErrorCode` export with exactly the codes this spec's code reads (`BluetoothPoweredOff: 102`, `ScanStartFailed: 600`, `LocationServicesDisabled: 601`, `DeviceConnectionFailed: 200`, `DeviceNotFound: 204`) — the real module exports far more, but the manual mock only needs what's referenced. `BleManager`/`State` are already sufficient (`startDeviceScan`, `stopDeviceScan`, `connectToDevice`, `cancelDeviceConnection`, `onStateChange` are already stubbed).                                                                                                                                                                   |
 
 ## Implementation Steps
 
@@ -828,11 +872,11 @@ parameter) for a device that has never advertised a name at all, and
       `connection.kind === 'connecting'` transitions `connection` to
       `connectionFailed` with reason `'adapterOff'` in the same call.
 - [ ] `adapterStateChanged` to a non-`'poweredOn'` value while `scan.kind
-    === 'scanning'` transitions `scan` to `{ kind: 'idle' }`.
+=== 'scanning'` transitions `scan` to `{ kind: 'idle' }`.
 - [ ] The hook's scan effect calls `bleManager.startDeviceScan` only when
       `permissionGranted`, `useIsFocused()`, and `AppState.currentState ===
-    'active'` are all true, and `usePairingStore.getState().adapter ===
-    'poweredOn'`.
+'active'` are all true, and `usePairingStore.getState().adapter ===
+'poweredOn'`.
 - [ ] While scanning, raw scan-listener callbacks update the aggregator
       only — `usePairingStore.getState().setDevices` (and therefore any
       store subscriber re-render) fires at most once per
@@ -845,17 +889,17 @@ parameter) for a device that has never advertised a name at all, and
       the same effect, per the ticket's explicit ask to cover cleanup on
       unmount and app background (plus the documented focus addition).
 - [ ] A scan callback error with `errorCode ===
-    BleErrorCode.BluetoothPoweredOff` never results in a `scanErrored`
+BleErrorCode.BluetoothPoweredOff` never results in a `scanErrored`
       call (verified by asserting `usePairingStore.getState().scan.kind` is
       `'idle'` via the `adapterStateChanged` path, not `'scanError'`).
 - [ ] A `connectToDevice` call that neither resolves nor rejects within
       `CONNECT_TIMEOUT_MS` results in `connectFailed(deviceId, 'timeout')`,
       and `bleManager.cancelDeviceConnection` is called for that device id.
 - [ ] A `connectToDevice` rejection with `errorCode ===
-    BleErrorCode.DeviceNotFound` (or `DeviceConnectionFailed`) results in
+BleErrorCode.DeviceNotFound` (or `DeviceConnectionFailed`) results in
       `connectFailed(deviceId, 'deviceUnavailable')`.
 - [ ] `cancelConnect()` during `'connecting'` results in `connection.kind
-    === 'disconnected'` and a `cancelDeviceConnection` call.
+=== 'disconnected'` and a `cancelDeviceConnection` call.
 - [ ] The hook calls `usePairingStore.getState().reset()` exactly once, on
       mount.
 - [ ] `ScanStatusBar`'s existing seven-row test file passes unmodified.

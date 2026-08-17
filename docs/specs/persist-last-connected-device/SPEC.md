@@ -83,11 +83,12 @@ user doesn't have to scan and tap again for the monitor they already paired.
   "PREVIOUSLY PAIRED" section shows that device's name with a "FORGET"
   action instead of the empty-state copy. On the next visit to the screen
   (including a fresh app launch), if that device is still reachable, the
-  screen goes straight to "CONNECTING TO {name}" / "CONNECTED TO {name}"
-  without the user scanning or tapping anything; if it isn't, the screen
-  falls back to the normal scan list exactly as it does today, with no
-  visible error. Tapping "FORGET" clears the remembered device; the next
-  visit reverts to scan-and-tap only, same as before this ticket existed.
+  screen goes straight to "CONNECTING" / "CONNECTED" (the bar's copy doesn't
+  name the device) without the user scanning or tapping anything; if it
+  isn't, the screen falls back to the normal scan list exactly as it does
+  today, with no visible error. Tapping "FORGET" clears the remembered
+  device; the next visit reverts to scan-and-tap only, same as before this
+  ticket existed.
 - **Dependencies:** New runtime dependency
   `@react-native-async-storage/async-storage` (install via
   `npx expo install @react-native-async-storage/async-storage` so Expo pins
@@ -187,9 +188,10 @@ are mutually exclusive by construction, not by ordering luck.
 attempt drives `connection.kind` to `'connecting'`/`'connected'`/
 `'connectionFailed'` through the exact same `connect()` path a manual tap
 uses, so the existing `connecting`/`connected` bar rows
-(`src/ble/pairing-types.ts:146-154`) already render it — with one accepted
-caveat, see Constraints (the bar shows "CONNECTING TO Unknown device" during
-the attempt, since no scan has populated `devices` yet to resolve a name).
+(`src/ble/pairing-types.ts:146-154`) already render it correctly with no
+caveat needed — the bar's copy for both (`"CONNECTING"` / `"CONNECTED"`)
+doesn't name the device at all, so there's nothing for the auto-reconnect
+attempt's empty `devices` list to fail to resolve.
 
 ### `src/hooks/use-device-pairing.ts` (modified — additive)
 
@@ -567,8 +569,8 @@ deviceId }`, matching a manual connect's outcome, and no scan is started
   remove an Android Bluetooth bond programmatically (see Context). "FORGET"
   copy says only that this app stops remembering the device — it must never
   imply the phone's system-level pairing is removed.
-- **Accepted cosmetic gap: brief "BLUETOOTH READY" flash before "CONNECTING
-  TO…".** Between the adapter reaching `poweredOn`/permission being granted
+- **Accepted cosmetic gap: brief "BLUETOOTH READY" flash before "CONNECTING".**
+  Between the adapter reaching `poweredOn`/permission being granted
   and the auto-reconnect-firing effect actually calling `connect()`, one
   render can occur where `autoReconnectPending` is still `true` but
   `deriveScanBarState` (which doesn't consult `canScan`/`autoReconnectPending`
@@ -576,15 +578,15 @@ deviceId }`, matching a manual connect's outcome, and no scan is started
   single-frame flash, not a functional bug, and fixing it would require
   teaching `deriveScanBarState`/`ScanBarState` a new kind purely for this —
   out of scope for this ticket's smallest-coherent-design goal.
-- **Accepted cosmetic gap: "CONNECTING TO Unknown device" during the
-  attempt.** `deriveScanBarState` resolves a connecting device's display
-  name by looking it up in the store's `devices` list
-  (`src/ble/pairing-types.ts:146-150`), which is empty during the
-  auto-reconnect attempt (no scan has run yet). The bar shows the generic
-  fallback label instead of the saved device's actual name for the
-  attempt's duration. Threading the saved name into `deriveScanBarState` as
-  a second name source is a reasonable follow-up, deliberately not done
-  here to avoid widening that function's contract for one caller's benefit.
+- **No longer a gap: the bar's `connecting` copy doesn't name the device at
+  all.** An earlier draft of this spec accepted a cosmetic gap where the
+  bar would show "CONNECTING TO Unknown device" during the auto-reconnect
+  attempt, since `deriveScanBarState` resolves a connecting device's
+  display name by looking it up in the store's `devices` list
+  (`src/ble/pairing-types.ts:146-150`), which is empty until a scan runs.
+  That gap is moot now that the `connecting` bar row's copy was simplified
+  to a bare "CONNECTING" (see `ble-device-scanning/SPEC.md`) — there's no
+  name in the copy for a missing lookup to degrade.
 - **Accepted edge case: forgetting a device mid-auto-reconnect-attempt to
   it.** If the user taps "FORGET" while the auto-reconnect attempt to that
   same device is still in flight, and the attempt then succeeds,

@@ -175,6 +175,7 @@ describe('deriveScanBarState', () => {
       kind: 'connected',
       deviceId: 'd1',
       name: 'HRM',
+      count: 1,
     });
   });
 

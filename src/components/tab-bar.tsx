@@ -1,10 +1,12 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ComponentProps } from 'react';
 import type { Tabs } from 'expo-router';
 
+import { DeviceIcon, HistoryIcon, HomeIcon, type IconProps } from '@/components/icons';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
+import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 // Derived from `Tabs`'s own `tabBar` render prop rather than importing
@@ -14,9 +16,14 @@ type TabsProps = ComponentProps<typeof Tabs>;
 type TabBarRenderProp = NonNullable<TabsProps['tabBar']>;
 export type TabBarProps = Parameters<TabBarRenderProp>[0];
 
-// Per DESIGN.md > Components > Tab bar: device's glyph is a circle, the
-// others are squares.
-const CIRCLE_ROUTES = new Set(['device']);
+// Per DESIGN.md > Components > Tab bar: HOME a house, HISTORY a clock with a
+// counter-clockwise restore arrow, DEVICE a heart with a pulse line through
+// it — keyed by the route names in src/app/(tabs)/_layout.tsx.
+const ICONS: Record<string, (props: IconProps) => React.JSX.Element> = {
+  index: HomeIcon,
+  history: HistoryIcon,
+  device: DeviceIcon,
+};
 
 export function TabBar({ state, descriptors, navigation }: TabBarProps) {
   const theme = useTheme();
@@ -41,6 +48,7 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
         const label = options.title ?? route.name;
         const isFocused = state.index === index;
         const tint = isFocused ? 'primary' : 'onSurfaceFaint';
+        const Icon = ICONS[route.name];
 
         const onPress = () => {
           const event = navigation.emit({
@@ -63,17 +71,7 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
             onPress={onPress}
             style={styles.item}
           >
-            <View
-              style={[
-                styles.glyph,
-                {
-                  backgroundColor: theme.colors[tint],
-                  borderRadius: CIRCLE_ROUTES.has(route.name)
-                    ? theme.rounded.full
-                    : theme.rounded.sm,
-                },
-              ]}
-            />
+            {Icon ? <Icon color={theme.colors[tint]} /> : null}
             <ThemedText variant="tabLabel" color={tint} style={styles.label}>
               {label}
             </ThemedText>
@@ -94,11 +92,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-  },
-  glyph: {
-    width: 18,
-    height: 18,
+    gap: spacing.xs,
   },
   label: {
     textTransform: 'uppercase',
