@@ -36,9 +36,11 @@ export function useLiveHeartRate(
 ): {
   bpm: number | null;
   status: LiveHeartRateStatus;
+  lastReadingAt: number | null;
 } {
   const [bpm, setBpm] = useState<number | null>(null);
   const [isStale, setIsStale] = useState(false);
+  const [lastReadingAt, setLastReadingAt] = useState<number | null>(null);
   const lastReadingAtRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -63,7 +65,9 @@ export function useLiveHeartRate(
             }
             const value = parseHeartRateMeasurement(characteristic?.value);
             if (value != null) {
-              lastReadingAtRef.current = Date.now();
+              const now = Date.now();
+              lastReadingAtRef.current = now; // unchanged — internal staleness bookkeeping
+              setLastReadingAt(now); // new — the caller-visible signal
               setIsStale(false);
               setBpm(value);
             }
@@ -94,5 +98,5 @@ export function useLiveHeartRate(
   const status: LiveHeartRateStatus =
     bpm === null ? 'awaitingFirstReading' : isStale ? 'stale' : 'live';
 
-  return { bpm, status };
+  return { bpm, status, lastReadingAt };
 }

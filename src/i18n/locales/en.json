@@ -96,6 +96,11 @@
     "noDevice": {
       "title": "No monitor connected",
       "subtitle": "Go back and connect a heart-rate monitor to start a workout."
+    },
+    "stats": {
+      "elapsed": "ELAPSED",
+      "avgBpm": "AVG BPM",
+      "maxBpm": "MAX BPM"
     }
   }
 }
