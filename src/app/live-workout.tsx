@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { bleManager } from '@/ble/manager';
 import { usePairingStore } from '@/ble/pairing-store';
 import { selectDeviceDisplayName } from '@/ble/pairing-types';
+import { Glow } from '@/components/ui/glow';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import type { ColorToken } from '@/constants/theme';
@@ -136,6 +137,8 @@ export default function LiveWorkout() {
 
   return (
     <ThemedView style={styles.container}>
+      <Glow height={320} top={-70} />
+
       <View style={styles.titleRow}>
         <ThemedText variant="titleMd">{t('liveWorkout.title')}</ThemedText>
         <View
@@ -444,10 +447,14 @@ const styles = StyleSheet.create({
   guardSubtitle: {
     textAlign: 'center',
   },
+  // zIndex: 1 on this screen's direct children of `container` — renders
+  // above <Glow />, whose own absence of a zIndex is deliberate; see
+  // glow.tsx's stacking note.
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    zIndex: 1,
   },
   deviceChip: {
     paddingHorizontal: spacing.md,
@@ -456,21 +463,25 @@ const styles = StyleSheet.create({
   status: {
     marginTop: spacing.lg,
     textAlign: 'center',
+    zIndex: 1,
   },
   reconnecting: {
     marginTop: spacing.xs,
     textAlign: 'center',
+    zIndex: 1,
   },
   readoutContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
+    zIndex: 1,
   },
   statsRow: {
     flexDirection: 'row',
     gap: 10,
     marginBottom: spacing.lg,
+    zIndex: 1,
   },
   statCard: {
     flex: 1,
@@ -481,6 +492,7 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     gap: spacing.md,
+    zIndex: 1,
   },
   actionButton: {
     flex: 1,
@@ -497,8 +509,10 @@ const styles = StyleSheet.create({
   saveDisabledHint: {
     marginTop: spacing.sm,
     textAlign: 'center',
+    zIndex: 1,
   },
   devTrigger: {
     marginTop: spacing.md,
+    zIndex: 1,
   },
 });

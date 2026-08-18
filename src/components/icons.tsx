@@ -65,3 +65,12 @@ export function DeviceIcon(props: IconProps) {
     </IconBase>
   );
 }
+
+export function ProfileIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <Path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+      <Path d="M4.5 20c0-4 3.5-6 7.5-6s7.5 2 7.5 6" />
+    </IconBase>
+  );
+}
