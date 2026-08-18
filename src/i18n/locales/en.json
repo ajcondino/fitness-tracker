@@ -1,7 +1,6 @@
 {
   "tabs": {
     "home": "Home",
-    "homeSubtitle": "Start, monitor, and stop your workout session.",
     "history": "History",
     "historySubtitle": "A log of past workout sessions.",
     "device": "Device",
@@ -73,13 +72,28 @@
     }
   },
   "home": {
+    "wordmark": "PULSE",
+    "greeting": {
+      "morning": "Good morning, {{name}}",
+      "afternoon": "Good afternoon, {{name}}",
+      "evening": "Good evening, {{name}}",
+      "subtitle": "Ready when you are."
+    },
+    "profile": {
+      "label": "Profile"
+    },
     "deviceCard": {
       "title": "No monitor connected",
-      "subtitle": "Tap to pair a heart-rate monitor"
+      "subtitle": "Tap to pair a heart-rate monitor",
+      "connectedSubtitle": "Connected"
     },
     "connectCta": "CONNECT A MONITOR",
     "startWorkoutCta": "START WORKOUT",
-    "startWorkoutHint": "Connect a device first"
+    "recent": {
+      "header": "RECENT",
+      "seeAll": "SEE ALL",
+      "empty": "No workouts saved yet."
+    }
   },
   "liveWorkout": {
     "title": "LIVE WORKOUT",
