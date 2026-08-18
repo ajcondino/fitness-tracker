@@ -52,11 +52,17 @@ describe('<LiveWorkout />', () => {
       lastReadingAt: null,
     });
     mockedUseWorkoutSession.mockReset().mockReturnValue({
-      startedAt: 0,
+      phase: 'idle',
+      startedAt: null,
       samples: [],
+      pauses: [],
       elapsedMs: 0,
       averageBpm: null,
       maxBpm: null,
+      start: jest.fn(),
+      pause: jest.fn(),
+      resume: jest.fn(),
+      stop: jest.fn(),
     });
     mockedSaveWorkoutSession.mockReset().mockResolvedValue(undefined);
   });
@@ -110,11 +116,17 @@ describe('<LiveWorkout />', () => {
 
     it('renders elapsed as mm:ss, rounded average BPM, and max BPM from the session snapshot', async () => {
       mockedUseWorkoutSession.mockReturnValue({
+        phase: 'running',
         startedAt: 0,
         samples: [],
+        pauses: [],
         elapsedMs: 125_000, // 02:05
         averageBpm: 133.6,
         maxBpm: 150,
+        start: jest.fn(),
+        pause: jest.fn(),
+        resume: jest.fn(),
+        stop: jest.fn(),
       });
 
       await render(<LiveWorkout />);
@@ -126,11 +138,17 @@ describe('<LiveWorkout />', () => {
 
     it('renders "--" for a null average and a null max BPM', async () => {
       mockedUseWorkoutSession.mockReturnValue({
-        startedAt: 0,
+        phase: 'idle',
+        startedAt: null,
         samples: [],
+        pauses: [],
         elapsedMs: 0,
         averageBpm: null,
         maxBpm: null,
+        start: jest.fn(),
+        pause: jest.fn(),
+        resume: jest.fn(),
+        stop: jest.fn(),
       });
 
       await render(<LiveWorkout />);
@@ -174,11 +192,17 @@ describe('<LiveWorkout />', () => {
     describe('Save', () => {
       it('is disabled with a visible hint and is a no-op when there are no samples', async () => {
         mockedUseWorkoutSession.mockReturnValue({
+          phase: 'ended',
           startedAt: 0,
           samples: [],
+          pauses: [],
           elapsedMs: 0,
           averageBpm: null,
           maxBpm: null,
+          start: jest.fn(),
+          pause: jest.fn(),
+          resume: jest.fn(),
+          stop: jest.fn(),
         });
 
         await render(<LiveWorkout />);
@@ -193,17 +217,24 @@ describe('<LiveWorkout />', () => {
         expect(back).not.toHaveBeenCalled();
       });
 
-      it('persists the session and navigates back when there is at least one sample', async () => {
+      it('persists the session with the populated pauses and navigates back when there is at least one sample', async () => {
         const samples = [
           { bpm: 120, timestamp: 1_000 },
           { bpm: 130, timestamp: 2_000 },
         ];
+        const pauses = [{ startedAt: 700, endedAt: 900 }];
         mockedUseWorkoutSession.mockReturnValue({
+          phase: 'ended',
           startedAt: 500,
           samples,
+          pauses,
           elapsedMs: 1_500,
           averageBpm: 125,
           maxBpm: 130,
+          start: jest.fn(),
+          pause: jest.fn(),
+          resume: jest.fn(),
+          stop: jest.fn(),
         });
 
         await render(<LiveWorkout />);
@@ -221,10 +252,94 @@ describe('<LiveWorkout />', () => {
             startedAt: 500,
             samples,
             device: { id: 'device-1', name: 'Pulse HRM' },
-            pauses: [],
+            pauses,
           }),
         );
         expect(back).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('phase-conditional action row', () => {
+      function sessionMock(phase: 'idle' | 'running' | 'paused') {
+        return {
+          phase,
+          startedAt: phase === 'idle' ? null : 0,
+          samples: [],
+          pauses: [],
+          elapsedMs: 0,
+          averageBpm: null,
+          maxBpm: null,
+          start: jest.fn(),
+          pause: jest.fn(),
+          resume: jest.fn(),
+          stop: jest.fn(),
+        };
+      }
+
+      it('idle: shows Discard + Start; tapping Start calls session.start exactly once', async () => {
+        const session = sessionMock('idle');
+        mockedUseWorkoutSession.mockReturnValue(session);
+
+        await render(<LiveWorkout />);
+
+        expect(screen.getByTestId('live-workout-discard')).toBeOnTheScreen();
+        expect(screen.getByTestId('live-workout-start')).toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-pause')).not.toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-resume')).not.toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-stop')).not.toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-save')).not.toBeOnTheScreen();
+
+        fireEvent.press(screen.getByTestId('live-workout-start'));
+
+        expect(session.start).toHaveBeenCalledTimes(1);
+      });
+
+      it('running: shows Pause + Stop; tapping each calls session.pause/session.stop exactly once', async () => {
+        const session = sessionMock('running');
+        mockedUseWorkoutSession.mockReturnValue(session);
+
+        await render(<LiveWorkout />);
+
+        expect(screen.getByTestId('live-workout-pause')).toBeOnTheScreen();
+        expect(screen.getByTestId('live-workout-stop')).toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-start')).not.toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-resume')).not.toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-discard')).not.toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-save')).not.toBeOnTheScreen();
+
+        await act(async () => {
+          fireEvent.press(screen.getByTestId('live-workout-pause'));
+        });
+        await act(async () => {
+          fireEvent.press(screen.getByTestId('live-workout-stop'));
+        });
+
+        expect(session.pause).toHaveBeenCalledTimes(1);
+        expect(session.stop).toHaveBeenCalledTimes(1);
+      });
+
+      it('paused: shows Stop + Resume; tapping each calls session.stop/session.resume exactly once', async () => {
+        const session = sessionMock('paused');
+        mockedUseWorkoutSession.mockReturnValue(session);
+
+        await render(<LiveWorkout />);
+
+        expect(screen.getByTestId('live-workout-stop')).toBeOnTheScreen();
+        expect(screen.getByTestId('live-workout-resume')).toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-pause')).not.toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-start')).not.toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-discard')).not.toBeOnTheScreen();
+        expect(screen.queryByTestId('live-workout-save')).not.toBeOnTheScreen();
+
+        await act(async () => {
+          fireEvent.press(screen.getByTestId('live-workout-stop'));
+        });
+        await act(async () => {
+          fireEvent.press(screen.getByTestId('live-workout-resume'));
+        });
+
+        expect(session.stop).toHaveBeenCalledTimes(1);
+        expect(session.resume).toHaveBeenCalledTimes(1);
       });
     });
 
