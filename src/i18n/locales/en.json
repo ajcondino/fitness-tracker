@@ -101,6 +101,12 @@
       "elapsed": "ELAPSED",
       "avgBpm": "AVG BPM",
       "maxBpm": "MAX BPM"
+    },
+    "saveDisabledHint": "Wait for a reading before saving"
+  },
+  "history": {
+    "sessions": {
+      "empty": "No workouts saved yet."
     }
   }
 }
