@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Jest transform cache (see CI's actions/cache step in ci.yml)
+.jest-cache/
+
 example
 
 # generated native folders

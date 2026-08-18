@@ -6,14 +6,17 @@ import { bleManager } from '@/ble/manager';
 import { usePairingStore } from '@/ble/pairing-store';
 import type { DiscoveredDevice } from '@/ble/pairing-types';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
+import { useWorkoutSession } from '@/hooks/use-workout-session';
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
 }));
 jest.mock('@/hooks/use-live-heart-rate');
+jest.mock('@/hooks/use-workout-session');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedUseLiveHeartRate = useLiveHeartRate as jest.MockedFunction<typeof useLiveHeartRate>;
+const mockedUseWorkoutSession = useWorkoutSession as jest.MockedFunction<typeof useWorkoutSession>;
 const mockedCancelDeviceConnection = jest.mocked(bleManager.cancelDeviceConnection);
 
 function makeDevice(overrides: Partial<DiscoveredDevice> = {}): DiscoveredDevice {
@@ -40,6 +43,14 @@ describe('<LiveWorkout />', () => {
     mockedUseLiveHeartRate.mockReset().mockReturnValue({
       bpm: null,
       status: 'awaitingFirstReading',
+      lastReadingAt: null,
+    });
+    mockedUseWorkoutSession.mockReset().mockReturnValue({
+      startedAt: 0,
+      samples: [],
+      elapsedMs: 0,
+      averageBpm: null,
+      maxBpm: null,
     });
   });
 
@@ -77,7 +88,9 @@ describe('<LiveWorkout />', () => {
 
       expect(screen.getByText('LIVE WORKOUT')).toBeOnTheScreen();
       expect(screen.getByText('Pulse HRM')).toBeOnTheScreen();
-      expect(screen.getByText('--')).toBeOnTheScreen();
+      // BPM readout, avg BPM, and max BPM all fall back to the same
+      // placeholder given the default null bpm/averageBpm/maxBpm mocks.
+      expect(screen.getAllByText('--')).toHaveLength(3);
       expect(screen.getByText('WAITING FOR SIGNAL…')).toBeOnTheScreen();
     });
 
@@ -88,8 +101,40 @@ describe('<LiveWorkout />', () => {
       expect(screen.getByText('Unknown device')).toBeOnTheScreen();
     });
 
+    it('renders elapsed as mm:ss, rounded average BPM, and max BPM from the session snapshot', async () => {
+      mockedUseWorkoutSession.mockReturnValue({
+        startedAt: 0,
+        samples: [],
+        elapsedMs: 125_000, // 02:05
+        averageBpm: 133.6,
+        maxBpm: 150,
+      });
+
+      await render(<LiveWorkout />);
+
+      expect(screen.getByText('02:05')).toBeOnTheScreen();
+      expect(screen.getByText('134')).toBeOnTheScreen();
+      expect(screen.getByText('150')).toBeOnTheScreen();
+    });
+
+    it('renders "--" for a null average and a null max BPM', async () => {
+      mockedUseWorkoutSession.mockReturnValue({
+        startedAt: 0,
+        samples: [],
+        elapsedMs: 0,
+        averageBpm: null,
+        maxBpm: null,
+      });
+
+      await render(<LiveWorkout />);
+
+      // BPM readout, avg BPM, and max BPM all fall back to the same
+      // placeholder — three occurrences given the default null bpm mock.
+      expect(screen.getAllByText('--')).toHaveLength(3);
+    });
+
     it('shows the live status and bpm when status is live', async () => {
-      mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'live' });
+      mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'live', lastReadingAt: 1000 });
 
       await render(<LiveWorkout />);
 
@@ -98,7 +143,7 @@ describe('<LiveWorkout />', () => {
     });
 
     it('shows signal lost while keeping the last bpm when status is stale', async () => {
-      mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale' });
+      mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale', lastReadingAt: 1000 });
 
       await render(<LiveWorkout />);
 
@@ -131,7 +176,7 @@ describe('<LiveWorkout />', () => {
     });
 
     it('does not flip to the guard branch when connection transitions to connectionLost mid-session', async () => {
-      mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale' });
+      mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale', lastReadingAt: 1000 });
 
       await render(<LiveWorkout />);
 
@@ -148,7 +193,7 @@ describe('<LiveWorkout />', () => {
 
     describe('auto-reconnect after a mid-session drop', () => {
       it('renders "RECONNECTING…" without changing the BPM readout or status line', async () => {
-        mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale' });
+        mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale', lastReadingAt: 1000 });
 
         await render(<LiveWorkout />);
 
@@ -164,7 +209,7 @@ describe('<LiveWorkout />', () => {
       });
 
       it('resumes a live BPM/status render and hides "RECONNECTING…" once connection returns to connected, with no remount', async () => {
-        mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale' });
+        mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale', lastReadingAt: 1000 });
 
         await render(<LiveWorkout />);
 
@@ -175,7 +220,7 @@ describe('<LiveWorkout />', () => {
         });
         expect(screen.getByText('RECONNECTING…')).toBeOnTheScreen();
 
-        mockedUseLiveHeartRate.mockReturnValue({ bpm: 132, status: 'live' });
+        mockedUseLiveHeartRate.mockReturnValue({ bpm: 132, status: 'live', lastReadingAt: 2000 });
         await act(async () => {
           usePairingStore.setState({ connection: { kind: 'connected', deviceId: 'device-1' } });
         });
@@ -188,7 +233,7 @@ describe('<LiveWorkout />', () => {
       });
 
       it('reverts to the existing unrecovered-drop presentation once reconnectFailed is reached, with no new UI', async () => {
-        mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale' });
+        mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale', lastReadingAt: 1000 });
 
         await render(<LiveWorkout />);
 

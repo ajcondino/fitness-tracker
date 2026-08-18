@@ -47,7 +47,11 @@ describe('useLiveHeartRate', () => {
     const { result } = await renderHook(() => useLiveHeartRate(null, true));
 
     expect(mockedDiscover).not.toHaveBeenCalled();
-    expect(result.current).toEqual({ bpm: null, status: 'awaitingFirstReading' });
+    expect(result.current).toEqual({
+      bpm: null,
+      status: 'awaitingFirstReading',
+      lastReadingAt: null,
+    });
   });
 
   it('discovers then monitors the HR characteristic for a non-null deviceId', async () => {
@@ -68,11 +72,12 @@ describe('useLiveHeartRate', () => {
       await Promise.resolve();
     });
 
+    const readingAt = Date.now();
     await act(async () => {
       capturedListener(null, { value: UINT8_BPM_75 } as Characteristic);
     });
 
-    expect(result.current).toEqual({ bpm: 75, status: 'live' });
+    expect(result.current).toEqual({ bpm: 75, status: 'live', lastReadingAt: readingAt });
   });
 
   it('goes stale once the threshold elapses with no further reading, keeping the last bpm', async () => {
@@ -81,6 +86,7 @@ describe('useLiveHeartRate', () => {
       await Promise.resolve();
     });
 
+    const readingAt = Date.now();
     await act(async () => {
       capturedListener(null, { value: UINT8_BPM_75 } as Characteristic);
     });
@@ -89,7 +95,7 @@ describe('useLiveHeartRate', () => {
       jest.advanceTimersByTime(PAST_STALE_THRESHOLD_MS);
     });
 
-    expect(result.current).toEqual({ bpm: 75, status: 'stale' });
+    expect(result.current).toEqual({ bpm: 75, status: 'stale', lastReadingAt: readingAt });
   });
 
   it('returns to live on a later valid reading after going stale', async () => {
@@ -106,11 +112,37 @@ describe('useLiveHeartRate', () => {
     });
     expect(result.current.status).toBe('stale');
 
+    const secondReadingAt = Date.now();
     await act(async () => {
       capturedListener(null, { value: UINT8_BPM_80 } as Characteristic);
     });
 
-    expect(result.current).toEqual({ bpm: 80, status: 'live' });
+    expect(result.current).toEqual({ bpm: 80, status: 'live', lastReadingAt: secondReadingAt });
+  });
+
+  it('sets a new, different lastReadingAt on a second notification carrying the identical bpm value', async () => {
+    const { result } = await renderHook(() => useLiveHeartRate('device-1', true));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      capturedListener(null, { value: UINT8_BPM_75 } as Characteristic);
+    });
+    const firstReadingAt = result.current.lastReadingAt;
+
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+    });
+
+    const secondReadingAt = Date.now();
+    await act(async () => {
+      capturedListener(null, { value: UINT8_BPM_75 } as Characteristic);
+    });
+
+    expect(result.current.bpm).toBe(75);
+    expect(result.current.lastReadingAt).toBe(secondReadingAt);
+    expect(result.current.lastReadingAt).not.toBe(firstReadingAt);
   });
 
   it('ignores a monitor callback carrying an error', async () => {
@@ -123,7 +155,11 @@ describe('useLiveHeartRate', () => {
       capturedListener({} as BleError, null);
     });
 
-    expect(result.current).toEqual({ bpm: null, status: 'awaitingFirstReading' });
+    expect(result.current).toEqual({
+      bpm: null,
+      status: 'awaitingFirstReading',
+      lastReadingAt: null,
+    });
   });
 
   it('swallows a discovery rejection and stays awaitingFirstReading', async () => {
@@ -136,7 +172,11 @@ describe('useLiveHeartRate', () => {
     });
 
     expect(mockedMonitor).not.toHaveBeenCalled();
-    expect(result.current).toEqual({ bpm: null, status: 'awaitingFirstReading' });
+    expect(result.current).toEqual({
+      bpm: null,
+      status: 'awaitingFirstReading',
+      lastReadingAt: null,
+    });
   });
 
   it('removes the subscription on unmount', async () => {

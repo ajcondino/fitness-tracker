@@ -13,6 +13,7 @@ import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import type { LiveHeartRateStatus } from '@/hooks/use-live-heart-rate';
+import { useWorkoutSession } from '@/hooks/use-workout-session';
 
 function selectStatusCopy(
   status: LiveHeartRateStatus,
@@ -26,6 +27,13 @@ function selectStatusCopy(
     case 'awaitingFirstReading':
       return { color: 'onSurfaceMuted', text: labels.waiting };
   }
+}
+
+function formatElapsed(elapsedMs: number): string {
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 export default function LiveWorkout() {
@@ -56,7 +64,8 @@ export default function LiveWorkout() {
   const isReconnecting =
     deviceId != null && connection.kind === 'reconnecting' && connection.deviceId === deviceId;
 
-  const { bpm, status } = useLiveHeartRate(deviceId, isConnected);
+  const { bpm, status, lastReadingAt } = useLiveHeartRate(deviceId, isConnected);
+  const session = useWorkoutSession(bpm, lastReadingAt);
 
   const discard = () => router.back();
 
@@ -138,6 +147,60 @@ export default function LiveWorkout() {
         </ThemedText>
       </View>
 
+      <View style={styles.statsRow}>
+        <View
+          style={[
+            styles.statCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outline,
+              borderRadius: theme.rounded.md,
+            },
+          ]}
+        >
+          <ThemedText variant="labelMicro" color="onSurfaceDim">
+            {t('liveWorkout.stats.elapsed')}
+          </ThemedText>
+          <ThemedText variant="h3" color="onSurface">
+            {formatElapsed(session.elapsedMs)}
+          </ThemedText>
+        </View>
+        <View
+          style={[
+            styles.statCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outline,
+              borderRadius: theme.rounded.md,
+            },
+          ]}
+        >
+          <ThemedText variant="labelMicro" color="onSurfaceDim">
+            {t('liveWorkout.stats.avgBpm')}
+          </ThemedText>
+          <ThemedText variant="h3" color="onSurface">
+            {session.averageBpm == null ? '--' : Math.round(session.averageBpm)}
+          </ThemedText>
+        </View>
+        <View
+          style={[
+            styles.statCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outline,
+              borderRadius: theme.rounded.md,
+            },
+          ]}
+        >
+          <ThemedText variant="labelMicro" color="onSurfaceDim">
+            {t('liveWorkout.stats.maxBpm')}
+          </ThemedText>
+          <ThemedText variant="h3" color="onSurface">
+            {session.maxBpm ?? '--'}
+          </ThemedText>
+        </View>
+      </View>
+
       <View style={styles.actionRow}>
         <Pressable
           accessibilityRole="button"
@@ -163,6 +226,8 @@ export default function LiveWorkout() {
           onPress={() => {
             // Workout persistence is a separate future ticket — this is an
             // intentional, tappable no-op for this minimal spec.
+            // `session.samples`/`session.startedAt` are already the shape a
+            // future save feature would serialize.
           }}
           testID="live-workout-save"
           style={({ pressed }) => [
@@ -245,6 +310,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    borderWidth: 1,
+    padding: 14,
     gap: spacing.xs,
   },
   actionRow: {
