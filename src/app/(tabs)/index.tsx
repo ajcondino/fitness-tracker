@@ -4,7 +4,7 @@ import { useIsFocused, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { usePairingStore } from '@/ble/pairing-store';
-import { selectDeviceDisplayName } from '@/ble/pairing-types';
+import { selectConnectedDeviceName } from '@/ble/pairing-types';
 import { DeviceCard } from '@/components/device-card';
 import { SessionRow } from '@/components/session-row';
 import { Glow } from '@/components/ui/glow';
@@ -68,13 +68,10 @@ export default function Index() {
     };
   }, [isFocused]);
 
-  const isConnected = connection.kind === 'connected';
-  const connectedDevice = isConnected
-    ? (devices.find((candidate) => candidate.id === connection.deviceId) ?? null)
-    : null;
-  const connectedDeviceName = connectedDevice
-    ? selectDeviceDisplayName(connectedDevice, t('pairing.deviceRow.unknownDevice')).text
-    : t('pairing.deviceRow.unknownDevice');
+  const { isConnected, deviceName: connectedDeviceName } = selectConnectedDeviceName(
+    { connection, devices },
+    t('pairing.deviceRow.unknownDevice'),
+  );
 
   const goToDevice = () => router.navigate('/device');
   const goToLiveWorkout = () => router.navigate('/live-workout');

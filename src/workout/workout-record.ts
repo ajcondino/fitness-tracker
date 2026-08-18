@@ -89,3 +89,38 @@ export function deriveWorkoutSummary(record: WorkoutRecord): WorkoutSummary {
 export function createWorkoutId(startedAt: number): string {
   return `${startedAt}-${Math.random().toString(36).slice(2, 10)}`;
 }
+
+export type WeeklyTotals = {
+  totalDurationMs: number;
+  sessionCount: number;
+  averageBpm: number | null;
+};
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Rolls up every record started within the last 7 days of `now` into the
+ * History screen's stat card. `now` is a parameter rather than read
+ * internally so this stays pure/testable, same as `deriveWorkoutSummary`.
+ * Reuses `deriveWorkoutSummary` per record rather than re-deriving duration
+ * or average BPM from `samples` directly.
+ */
+export function deriveWeeklyTotals(records: WorkoutRecord[], now: number): WeeklyTotals {
+  const recent = records.filter((record) => now - record.startedAt < SEVEN_DAYS_MS);
+  const summaries = recent.map(deriveWorkoutSummary);
+
+  const totalDurationMs = summaries.reduce((sum, summary) => sum + summary.durationMs, 0);
+
+  // A record with no samples has a null averageBpm — excluded from the mean
+  // entirely, not treated as a 0, so a zero-sample session can't drag the
+  // week's average down.
+  const averageBpms = summaries
+    .map((summary) => summary.averageBpm)
+    .filter((bpm): bpm is number => bpm != null);
+  const averageBpm =
+    averageBpms.length > 0
+      ? averageBpms.reduce((sum, bpm) => sum + bpm, 0) / averageBpms.length
+      : null;
+
+  return { totalDurationMs, sessionCount: recent.length, averageBpm };
+}
