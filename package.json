@@ -80,6 +80,7 @@
     "preset": "jest-expo",
     "setupFiles": [
       "<rootDir>/jest.setup.ts"
-    ]
+    ],
+    "cacheDirectory": "<rootDir>/.jest-cache"
   }
 }
