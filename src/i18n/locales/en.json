@@ -125,6 +125,9 @@
   "history": {
     "sessions": {
       "empty": "No workouts saved yet."
+    },
+    "sessionRow": {
+      "avgSuffix": "avg"
     }
   }
 }
