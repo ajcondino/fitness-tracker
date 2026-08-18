@@ -1,4 +1,4 @@
-import type { HeartRateSample } from '@/hooks/use-workout-session';
+import type { HeartRateSample, WorkoutPause } from '@/hooks/use-workout-session';
 
 /**
  * Framework-free (no BLE/Zustand/React/AsyncStorage import): types and pure
@@ -16,15 +16,10 @@ export type WorkoutDevice = {
   name: string | null;
 };
 
-/**
- * Placeholder shape for a closed pause interval. Nothing in this ticket
- * ever writes an entry — `pauses` is always `[]` on every record this
- * ticket saves. Reserved purely so pause/resume (the next ticket) has a
- * field to write into without migrating already-saved records; its exact
- * shape may still be revised by that ticket (WORKOUT_RECORD_SCHEMA_VERSION
- * exists for exactly that eventuality).
- */
-export type WorkoutPause = { startedAt: number; endedAt: number };
+// WorkoutPause is now owned by use-workout-session.ts (the only place a
+// pause is ever opened or closed) and re-exported here via a type-only
+// import, mirroring how HeartRateSample already lives there.
+export type { WorkoutPause };
 
 /**
  * The full persisted record — enough to reconstruct the session, not just
@@ -49,6 +44,12 @@ export type WorkoutSummary = {
   maxBpm: number | null;
 };
 
+/** Overlap, in ms, between the two closed intervals [aStart, aEnd] and
+ * [bStart, bEnd] — 0 if they don't overlap. */
+function overlapMs(aStart: number, aEnd: number, bStart: number, bEnd: number): number {
+  return Math.max(0, Math.min(aEnd, bEnd) - Math.max(aStart, bStart));
+}
+
 /**
  * Pure function of its `WorkoutRecord` argument alone — no I/O, no BLE, no
  * store. Deliberately re-implements, rather than imports,
@@ -56,12 +57,24 @@ export type WorkoutSummary = {
  * Conventions for why.
  */
 export function deriveWorkoutSummary(record: WorkoutRecord): WorkoutSummary {
-  const { samples, startedAt } = record;
+  const { samples, startedAt, pauses } = record;
   if (samples.length === 0) {
     return { durationMs: 0, averageBpm: null, maxBpm: null };
   }
 
-  const durationMs = samples[samples.length - 1].timestamp - startedAt;
+  const lastReadingAt = samples[samples.length - 1].timestamp;
+  // Each pause is clamped to [startedAt, lastReadingAt] before being
+  // subtracted, rather than assuming it falls fully inside that window — a
+  // pause opened after the last real reading arrived would otherwise be
+  // subtracted from a wall-clock span it never occupied. Every pause this
+  // app's own pause()/resume()/stop() implementation ever produces is fully
+  // bounded by [startedAt, <stop-time>], so in the common case this clamp
+  // is a no-op.
+  const pausedMs = pauses.reduce(
+    (sum, p) => sum + overlapMs(startedAt, lastReadingAt, p.startedAt, p.endedAt),
+    0,
+  );
+  const durationMs = Math.max(0, lastReadingAt - startedAt - pausedMs);
   const averageBpm = samples.reduce((sum, s) => sum + s.bpm, 0) / samples.length;
   const maxBpm = Math.max(...samples.map((s) => s.bpm));
 

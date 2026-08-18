@@ -113,17 +113,20 @@ export default function LiveWorkout() {
     waiting: t('liveWorkout.status.waiting'),
   });
 
-  const canSave = session.samples.length > 0;
+  const canSave = session.phase === 'ended' && session.samples.length > 0;
   const save = () => {
-    if (!canSave) return; // Pressable is already `disabled`; defensive, matches
-    // the same double-guard `home.tsx`'s goToLiveWorkout already uses.
+    if (!canSave || session.startedAt == null) return; // Pressable is already
+    // `disabled`; defensive, matches the same double-guard `home.tsx`'s
+    // goToLiveWorkout already uses. `startedAt` is guaranteed non-null once
+    // phase === 'ended' (only reachable via start()); the null check exists
+    // purely to satisfy its `number | null` type.
     const record: WorkoutRecord = {
       schemaVersion: WORKOUT_RECORD_SCHEMA_VERSION,
       id: createWorkoutId(session.startedAt),
       startedAt: session.startedAt,
       samples: session.samples,
       device: { id: deviceId, name: device?.name ?? device?.lastKnownName ?? null },
-      pauses: [],
+      pauses: session.pauses,
     };
     void saveWorkoutSession(record); // fire-and-forget — same contract as
     // use-device-pairing.ts's `void saveDevice(saved)`; the write is not
@@ -222,49 +225,177 @@ export default function LiveWorkout() {
         </View>
       </View>
 
-      <View style={styles.actionRow}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={discard}
-          testID="live-workout-discard"
-          style={({ pressed }) => [
-            styles.ghostButton,
-            styles.actionButton,
-            {
-              borderColor: theme.colors.outlineEmphasis,
-              borderRadius: theme.rounded.lg,
-              opacity: pressed ? 0.82 : 1,
-            },
-          ]}
-        >
-          <ThemedText variant="actionSm" color="onSurfaceMuted">
-            {t('liveWorkout.discard')}
-          </ThemedText>
-        </Pressable>
+      {session.phase === 'idle' && (
+        <View style={styles.actionRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={discard}
+            testID="live-workout-discard"
+            style={({ pressed }) => [
+              styles.ghostButton,
+              styles.actionButton,
+              {
+                borderColor: theme.colors.outlineEmphasis,
+                borderRadius: theme.rounded.lg,
+                opacity: pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            <ThemedText variant="actionSm" color="onSurfaceMuted">
+              {t('liveWorkout.discard')}
+            </ThemedText>
+          </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canSave }}
-          disabled={!canSave}
-          onPress={save}
-          testID="live-workout-save"
-          style={({ pressed }) => [
-            styles.primaryButton,
-            styles.actionButton,
-            {
-              backgroundColor: theme.colors.primary,
-              borderRadius: theme.rounded.xl,
-              opacity: pressed && canSave ? 0.82 : 1,
-            },
-          ]}
-        >
-          <ThemedText variant="actionMd" color="onPrimary">
-            {t('liveWorkout.save')}
-          </ThemedText>
-        </Pressable>
-      </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={session.start}
+            testID="live-workout-start"
+            style={({ pressed }) => [
+              styles.primaryButton,
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.primary,
+                borderRadius: theme.rounded.xl,
+                opacity: pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            <ThemedText variant="actionMd" color="onPrimary">
+              {t('liveWorkout.start')}
+            </ThemedText>
+          </Pressable>
+        </View>
+      )}
 
-      {!canSave && (
+      {session.phase === 'running' && (
+        <View style={styles.actionRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={session.pause}
+            testID="live-workout-pause"
+            style={({ pressed }) => [
+              styles.ghostButton,
+              styles.actionButton,
+              {
+                borderColor: theme.colors.outlineEmphasis,
+                borderRadius: theme.rounded.lg,
+                opacity: pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            <ThemedText variant="actionSm" color="onSurfaceMuted">
+              {t('liveWorkout.pause')}
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={session.stop}
+            testID="live-workout-stop"
+            style={({ pressed }) => [
+              styles.primaryButton,
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.primary,
+                borderRadius: theme.rounded.xl,
+                opacity: pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            <ThemedText variant="actionMd" color="onPrimary">
+              {t('liveWorkout.stop')}
+            </ThemedText>
+          </Pressable>
+        </View>
+      )}
+
+      {session.phase === 'paused' && (
+        <View style={styles.actionRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={session.stop}
+            testID="live-workout-stop"
+            style={({ pressed }) => [
+              styles.ghostButton,
+              styles.actionButton,
+              {
+                borderColor: theme.colors.outlineEmphasis,
+                borderRadius: theme.rounded.lg,
+                opacity: pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            <ThemedText variant="actionSm" color="onSurfaceMuted">
+              {t('liveWorkout.stop')}
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={session.resume}
+            testID="live-workout-resume"
+            style={({ pressed }) => [
+              styles.primaryButton,
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.primary,
+                borderRadius: theme.rounded.xl,
+                opacity: pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            <ThemedText variant="actionMd" color="onPrimary">
+              {t('liveWorkout.resume')}
+            </ThemedText>
+          </Pressable>
+        </View>
+      )}
+
+      {session.phase === 'ended' && (
+        <View style={styles.actionRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={discard}
+            testID="live-workout-discard"
+            style={({ pressed }) => [
+              styles.ghostButton,
+              styles.actionButton,
+              {
+                borderColor: theme.colors.outlineEmphasis,
+                borderRadius: theme.rounded.lg,
+                opacity: pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            <ThemedText variant="actionSm" color="onSurfaceMuted">
+              {t('liveWorkout.discard')}
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canSave }}
+            disabled={!canSave}
+            onPress={save}
+            testID="live-workout-save"
+            style={({ pressed }) => [
+              styles.primaryButton,
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.primary,
+                borderRadius: theme.rounded.xl,
+                opacity: pressed && canSave ? 0.82 : 1,
+              },
+            ]}
+          >
+            <ThemedText variant="actionMd" color="onPrimary">
+              {t('liveWorkout.save')}
+            </ThemedText>
+          </Pressable>
+        </View>
+      )}
+
+      {session.phase === 'ended' && !canSave && (
         <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.saveDisabledHint}>
           {t('liveWorkout.saveDisabledHint')}
         </ThemedText>

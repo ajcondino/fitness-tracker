@@ -91,6 +91,10 @@
     },
     "discard": "DISCARD",
     "save": "SAVE",
+    "start": "START",
+    "pause": "PAUSE",
+    "resume": "RESUME",
+    "stop": "STOP",
     "reconnecting": "RECONNECTING…",
     "devSimulateDropout": "SIMULATE DROPOUT (DEV)",
     "noDevice": {
