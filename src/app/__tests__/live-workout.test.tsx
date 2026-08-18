@@ -7,17 +7,23 @@ import { usePairingStore } from '@/ble/pairing-store';
 import type { DiscoveredDevice } from '@/ble/pairing-types';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
+import { WORKOUT_RECORD_SCHEMA_VERSION } from '@/workout/workout-record';
+import { saveWorkoutSession } from '@/workout/workout-store';
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
 }));
 jest.mock('@/hooks/use-live-heart-rate');
 jest.mock('@/hooks/use-workout-session');
+jest.mock('@/workout/workout-store');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedUseLiveHeartRate = useLiveHeartRate as jest.MockedFunction<typeof useLiveHeartRate>;
 const mockedUseWorkoutSession = useWorkoutSession as jest.MockedFunction<typeof useWorkoutSession>;
 const mockedCancelDeviceConnection = jest.mocked(bleManager.cancelDeviceConnection);
+const mockedSaveWorkoutSession = saveWorkoutSession as jest.MockedFunction<
+  typeof saveWorkoutSession
+>;
 
 function makeDevice(overrides: Partial<DiscoveredDevice> = {}): DiscoveredDevice {
   return {
@@ -52,6 +58,7 @@ describe('<LiveWorkout />', () => {
       averageBpm: null,
       maxBpm: null,
     });
+    mockedSaveWorkoutSession.mockReset().mockResolvedValue(undefined);
   });
 
   describe('guard branch (no connected device)', () => {
@@ -164,15 +171,61 @@ describe('<LiveWorkout />', () => {
       });
     });
 
-    it('Save is present, tappable, and triggers no navigation or store change', async () => {
-      await render(<LiveWorkout />);
+    describe('Save', () => {
+      it('is disabled with a visible hint and is a no-op when there are no samples', async () => {
+        mockedUseWorkoutSession.mockReturnValue({
+          startedAt: 0,
+          samples: [],
+          elapsedMs: 0,
+          averageBpm: null,
+          maxBpm: null,
+        });
 
-      const connectionBefore = usePairingStore.getState().connection;
+        await render(<LiveWorkout />);
 
-      expect(() => fireEvent.press(screen.getByTestId('live-workout-save'))).not.toThrow();
+        const save = screen.getByTestId('live-workout-save');
+        expect(save.props.accessibilityState.disabled).toBe(true);
+        expect(screen.getByText('Wait for a reading before saving')).toBeOnTheScreen();
 
-      expect(back).not.toHaveBeenCalled();
-      expect(usePairingStore.getState().connection).toEqual(connectionBefore);
+        fireEvent.press(save);
+
+        expect(mockedSaveWorkoutSession).not.toHaveBeenCalled();
+        expect(back).not.toHaveBeenCalled();
+      });
+
+      it('persists the session and navigates back when there is at least one sample', async () => {
+        const samples = [
+          { bpm: 120, timestamp: 1_000 },
+          { bpm: 130, timestamp: 2_000 },
+        ];
+        mockedUseWorkoutSession.mockReturnValue({
+          startedAt: 500,
+          samples,
+          elapsedMs: 1_500,
+          averageBpm: 125,
+          maxBpm: 130,
+        });
+
+        await render(<LiveWorkout />);
+
+        const save = screen.getByTestId('live-workout-save');
+        expect(save.props.accessibilityState.disabled).toBe(false);
+        expect(screen.queryByText('Wait for a reading before saving')).not.toBeOnTheScreen();
+
+        fireEvent.press(save);
+
+        expect(mockedSaveWorkoutSession).toHaveBeenCalledTimes(1);
+        expect(mockedSaveWorkoutSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            schemaVersion: WORKOUT_RECORD_SCHEMA_VERSION,
+            startedAt: 500,
+            samples,
+            device: { id: 'device-1', name: 'Pulse HRM' },
+            pauses: [],
+          }),
+        );
+        expect(back).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('does not flip to the guard branch when connection transitions to connectionLost mid-session', async () => {

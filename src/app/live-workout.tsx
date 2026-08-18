@@ -14,6 +14,9 @@ import { useTheme } from '@/hooks/use-theme';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import type { LiveHeartRateStatus } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
+import { WORKOUT_RECORD_SCHEMA_VERSION, createWorkoutId } from '@/workout/workout-record';
+import type { WorkoutRecord } from '@/workout/workout-record';
+import { saveWorkoutSession } from '@/workout/workout-store';
 
 function selectStatusCopy(
   status: LiveHeartRateStatus,
@@ -109,6 +112,24 @@ export default function LiveWorkout() {
     signalLost: t('liveWorkout.status.signalLost'),
     waiting: t('liveWorkout.status.waiting'),
   });
+
+  const canSave = session.samples.length > 0;
+  const save = () => {
+    if (!canSave) return; // Pressable is already `disabled`; defensive, matches
+    // the same double-guard `home.tsx`'s goToLiveWorkout already uses.
+    const record: WorkoutRecord = {
+      schemaVersion: WORKOUT_RECORD_SCHEMA_VERSION,
+      id: createWorkoutId(session.startedAt),
+      startedAt: session.startedAt,
+      samples: session.samples,
+      device: { id: deviceId, name: device?.name ?? device?.lastKnownName ?? null },
+      pauses: [],
+    };
+    void saveWorkoutSession(record); // fire-and-forget — same contract as
+    // use-device-pairing.ts's `void saveDevice(saved)`; the write is not
+    // awaited before navigating back.
+    router.back();
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -223,12 +244,9 @@ export default function LiveWorkout() {
 
         <Pressable
           accessibilityRole="button"
-          onPress={() => {
-            // Workout persistence is a separate future ticket — this is an
-            // intentional, tappable no-op for this minimal spec.
-            // `session.samples`/`session.startedAt` are already the shape a
-            // future save feature would serialize.
-          }}
+          accessibilityState={{ disabled: !canSave }}
+          disabled={!canSave}
+          onPress={save}
           testID="live-workout-save"
           style={({ pressed }) => [
             styles.primaryButton,
@@ -236,7 +254,7 @@ export default function LiveWorkout() {
             {
               backgroundColor: theme.colors.primary,
               borderRadius: theme.rounded.xl,
-              opacity: pressed ? 0.82 : 1,
+              opacity: pressed && canSave ? 0.82 : 1,
             },
           ]}
         >
@@ -245,6 +263,12 @@ export default function LiveWorkout() {
           </ThemedText>
         </Pressable>
       </View>
+
+      {!canSave && (
+        <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.saveDisabledHint}>
+          {t('liveWorkout.saveDisabledHint')}
+        </ThemedText>
+      )}
 
       {__DEV__ && (
         <Pressable
@@ -338,6 +362,10 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     height: 60,
+  },
+  saveDisabledHint: {
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   devTrigger: {
     marginTop: spacing.md,
