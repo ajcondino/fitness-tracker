@@ -9,8 +9,12 @@ import type { DiscoveredDevice } from '@/ble/pairing-types';
 import { spacing } from '@/constants/theme';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
+import type { WorkoutSessionSnapshot } from '@/hooks/use-workout-session';
+import * as workoutRecord from '@/workout/workout-record';
 import { WORKOUT_RECORD_SCHEMA_VERSION } from '@/workout/workout-record';
 import { saveWorkoutSession } from '@/workout/workout-store';
+
+const LIVE_TRACE_BUCKET_COUNT = 36; // mirrors live-workout.tsx's own private constant
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
@@ -614,6 +618,147 @@ describe('<LiveWorkout />', () => {
         fireEvent.press(screen.getByTestId('live-workout-device-chip'));
 
         expect(mockedCancelDeviceConnection).toHaveBeenCalledWith('device-1');
+      });
+    });
+
+    describe('heart-rate trace', () => {
+      function sessionMock(
+        phase: WorkoutSessionSnapshot['phase'],
+        overrides: Partial<WorkoutSessionSnapshot> = {},
+      ): WorkoutSessionSnapshot {
+        return {
+          phase,
+          startedAt: phase === 'idle' ? null : 0,
+          samples: [],
+          pauses: [],
+          elapsedMs: 0,
+          averageBpm: null,
+          maxBpm: null,
+          start: jest.fn(),
+          pause: jest.fn(),
+          resume: jest.fn(),
+          stop: jest.fn(),
+          ...overrides,
+        };
+      }
+
+      it('renders during idle, running, and paused with a bucket array of length LIVE_TRACE_BUCKET_COUNT', async () => {
+        mockedUseWorkoutSession.mockReturnValue(sessionMock('idle'));
+        const { rerender } = await render(<LiveWorkout />);
+        expect(screen.getByTestId('live-workout-trace', { hidden: true }).children.length).toBe(
+          LIVE_TRACE_BUCKET_COUNT,
+        );
+
+        mockedUseWorkoutSession.mockReturnValue(sessionMock('running'));
+        await rerender(<LiveWorkout />);
+        expect(screen.getByTestId('live-workout-trace', { hidden: true }).children.length).toBe(
+          LIVE_TRACE_BUCKET_COUNT,
+        );
+
+        mockedUseWorkoutSession.mockReturnValue(sessionMock('paused'));
+        await rerender(<LiveWorkout />);
+        expect(screen.getByTestId('live-workout-trace', { hidden: true }).children.length).toBe(
+          LIVE_TRACE_BUCKET_COUNT,
+        );
+      });
+
+      it('is absent once phase is ended', async () => {
+        mockedUseWorkoutSession.mockReturnValue(
+          sessionMock('ended', { samples: [{ bpm: 120, timestamp: 1_000 }] }),
+        );
+
+        await render(<LiveWorkout />);
+
+        expect(screen.queryByTestId('live-workout-trace', { hidden: true })).not.toBeOnTheScreen();
+      });
+
+      it('wraps the trace in a card with a LIVE TRACE / bpm header', async () => {
+        mockedUseWorkoutSession.mockReturnValue(sessionMock('running'));
+
+        await render(<LiveWorkout />);
+
+        expect(screen.getByText('LIVE TRACE')).toBeOnTheScreen();
+        expect(screen.getByText('bpm')).toBeOnTheScreen();
+      });
+
+      it('changes its rendered values when samples gains a new reading between renders', async () => {
+        const now = 10_000_000;
+        jest.spyOn(Date, 'now').mockReturnValue(now);
+
+        mockedUseWorkoutSession.mockReturnValue(
+          sessionMock('running', { startedAt: now - 5_000, samples: [] }),
+        );
+        const { rerender } = await render(<LiveWorkout />);
+        // .toJSON() (a plain, serializable tree) rather than the raw
+        // TestInstance `.children` array, which holds circular parent/child
+        // references that crash `toEqual`'s diff on failure.
+        const before = screen.getByTestId('live-workout-trace', { hidden: true }).toJSON();
+
+        mockedUseWorkoutSession.mockReturnValue(
+          sessionMock('running', {
+            startedAt: now - 5_000,
+            samples: [{ bpm: 150, timestamp: now }],
+          }),
+        );
+        await rerender(<LiveWorkout />);
+        const after = screen.getByTestId('live-workout-trace', { hidden: true }).toJSON();
+
+        expect(after).not.toEqual(before);
+
+        jest.spyOn(Date, 'now').mockRestore();
+      });
+
+      // NOTE on what this test can and can't prove: SPEC.md's Design
+      // decision is that rounding `Date.now()` to the current whole second
+      // — not a manual useMemo — is what lets the React Compiler skip
+      // recomputing `bucketHeartRateSamples(...)` on an unrelated re-render.
+      // That skip is a Metro/babel-plugin-react-compiler transform applied
+      // to the real app build; jest-expo's babel caller never sets
+      // `supportsReactCompiler` (see babel-preset-expo's `getReactCompiler`),
+      // so the compiler pass never runs under Jest and every render here
+      // genuinely re-invokes the function, compiler or not. What *is*
+      // testable here, and what the rounding is actually responsible for,
+      // is that two renders inside the same rounded second compute the
+      // *same* range argument (the input stability the compiler's own
+      // memoization keys off), while a render after the second advances (or
+      // a new sample arrives) computes a different one.
+      it('computes an identical range argument for two renders within the same rounded second, and a different one once the second advances or a new sample arrives', async () => {
+        const bucketSpy = jest.spyOn(workoutRecord, 'bucketHeartRateSamples');
+        const dateSpy = jest.spyOn(Date, 'now');
+
+        dateSpy.mockReturnValue(10_000_000); // rounds to 10_000_000
+        const session = sessionMock('running', { startedAt: 9_000_000, samples: [] });
+        mockedUseWorkoutSession.mockReturnValue(session);
+        const { rerender } = await render(<LiveWorkout />);
+        const rangeAtMount = bucketSpy.mock.calls.at(-1)?.[1];
+
+        // A re-render triggered by something unrelated (e.g. a status
+        // change), still within the same rounded second.
+        dateSpy.mockReturnValue(10_000_400);
+        mockedUseLiveHeartRate.mockReturnValue({ bpm: 140, status: 'live', lastReadingAt: 9999 });
+        await rerender(<LiveWorkout />);
+        expect(bucketSpy.mock.calls.at(-1)?.[1]).toEqual(rangeAtMount);
+
+        // The rounded second advances — a real input change.
+        dateSpy.mockReturnValue(10_001_200);
+        await rerender(<LiveWorkout />);
+        expect(bucketSpy.mock.calls.at(-1)?.[1]).not.toEqual(rangeAtMount);
+        const rangeAfterSecondAdvance = bucketSpy.mock.calls.at(-1)?.[1];
+
+        // A new sample arrives — also a real input change (the first
+        // argument, not the range, differs this time).
+        mockedUseWorkoutSession.mockReturnValue(
+          sessionMock('running', {
+            startedAt: 9_000_000,
+            samples: [{ bpm: 150, timestamp: 10_001_200 }],
+          }),
+        );
+        await rerender(<LiveWorkout />);
+        expect(bucketSpy.mock.calls.at(-1)?.[1]).toEqual(rangeAfterSecondAdvance);
+        expect(bucketSpy.mock.calls.at(-1)?.[0]).toEqual([{ bpm: 150, timestamp: 10_001_200 }]);
+
+        bucketSpy.mockRestore();
+        dateSpy.mockRestore();
       });
     });
   });

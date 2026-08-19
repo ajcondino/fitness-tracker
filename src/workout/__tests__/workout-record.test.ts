@@ -1,4 +1,5 @@
 import {
+  bucketHeartRateSamples,
   createWorkoutId,
   deriveWeeklyTotals,
   deriveWorkoutSummary,
@@ -202,6 +203,100 @@ describe('deriveWeeklyTotals', () => {
       sessionCount: 2,
       averageBpm: 150,
     });
+  });
+});
+
+describe('bucketHeartRateSamples', () => {
+  it('returns an array of bucketCount nulls for 0 samples', () => {
+    expect(bucketHeartRateSamples([], { start: 0, end: 10_000 }, 4)).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it('returns an array of bucketCount nulls when range.end <= range.start', () => {
+    const samples = [{ bpm: 120, timestamp: 5_000 }];
+
+    expect(bucketHeartRateSamples(samples, { start: 10_000, end: 10_000 }, 3)).toEqual([
+      null,
+      null,
+      null,
+    ]);
+    expect(bucketHeartRateSamples(samples, { start: 10_000, end: 5_000 }, 3)).toEqual([
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it('returns [] for bucketCount <= 0', () => {
+    const samples = [{ bpm: 120, timestamp: 5_000 }];
+
+    expect(bucketHeartRateSamples(samples, { start: 0, end: 10_000 }, 0)).toEqual([]);
+    expect(bucketHeartRateSamples(samples, { start: 0, end: 10_000 }, -1)).toEqual([]);
+  });
+
+  it('counts a sample exactly at range.end in the last bucket, not out of bounds', () => {
+    const samples = [{ bpm: 150, timestamp: 10_000 }];
+
+    expect(bucketHeartRateSamples(samples, { start: 0, end: 10_000 }, 4)).toEqual([
+      null,
+      null,
+      null,
+      150,
+    ]);
+  });
+
+  it('excludes samples outside [range.start, range.end] from every bucket', () => {
+    const samples = [
+      { bpm: 100, timestamp: -1 },
+      { bpm: 200, timestamp: 10_001 },
+    ];
+
+    expect(bucketHeartRateSamples(samples, { start: 0, end: 10_000 }, 4)).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it('produces the per-bucket arithmetic mean for samples spread across several buckets', () => {
+    const samples = [
+      { bpm: 100, timestamp: 0 },
+      { bpm: 120, timestamp: 1_000 },
+      { bpm: 140, timestamp: 5_000 },
+      { bpm: 160, timestamp: 9_000 },
+      { bpm: 180, timestamp: 9_500 },
+    ];
+
+    expect(bucketHeartRateSamples(samples, { start: 0, end: 10_000 }, 4)).toEqual([
+      110, // [0, 2500): 100, 120
+      null, // [2500, 5000): empty
+      140, // [5000, 7500): 140
+      170, // [7500, 10000]: 160, 180
+    ]);
+  });
+
+  it('renders a multi-minute gap in the middle of the sample set as null buckets, unaffected on both sides', () => {
+    const samples = [
+      { bpm: 120, timestamp: 0 },
+      { bpm: 125, timestamp: 60_000 },
+      // ~4-minute gap
+      { bpm: 130, timestamp: 295_000 },
+      { bpm: 135, timestamp: 350_000 },
+    ];
+
+    expect(bucketHeartRateSamples(samples, { start: 0, end: 360_000 }, 6)).toEqual([
+      120, // [0, 60000): 120
+      125, // [60000, 120000): 125
+      null, // [120000, 180000): empty
+      null, // [180000, 240000): empty
+      130, // [240000, 300000): 130
+      135, // [300000, 360000]: 135
+    ]);
   });
 });
 

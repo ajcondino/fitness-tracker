@@ -1,11 +1,21 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { HeartRateTrace } from '@/components/ui/heart-rate-trace';
 import { ThemedText } from '@/components/ui/themed-text';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { deriveWorkoutSummary, describeSessionTime } from '@/workout/workout-record';
+import {
+  bucketHeartRateSamples,
+  deriveWorkoutSummary,
+  describeSessionTime,
+} from '@/workout/workout-record';
 import type { WorkoutRecord } from '@/workout/workout-record';
+
+// Fixed bucket *count*, not bucket width, so the rendered bar density is the
+// same for a 5-minute and a 90-minute session — bucket duration simply
+// scales with the session's own length. See docs/specs/heart-rate-trace-graph.
+const TRACE_BUCKET_COUNT = 48;
 
 // Shared stats display for a workout's `WorkoutRecord` — serves the
 // just-finished, not-yet-saved session on Live Workout (`mode="review"`)
@@ -47,6 +57,19 @@ export function SessionSummary(props: SessionSummaryProps) {
   const canSave = record.samples.length > 0;
   const timeOfDay = describeSessionTime(new Date(record.startedAt));
 
+  // The chart's span is wall-clock (start to last reading), not the "active
+  // duration" shown in the hero above — see SPEC.md's Design decision for
+  // why the two intentionally diverge whenever the session had a pause. The
+  // axis row below labels this same span, not summary.durationMs, so it
+  // never shows a number the bars themselves don't actually cover.
+  const lastSampleAt = record.samples[record.samples.length - 1]?.timestamp ?? record.startedAt;
+  const traceSpanMs = lastSampleAt - record.startedAt;
+  const traceValues = bucketHeartRateSamples(
+    record.samples,
+    { start: record.startedAt, end: lastSampleAt },
+    TRACE_BUCKET_COUNT,
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.statusRow}>
@@ -66,6 +89,7 @@ export function SessionSummary(props: SessionSummaryProps) {
         </ThemedText>
         <View style={styles.heroDurationRow}>
           <ThemedText
+            testID="session-summary-hero-duration"
             variant="displayLg"
             color="primary"
             style={[styles.heroDuration, { fontVariant: ['tabular-nums'] }]}
@@ -78,8 +102,34 @@ export function SessionSummary(props: SessionSummaryProps) {
         </View>
       </View>
 
-      {/* The trace-graph ticket slots its chart here, between the hero
-          block and the stat cards — no reserved space until it lands. */}
+      <View
+        style={[
+          styles.traceCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outline,
+            borderRadius: theme.rounded.lg,
+          },
+        ]}
+      >
+        <View style={styles.traceCardHeader}>
+          <ThemedText variant="labelCaps" color="onSurfaceDim">
+            {t('sessionSummary.trace.label')}
+          </ThemedText>
+          <ThemedText variant="labelCaps" color="onSurfaceDim">
+            {t('sessionSummary.trace.unit')}
+          </ThemedText>
+        </View>
+        <HeartRateTrace testID="session-summary-trace" values={traceValues} height={120} />
+        <View style={styles.traceCardAxis}>
+          <ThemedText variant="dataSm" color="onSurfaceDim">
+            {formatDuration(0)}
+          </ThemedText>
+          <ThemedText variant="dataSm" color="onSurfaceDim">
+            {formatDuration(traceSpanMs)}
+          </ThemedText>
+        </View>
+      </View>
 
       <View style={styles.statRow}>
         <View
@@ -238,6 +288,19 @@ const styles = StyleSheet.create({
   },
   heroDuration: {
     lineHeight: 56,
+  },
+  traceCard: {
+    borderWidth: 1,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  traceCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  traceCardAxis: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   statRow: {
     flexDirection: 'row',
