@@ -108,8 +108,10 @@
     "pause": "PAUSE",
     "resume": "RESUME",
     "stop": "STOP",
-    "reconnecting": "RECONNECTING…",
-    "devSimulateDropout": "SIMULATE DROPOUT (DEV)",
+    "deviceChip": {
+      "reconnecting": "RECONNECTING",
+      "disconnected": "DISCONNECTED"
+    },
     "noDevice": {
       "title": "No monitor connected",
       "subtitle": "Go back and connect a heart-rate monitor to start a workout."

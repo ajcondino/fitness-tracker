@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { bleManager } from '@/ble/manager';
 import { usePairingStore } from '@/ble/pairing-store';
 import { selectDeviceDisplayName } from '@/ble/pairing-types';
+import { DeviceChip, type DeviceChipStatus } from '@/components/device-chip';
 import { Glow } from '@/components/ui/glow';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
@@ -44,6 +46,11 @@ export default function LiveWorkout() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
+  // The root layout's SafeAreaView only consumes the top edge (see
+  // _layout.tsx's comment) — as a screen pushed outside the tab bar's own
+  // bottom-inset handling, this one is responsible for its own, so the
+  // Discard/Save row isn't overlapped by the phone's gesture nav bar.
+  const insets = useSafeAreaInsets();
 
   const devices = usePairingStore((state) => state.devices);
   const connection = usePairingStore((state) => state.connection);
@@ -77,7 +84,10 @@ export default function LiveWorkout() {
     // Defensive edge case, not a designed flow — Home only enables
     // navigation here when a device is connected. See SPEC.md's Constraints.
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView
+        testID="live-workout-container"
+        style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}
+      >
         <View style={styles.guardContent}>
           <ThemedText variant="h2">{t('liveWorkout.noDevice.title')}</ThemedText>
           <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.guardSubtitle}>
@@ -113,6 +123,11 @@ export default function LiveWorkout() {
     signalLost: t('liveWorkout.status.signalLost'),
     waiting: t('liveWorkout.status.waiting'),
   });
+  const chipStatus: DeviceChipStatus = isReconnecting
+    ? 'reconnecting'
+    : isConnected
+      ? 'connected'
+      : 'disconnected';
 
   const canSave = session.phase === 'ended' && session.samples.length > 0;
   const save = () => {
@@ -136,32 +151,29 @@ export default function LiveWorkout() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView
+      testID="live-workout-container"
+      style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}
+    >
       <Glow height={320} top={-70} />
 
       <View style={styles.titleRow}>
         <ThemedText variant="titleMd">{t('liveWorkout.title')}</ThemedText>
-        <View
-          style={[
-            styles.deviceChip,
-            { backgroundColor: theme.colors.surfaceRaised, borderRadius: theme.rounded.full },
-          ]}
-        >
-          <ThemedText variant="dataSm" color="onSurfaceChip">
-            {deviceName}
-          </ThemedText>
-        </View>
+        <DeviceChip
+          deviceName={deviceName}
+          status={chipStatus}
+          onSimulateDropout={() => {
+            bleManager.cancelDeviceConnection(deviceId).catch(() => {
+              // Expected no-op if the connection already dropped or was
+              // never fully established natively — not a bug to surface.
+            });
+          }}
+        />
       </View>
 
       <ThemedText variant="dataSm" color={statusCopy.color} style={styles.status}>
         {statusCopy.text}
       </ThemedText>
-
-      {isReconnecting && (
-        <ThemedText variant="dataSm" color="onSurfaceMuted" style={styles.reconnecting}>
-          {t('liveWorkout.reconnecting')}
-        </ThemedText>
-      )}
 
       <View style={styles.readoutContainer}>
         {/* Never dimmed/re-colored when stale — the status line alone
@@ -403,32 +415,6 @@ export default function LiveWorkout() {
           {t('liveWorkout.saveDisabledHint')}
         </ThemedText>
       )}
-
-      {__DEV__ && (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            bleManager.cancelDeviceConnection(deviceId).catch(() => {
-              // Expected no-op if the connection already dropped or was
-              // never fully established natively — not a bug to surface.
-            });
-          }}
-          testID="live-workout-simulate-dropout"
-          style={({ pressed }) => [
-            styles.ghostButton,
-            styles.devTrigger,
-            {
-              borderColor: theme.colors.outlineEmphasis,
-              borderRadius: theme.rounded.lg,
-              opacity: pressed ? 0.82 : 1,
-            },
-          ]}
-        >
-          <ThemedText variant="actionSm" color="onSurfaceMuted">
-            {t('liveWorkout.devSimulateDropout')}
-          </ThemedText>
-        </Pressable>
-      )}
     </ThemedView>
   );
 }
@@ -456,17 +442,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     zIndex: 1,
   },
-  deviceChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
   status: {
     marginTop: spacing.lg,
-    textAlign: 'center',
-    zIndex: 1,
-  },
-  reconnecting: {
-    marginTop: spacing.xs,
     textAlign: 'center',
     zIndex: 1,
   },
@@ -509,10 +486,6 @@ const styles = StyleSheet.create({
   saveDisabledHint: {
     marginTop: spacing.sm,
     textAlign: 'center',
-    zIndex: 1,
-  },
-  devTrigger: {
-    marginTop: spacing.md,
     zIndex: 1,
   },
 });
