@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { SessionRow } from '@/components/session-row';
 import { colors } from '@/constants/theme';
@@ -64,5 +64,25 @@ describe('<SessionRow />', () => {
 
     expect(screen.getByText('›')).toBeOnTheScreen();
     expect(screen.queryByRole('button')).not.toBeOnTheScreen();
+  });
+
+  it('exposes a button role and calls onPress when pressed, given an onPress prop', async () => {
+    const onPress = jest.fn();
+    await render(
+      <SessionRow
+        monthLabel="AUG"
+        dayLabel="17"
+        timeLabel="6:42 PM"
+        durationLabel="42:10"
+        averageBpmLabel="134"
+        onPress={onPress}
+      />,
+    );
+
+    expect(screen.getByRole('button')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId('session-row'));
+
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 });

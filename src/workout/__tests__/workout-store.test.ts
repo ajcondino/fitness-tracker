@@ -1,6 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { loadWorkoutSessions, saveWorkoutSession } from '@/workout/workout-store';
+import {
+  loadWorkoutSession,
+  loadWorkoutSessions,
+  saveWorkoutSession,
+} from '@/workout/workout-store';
 import type { WorkoutRecord } from '@/workout/workout-record';
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
@@ -100,6 +104,31 @@ describe('workout-store', () => {
       );
 
       expect(await loadWorkoutSessions()).toEqual([present]);
+    });
+  });
+
+  describe('loadWorkoutSession', () => {
+    it('returns the saved record matching the given id', async () => {
+      const record = makeRecord();
+      await saveWorkoutSession(record);
+
+      expect(await loadWorkoutSession('workout-1')).toEqual(record);
+    });
+
+    it('resolves null for an unknown id', async () => {
+      expect(await loadWorkoutSession('workout-missing')).toBeNull();
+    });
+
+    it('resolves null when the backing record holds corrupt JSON', async () => {
+      await AsyncStorage.setItem('workout.session.workout-corrupt', 'not json{{{');
+
+      expect(await loadWorkoutSession('workout-corrupt')).toBeNull();
+    });
+
+    it('resolves null, never throws, when AsyncStorage.getItem rejects', async () => {
+      jest.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('storage unavailable'));
+
+      await expect(loadWorkoutSession('workout-1')).resolves.toBeNull();
     });
   });
 });

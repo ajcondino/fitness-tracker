@@ -76,6 +76,15 @@ export async function saveWorkoutSession(record: WorkoutRecord): Promise<void> {
   }
 }
 
+export async function loadWorkoutSession(id: string): Promise<WorkoutRecord | null> {
+  try {
+    const raw = await AsyncStorage.getItem(sessionKey(id));
+    return parseWorkoutRecord(raw);
+  } catch {
+    return null;
+  }
+}
+
 export async function loadWorkoutSessions(): Promise<WorkoutRecord[]> {
   try {
     const ids = await readSessionIndex();

@@ -1,4 +1,4 @@
-import { useIsFocused } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
@@ -41,6 +41,7 @@ function formatHoursMinutes(durationMs: number): string {
 export default function History() {
   const { t, i18n } = useTranslation();
   const theme = useTheme();
+  const router = useRouter();
   const isFocused = useIsFocused();
   const [sessions, setSessions] = useState<WorkoutRecord[] | undefined>(undefined);
   // undefined = not yet loaded this focus; WorkoutRecord[] (possibly []) =
@@ -166,6 +167,9 @@ export default function History() {
                   durationLabel={formatDuration(summary.durationMs)}
                   averageBpmLabel={
                     summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
+                  }
+                  onPress={() =>
+                    router.push({ pathname: '/session/[id]', params: { id: record.id } })
                   }
                 />
               );

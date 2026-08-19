@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Alert, StyleSheet } from 'react-native';
+import { useNavigation, useRouter } from 'expo-router';
 
 import LiveWorkout from '@/app/live-workout';
 import { bleManager } from '@/ble/manager';
@@ -14,6 +14,7 @@ import { saveWorkoutSession } from '@/workout/workout-store';
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
+  useNavigation: jest.fn(),
 }));
 // No <SafeAreaProvider> in this test tree — mocked with a representative
 // bottom inset (e.g. an iPhone home-indicator gesture bar) rather than the
@@ -26,12 +27,19 @@ jest.mock('@/hooks/use-workout-session');
 jest.mock('@/workout/workout-store');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
+const mockedUseNavigation = useNavigation as jest.MockedFunction<typeof useNavigation>;
 const mockedUseLiveHeartRate = useLiveHeartRate as jest.MockedFunction<typeof useLiveHeartRate>;
 const mockedUseWorkoutSession = useWorkoutSession as jest.MockedFunction<typeof useWorkoutSession>;
 const mockedCancelDeviceConnection = jest.mocked(bleManager.cancelDeviceConnection);
 const mockedSaveWorkoutSession = saveWorkoutSession as jest.MockedFunction<
   typeof saveWorkoutSession
 >;
+
+// Captures whatever listener LiveWorkout registers for 'beforeRemove', so
+// tests can simulate a back gesture/hardware back press by invoking it
+// directly — mirroring how React Navigation itself would call it.
+type BeforeRemoveEvent = { preventDefault: () => void };
+let beforeRemoveListener: ((e: BeforeRemoveEvent) => void) | undefined;
 
 function makeDevice(overrides: Partial<DiscoveredDevice> = {}): DiscoveredDevice {
   return {
@@ -52,6 +60,13 @@ describe('<LiveWorkout />', () => {
   beforeEach(() => {
     back.mockClear();
     mockedUseRouter.mockReturnValue({ back } as unknown as ReturnType<typeof useRouter>);
+    beforeRemoveListener = undefined;
+    mockedUseNavigation.mockReset().mockReturnValue({
+      addListener: jest.fn((event: string, listener: (e: BeforeRemoveEvent) => void) => {
+        if (event === 'beforeRemove') beforeRemoveListener = listener;
+        return jest.fn();
+      }),
+    } as unknown as ReturnType<typeof useNavigation>);
     mockedCancelDeviceConnection.mockReset().mockResolvedValue({} as never);
     usePairingStore.getState().reset();
     mockedUseLiveHeartRate.mockReset().mockReturnValue({
@@ -273,6 +288,124 @@ describe('<LiveWorkout />', () => {
           }),
         );
         expect(back).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('leaving the review screen before Save/Discard', () => {
+      function endedSessionMock() {
+        return {
+          phase: 'ended' as const,
+          startedAt: 500,
+          samples: [{ bpm: 120, timestamp: 1_000 }],
+          pauses: [],
+          elapsedMs: 500,
+          averageBpm: 120,
+          maxBpm: 120,
+          start: jest.fn(),
+          pause: jest.fn(),
+          resume: jest.fn(),
+          stop: jest.fn(),
+        };
+      }
+
+      it('shows a confirm Alert on back gesture while ended-and-undecided; confirming Discard navigates back without saving', async () => {
+        mockedUseWorkoutSession.mockReturnValue(endedSessionMock());
+        const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+        await render(<LiveWorkout />);
+
+        expect(beforeRemoveListener).toBeDefined();
+        const preventDefault = jest.fn();
+        await act(async () => {
+          beforeRemoveListener?.({ preventDefault });
+        });
+
+        expect(preventDefault).toHaveBeenCalledTimes(1);
+        expect(alertSpy).toHaveBeenCalledTimes(1);
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Discard this workout?',
+          "This session hasn't been saved yet. Going back will discard it.",
+          expect.any(Array),
+        );
+
+        const buttons = alertSpy.mock.calls[0][2] as Array<{
+          text: string;
+          onPress?: () => void;
+        }>;
+        const discardButton = buttons.find((button) => button.text === 'DISCARD');
+        await act(async () => {
+          discardButton?.onPress?.();
+        });
+
+        expect(mockedSaveWorkoutSession).not.toHaveBeenCalled();
+        expect(back).toHaveBeenCalledTimes(1);
+
+        alertSpy.mockRestore();
+      });
+
+      it('Cancel leaves the screen showing, unchanged', async () => {
+        mockedUseWorkoutSession.mockReturnValue(endedSessionMock());
+        const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+        await render(<LiveWorkout />);
+
+        await act(async () => {
+          beforeRemoveListener?.({ preventDefault: jest.fn() });
+        });
+
+        const buttons = alertSpy.mock.calls[0][2] as Array<{
+          text: string;
+          onPress?: () => void;
+        }>;
+        const cancelButton = buttons.find((button) => button.text === 'CANCEL');
+        await act(async () => {
+          cancelButton?.onPress?.();
+        });
+
+        expect(back).not.toHaveBeenCalled();
+        expect(mockedSaveWorkoutSession).not.toHaveBeenCalled();
+        expect(screen.getByTestId('live-workout-save')).toBeOnTheScreen();
+
+        alertSpy.mockRestore();
+      });
+
+      it('tapping Save directly does not trigger the confirm Alert', async () => {
+        mockedUseWorkoutSession.mockReturnValue(endedSessionMock());
+        const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+        await render(<LiveWorkout />);
+
+        await act(async () => {
+          fireEvent.press(screen.getByTestId('live-workout-save'));
+        });
+        await act(async () => {
+          beforeRemoveListener?.({ preventDefault: jest.fn() });
+        });
+
+        expect(alertSpy).not.toHaveBeenCalled();
+        expect(back).toHaveBeenCalledTimes(1);
+
+        alertSpy.mockRestore();
+      });
+
+      it('tapping Discard directly does not trigger the confirm Alert', async () => {
+        mockedUseWorkoutSession.mockReturnValue(endedSessionMock());
+        const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+        await render(<LiveWorkout />);
+
+        await act(async () => {
+          fireEvent.press(screen.getByTestId('live-workout-discard'));
+        });
+        await act(async () => {
+          beforeRemoveListener?.({ preventDefault: jest.fn() });
+        });
+
+        expect(alertSpy).not.toHaveBeenCalled();
+        expect(back).toHaveBeenCalledTimes(1);
+        expect(mockedSaveWorkoutSession).not.toHaveBeenCalled();
+
+        alertSpy.mockRestore();
       });
     });
 
