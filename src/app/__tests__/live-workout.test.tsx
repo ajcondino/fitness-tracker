@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import LiveWorkout from '@/app/live-workout';
 import { bleManager } from '@/ble/manager';
 import { usePairingStore } from '@/ble/pairing-store';
 import type { DiscoveredDevice } from '@/ble/pairing-types';
+import { spacing } from '@/constants/theme';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
 import { WORKOUT_RECORD_SCHEMA_VERSION } from '@/workout/workout-record';
@@ -12,6 +14,12 @@ import { saveWorkoutSession } from '@/workout/workout-store';
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
+}));
+// No <SafeAreaProvider> in this test tree — mocked with a representative
+// bottom inset (e.g. an iPhone home-indicator gesture bar) rather than the
+// zeros a missing provider would otherwise throw for.
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 34, left: 0 }),
 }));
 jest.mock('@/hooks/use-live-heart-rate');
 jest.mock('@/hooks/use-workout-session');
@@ -68,7 +76,7 @@ describe('<LiveWorkout />', () => {
   });
 
   describe('guard branch (no connected device)', () => {
-    it('renders the no-device message with no BPM readout, Save, or dev trigger', async () => {
+    it('renders the no-device message with no BPM readout, Save, or device chip', async () => {
       await render(<LiveWorkout />);
 
       expect(screen.getByText('No monitor connected')).toBeOnTheScreen();
@@ -76,7 +84,16 @@ describe('<LiveWorkout />', () => {
         screen.getByText('Go back and connect a heart-rate monitor to start a workout.'),
       ).toBeOnTheScreen();
       expect(screen.queryByTestId('live-workout-save')).not.toBeOnTheScreen();
-      expect(screen.queryByTestId('live-workout-simulate-dropout')).not.toBeOnTheScreen();
+      expect(screen.queryByTestId('live-workout-device-chip')).not.toBeOnTheScreen();
+    });
+
+    it("adds the bottom safe-area inset on top of the screen's own padding, so Discard isn't overlapped by the gesture nav bar", async () => {
+      await render(<LiveWorkout />);
+
+      const container = screen.getByTestId('live-workout-container');
+      expect(StyleSheet.flatten(container.props.style)).toEqual(
+        expect.objectContaining({ paddingBottom: spacing.xl + 34 }),
+      );
     });
 
     it('its back action calls router.back()', async () => {
@@ -343,7 +360,7 @@ describe('<LiveWorkout />', () => {
       });
     });
 
-    it('does not flip to the guard branch when connection transitions to connectionLost mid-session', async () => {
+    it('does not flip to the guard branch when connection transitions to connectionLost mid-session, and shows "DISCONNECTED" on the chip', async () => {
       mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale', lastReadingAt: 1000 });
 
       await render(<LiveWorkout />);
@@ -354,13 +371,14 @@ describe('<LiveWorkout />', () => {
 
       expect(screen.queryByText('No monitor connected')).not.toBeOnTheScreen();
       expect(screen.getByText('LIVE WORKOUT')).toBeOnTheScreen();
-      expect(screen.getByText('Pulse HRM')).toBeOnTheScreen();
+      expect(screen.queryByText('Pulse HRM')).not.toBeOnTheScreen();
+      expect(screen.getByText('DISCONNECTED')).toBeOnTheScreen();
       expect(screen.getByText('128')).toBeOnTheScreen();
       expect(screen.getByText('SIGNAL LOST')).toBeOnTheScreen();
     });
 
     describe('auto-reconnect after a mid-session drop', () => {
-      it('renders "RECONNECTING…" without changing the BPM readout or status line', async () => {
+      it('shows "RECONNECTING" on the chip, in place of the device name, without changing the BPM readout or status line', async () => {
         mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale', lastReadingAt: 1000 });
 
         await render(<LiveWorkout />);
@@ -371,12 +389,13 @@ describe('<LiveWorkout />', () => {
           });
         });
 
-        expect(screen.getByText('RECONNECTING…')).toBeOnTheScreen();
+        expect(screen.getByText('RECONNECTING')).toBeOnTheScreen();
+        expect(screen.queryByText('Pulse HRM')).not.toBeOnTheScreen();
         expect(screen.getByText('128')).toBeOnTheScreen();
         expect(screen.getByText('SIGNAL LOST')).toBeOnTheScreen();
       });
 
-      it('resumes a live BPM/status render and hides "RECONNECTING…" once connection returns to connected, with no remount', async () => {
+      it('resumes a live BPM/status render and shows the device name again once connection returns to connected, with no remount', async () => {
         mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale', lastReadingAt: 1000 });
 
         await render(<LiveWorkout />);
@@ -386,21 +405,22 @@ describe('<LiveWorkout />', () => {
             connection: { kind: 'reconnecting', deviceId: 'device-1', attempt: 1 },
           });
         });
-        expect(screen.getByText('RECONNECTING…')).toBeOnTheScreen();
+        expect(screen.getByText('RECONNECTING')).toBeOnTheScreen();
 
         mockedUseLiveHeartRate.mockReturnValue({ bpm: 132, status: 'live', lastReadingAt: 2000 });
         await act(async () => {
           usePairingStore.setState({ connection: { kind: 'connected', deviceId: 'device-1' } });
         });
 
-        expect(screen.queryByText('RECONNECTING…')).not.toBeOnTheScreen();
+        expect(screen.queryByText('RECONNECTING')).not.toBeOnTheScreen();
+        expect(screen.getByText('Pulse HRM')).toBeOnTheScreen();
         expect(screen.getByText('132')).toBeOnTheScreen();
         expect(screen.getByText('LIVE')).toBeOnTheScreen();
         // Same rendered tree throughout — no fresh render() call, i.e. no remount.
         expect(screen.getByText('LIVE WORKOUT')).toBeOnTheScreen();
       });
 
-      it('reverts to the existing unrecovered-drop presentation once reconnectFailed is reached, with no new UI', async () => {
+      it('shows "DISCONNECTED" on the chip once reconnectFailed is reached, without changing the BPM readout or status line', async () => {
         mockedUseLiveHeartRate.mockReturnValue({ bpm: 128, status: 'stale', lastReadingAt: 1000 });
 
         await render(<LiveWorkout />);
@@ -411,34 +431,30 @@ describe('<LiveWorkout />', () => {
           });
         });
 
-        expect(screen.queryByText('RECONNECTING…')).not.toBeOnTheScreen();
+        expect(screen.queryByText('RECONNECTING')).not.toBeOnTheScreen();
+        expect(screen.getByText('DISCONNECTED')).toBeOnTheScreen();
         expect(screen.getByText('128')).toBeOnTheScreen();
         expect(screen.getByText('SIGNAL LOST')).toBeOnTheScreen();
       });
     });
 
-    describe('__DEV__-only simulate-dropout trigger', () => {
+    describe('__DEV__-only dropout wiring on the device chip', () => {
       const originalDev = __DEV__;
 
       afterEach(() => {
         (globalThis as unknown as { __DEV__: boolean }).__DEV__ = originalDev;
       });
 
-      it('renders and calls bleManager.cancelDeviceConnection when __DEV__ is true', async () => {
+      // The dev-only gate itself (no Pressable/accessibilityRole outside
+      // __DEV__) is covered by device-chip.test.tsx; this only checks that
+      // this screen wires the chip's callback to the frozen `deviceId`.
+      it('calls bleManager.cancelDeviceConnection with the frozen deviceId when the chip is pressed', async () => {
         (globalThis as unknown as { __DEV__: boolean }).__DEV__ = true;
 
         await render(<LiveWorkout />);
-        fireEvent.press(screen.getByTestId('live-workout-simulate-dropout'));
+        fireEvent.press(screen.getByTestId('live-workout-device-chip'));
 
         expect(mockedCancelDeviceConnection).toHaveBeenCalledWith('device-1');
-      });
-
-      it('is absent when __DEV__ is false', async () => {
-        (globalThis as unknown as { __DEV__: boolean }).__DEV__ = false;
-
-        await render(<LiveWorkout />);
-
-        expect(screen.queryByTestId('live-workout-simulate-dropout')).not.toBeOnTheScreen();
       });
     });
   });
