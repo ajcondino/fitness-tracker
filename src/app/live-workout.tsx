@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { bleManager } from '@/ble/manager';
 import { usePairingStore } from '@/ble/pairing-store';
 import { selectDeviceDisplayName } from '@/ble/pairing-types';
 import { DeviceChip, type DeviceChipStatus } from '@/components/device-chip';
+import { SessionSummary } from '@/components/session-summary';
 import { Glow } from '@/components/ui/glow';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
@@ -46,6 +47,7 @@ export default function LiveWorkout() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
+  const navigation = useNavigation();
   // The root layout's SafeAreaView only consumes the top edge (see
   // _layout.tsx's comment) — as a screen pushed outside the tab bar's own
   // bottom-inset handling, this one is responsible for its own, so the
@@ -78,7 +80,65 @@ export default function LiveWorkout() {
   const { bpm, status, lastReadingAt } = useLiveHeartRate(deviceId, isConnected);
   const session = useWorkoutSession(bpm, lastReadingAt);
 
-  const discard = () => router.back();
+  // Whether Save/Discard has already been tapped — lets the beforeRemove
+  // guard below allow that self-initiated navigation through without
+  // re-prompting. See SPEC.md's "leaving the review screen" design decision.
+  const [decided, setDecided] = useState(false);
+
+  // The just-ended, not-yet-saved WorkoutRecord, computed exactly once for
+  // the lifetime of the ended phase — `createWorkoutId` isn't idempotent, so
+  // recomputing on every render would give the record a different `id` each
+  // time. See SPEC.md's Data Model.
+  const [record, setRecord] = useState<WorkoutRecord | null>(null);
+
+  useEffect(() => {
+    if (deviceId == null) return;
+    const startedAt = session.startedAt;
+    if (session.phase !== 'ended' || startedAt == null) return;
+    const samples = session.samples;
+    const pauses = session.pauses;
+    setRecord((prev) => {
+      if (prev != null) return prev;
+      return {
+        schemaVersion: WORKOUT_RECORD_SCHEMA_VERSION,
+        id: createWorkoutId(startedAt),
+        startedAt,
+        samples,
+        device: { id: deviceId, name: device?.name ?? device?.lastKnownName ?? null },
+        pauses,
+      };
+    });
+  }, [deviceId, device, session.phase, session.startedAt, session.samples, session.pauses]);
+
+  const discard = () => {
+    setDecided(true);
+    router.back();
+  };
+
+  // Intercepts back gesture/hardware back while the review screen is showing
+  // an ended, undecided session — confirms before discarding. See SPEC.md's
+  // "leaving the review screen" design decision.
+  useEffect(() => {
+    if (session.phase !== 'ended') return undefined;
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (decided) return;
+      e.preventDefault();
+      Alert.alert(
+        t('sessionSummary.leaveConfirm.title'),
+        t('sessionSummary.leaveConfirm.message'),
+        [
+          { text: t('sessionSummary.leaveConfirm.cancel'), style: 'cancel' },
+          {
+            text: t('sessionSummary.leaveConfirm.discard'),
+            style: 'destructive',
+            onPress: discard,
+          },
+        ],
+      );
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, session.phase, decided, t]);
 
   if (deviceId === null) {
     // Defensive edge case, not a designed flow — Home only enables
@@ -129,21 +189,9 @@ export default function LiveWorkout() {
       ? 'connected'
       : 'disconnected';
 
-  const canSave = session.phase === 'ended' && session.samples.length > 0;
   const save = () => {
-    if (!canSave || session.startedAt == null) return; // Pressable is already
-    // `disabled`; defensive, matches the same double-guard `home.tsx`'s
-    // goToLiveWorkout already uses. `startedAt` is guaranteed non-null once
-    // phase === 'ended' (only reachable via start()); the null check exists
-    // purely to satisfy its `number | null` type.
-    const record: WorkoutRecord = {
-      schemaVersion: WORKOUT_RECORD_SCHEMA_VERSION,
-      id: createWorkoutId(session.startedAt),
-      startedAt: session.startedAt,
-      samples: session.samples,
-      device: { id: deviceId, name: device?.name ?? device?.lastKnownName ?? null },
-      pauses: session.pauses,
-    };
+    if (record == null) return;
+    setDecided(true);
     void saveWorkoutSession(record); // fire-and-forget — same contract as
     // use-device-pairing.ts's `void saveDevice(saved)`; the write is not
     // awaited before navigating back.
@@ -157,88 +205,101 @@ export default function LiveWorkout() {
     >
       <Glow height={320} top={-70} />
 
-      <View style={styles.titleRow}>
-        <ThemedText variant="titleMd">{t('liveWorkout.title')}</ThemedText>
-        <DeviceChip
-          deviceName={deviceName}
-          status={chipStatus}
-          onSimulateDropout={() => {
-            bleManager.cancelDeviceConnection(deviceId).catch(() => {
-              // Expected no-op if the connection already dropped or was
-              // never fully established natively — not a bug to surface.
-            });
-          }}
-        />
-      </View>
+      {/* Title row, status line, and BPM readout all hide once ended: the
+          summary below is meant to read as its own screen, not a panel
+          appended under the still-visible live session chrome — see
+          docs/specs/session-summary/SPEC.md. */}
+      {session.phase !== 'ended' && (
+        <>
+          <View style={styles.titleRow}>
+            <ThemedText variant="titleMd">{t('liveWorkout.title')}</ThemedText>
+            <DeviceChip
+              deviceName={deviceName}
+              status={chipStatus}
+              onSimulateDropout={() => {
+                bleManager.cancelDeviceConnection(deviceId).catch(() => {
+                  // Expected no-op if the connection already dropped or was
+                  // never fully established natively — not a bug to surface.
+                });
+              }}
+            />
+          </View>
 
-      <ThemedText variant="dataSm" color={statusCopy.color} style={styles.status}>
-        {statusCopy.text}
-      </ThemedText>
+          <ThemedText variant="dataSm" color={statusCopy.color} style={styles.status}>
+            {statusCopy.text}
+          </ThemedText>
 
-      <View style={styles.readoutContainer}>
-        {/* Never dimmed/re-colored when stale — the status line alone
-            carries "this is frozen," per SPEC.md. */}
-        <ThemedText variant="displayXl" color="primary">
-          {bpm ?? '--'}
-        </ThemedText>
-        <ThemedText variant="dataSm" color="onSurfaceMuted">
-          {t('liveWorkout.bpmUnit')}
-        </ThemedText>
-      </View>
+          <View style={styles.readoutContainer}>
+            {/* Never dimmed/re-colored when stale — the status line alone
+                carries "this is frozen," per SPEC.md. */}
+            <ThemedText variant="displayXl" color="primary">
+              {bpm ?? '--'}
+            </ThemedText>
+            <ThemedText variant="dataSm" color="onSurfaceMuted">
+              {t('liveWorkout.bpmUnit')}
+            </ThemedText>
+          </View>
+        </>
+      )}
 
-      <View style={styles.statsRow}>
-        <View
-          style={[
-            styles.statCard,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outline,
-              borderRadius: theme.rounded.md,
-            },
-          ]}
-        >
-          <ThemedText variant="labelMicro" color="onSurfaceDim">
-            {t('liveWorkout.stats.elapsed')}
-          </ThemedText>
-          <ThemedText variant="h3" color="onSurface">
-            {formatElapsed(session.elapsedMs)}
-          </ThemedText>
+      {/* Removed once ended: replaced below by <SessionSummary mode="review" />,
+          which shows its own avg/max stat cards plus date/device/paused-time —
+          see docs/specs/session-summary/SPEC.md. */}
+      {session.phase !== 'ended' && (
+        <View style={styles.statsRow}>
+          <View
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outline,
+                borderRadius: theme.rounded.md,
+              },
+            ]}
+          >
+            <ThemedText variant="labelMicro" color="onSurfaceDim">
+              {t('liveWorkout.stats.elapsed')}
+            </ThemedText>
+            <ThemedText variant="h3" color="onSurface">
+              {formatElapsed(session.elapsedMs)}
+            </ThemedText>
+          </View>
+          <View
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outline,
+                borderRadius: theme.rounded.md,
+              },
+            ]}
+          >
+            <ThemedText variant="labelMicro" color="onSurfaceDim">
+              {t('liveWorkout.stats.avgBpm')}
+            </ThemedText>
+            <ThemedText variant="h3" color="onSurface">
+              {session.averageBpm == null ? '--' : Math.round(session.averageBpm)}
+            </ThemedText>
+          </View>
+          <View
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outline,
+                borderRadius: theme.rounded.md,
+              },
+            ]}
+          >
+            <ThemedText variant="labelMicro" color="onSurfaceDim">
+              {t('liveWorkout.stats.maxBpm')}
+            </ThemedText>
+            <ThemedText variant="h3" color="onSurface">
+              {session.maxBpm ?? '--'}
+            </ThemedText>
+          </View>
         </View>
-        <View
-          style={[
-            styles.statCard,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outline,
-              borderRadius: theme.rounded.md,
-            },
-          ]}
-        >
-          <ThemedText variant="labelMicro" color="onSurfaceDim">
-            {t('liveWorkout.stats.avgBpm')}
-          </ThemedText>
-          <ThemedText variant="h3" color="onSurface">
-            {session.averageBpm == null ? '--' : Math.round(session.averageBpm)}
-          </ThemedText>
-        </View>
-        <View
-          style={[
-            styles.statCard,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outline,
-              borderRadius: theme.rounded.md,
-            },
-          ]}
-        >
-          <ThemedText variant="labelMicro" color="onSurfaceDim">
-            {t('liveWorkout.stats.maxBpm')}
-          </ThemedText>
-          <ThemedText variant="h3" color="onSurface">
-            {session.maxBpm ?? '--'}
-          </ThemedText>
-        </View>
-      </View>
+      )}
 
       {session.phase === 'idle' && (
         <View style={styles.actionRow}>
@@ -366,54 +427,10 @@ export default function LiveWorkout() {
         </View>
       )}
 
-      {session.phase === 'ended' && (
-        <View style={styles.actionRow}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={discard}
-            testID="live-workout-discard"
-            style={({ pressed }) => [
-              styles.ghostButton,
-              styles.actionButton,
-              {
-                borderColor: theme.colors.outlineEmphasis,
-                borderRadius: theme.rounded.lg,
-                opacity: pressed ? 0.82 : 1,
-              },
-            ]}
-          >
-            <ThemedText variant="actionSm" color="onSurfaceMuted">
-              {t('liveWorkout.discard')}
-            </ThemedText>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canSave }}
-            disabled={!canSave}
-            onPress={save}
-            testID="live-workout-save"
-            style={({ pressed }) => [
-              styles.primaryButton,
-              styles.actionButton,
-              {
-                backgroundColor: theme.colors.primary,
-                borderRadius: theme.rounded.xl,
-                opacity: pressed && canSave ? 0.82 : 1,
-              },
-            ]}
-          >
-            <ThemedText variant="actionMd" color="onPrimary">
-              {t('liveWorkout.save')}
-            </ThemedText>
-          </Pressable>
+      {session.phase === 'ended' && record != null && (
+        <View style={styles.summaryContainer}>
+          <SessionSummary mode="review" record={record} onSave={save} onDiscard={discard} />
         </View>
-      )}
-
-      {session.phase === 'ended' && !canSave && (
-        <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.saveDisabledHint}>
-          {t('liveWorkout.saveDisabledHint')}
-        </ThemedText>
       )}
     </ThemedView>
   );
@@ -483,9 +500,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     height: 60,
   },
-  saveDisabledHint: {
-    marginTop: spacing.sm,
-    textAlign: 'center',
+  summaryContainer: {
     zIndex: 1,
   },
 });

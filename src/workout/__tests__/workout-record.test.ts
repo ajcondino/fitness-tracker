@@ -25,13 +25,34 @@ describe('deriveWorkoutSummary', () => {
       durationMs: 0,
       averageBpm: null,
       maxBpm: null,
+      pausedMs: 0,
+    });
+  });
+
+  it('returns pausedMs 0, not the pause length, for a record with pauses but 0 samples', () => {
+    const record = makeRecord({
+      startedAt: 1_000,
+      samples: [],
+      pauses: [{ startedAt: 2_000, endedAt: 5_000 }],
+    });
+
+    expect(deriveWorkoutSummary(record)).toEqual({
+      durationMs: 0,
+      averageBpm: null,
+      maxBpm: null,
+      pausedMs: 0,
     });
   });
 
   it('returns durationMs 0 and averageBpm/maxBpm equal to the single sample for a 1-sample record', () => {
     const record = makeRecord({ startedAt: 1_000, samples: [{ bpm: 140, timestamp: 1_000 }] });
 
-    expect(deriveWorkoutSummary(record)).toEqual({ durationMs: 0, averageBpm: 140, maxBpm: 140 });
+    expect(deriveWorkoutSummary(record)).toEqual({
+      durationMs: 0,
+      averageBpm: 140,
+      maxBpm: 140,
+      pausedMs: 0,
+    });
   });
 
   it('returns the correct mean, max, and duration for a multi-sample record', () => {
@@ -48,6 +69,7 @@ describe('deriveWorkoutSummary', () => {
       durationMs: 10_000,
       averageBpm: 130,
       maxBpm: 140,
+      pausedMs: 0,
     });
   });
 
@@ -66,6 +88,7 @@ describe('deriveWorkoutSummary', () => {
       durationMs: 8_000,
       averageBpm: 130,
       maxBpm: 140,
+      pausedMs: 2_000,
     });
   });
 
@@ -84,6 +107,7 @@ describe('deriveWorkoutSummary', () => {
       durationMs: 10_000,
       averageBpm: 130,
       maxBpm: 140,
+      pausedMs: 0,
     });
   });
 
@@ -106,6 +130,7 @@ describe('deriveWorkoutSummary', () => {
       durationMs: 8_000,
       averageBpm: 122.5,
       maxBpm: 140,
+      pausedMs: 2_000,
     });
   });
 });

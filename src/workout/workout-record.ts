@@ -42,6 +42,7 @@ export type WorkoutSummary = {
   durationMs: number;
   averageBpm: number | null;
   maxBpm: number | null;
+  pausedMs: number;
 };
 
 /** Overlap, in ms, between the two closed intervals [aStart, aEnd] and
@@ -59,7 +60,7 @@ function overlapMs(aStart: number, aEnd: number, bStart: number, bEnd: number): 
 export function deriveWorkoutSummary(record: WorkoutRecord): WorkoutSummary {
   const { samples, startedAt, pauses } = record;
   if (samples.length === 0) {
-    return { durationMs: 0, averageBpm: null, maxBpm: null };
+    return { durationMs: 0, averageBpm: null, maxBpm: null, pausedMs: 0 };
   }
 
   const lastReadingAt = samples[samples.length - 1].timestamp;
@@ -78,7 +79,7 @@ export function deriveWorkoutSummary(record: WorkoutRecord): WorkoutSummary {
   const averageBpm = samples.reduce((sum, s) => sum + s.bpm, 0) / samples.length;
   const maxBpm = Math.max(...samples.map((s) => s.bpm));
 
-  return { durationMs, averageBpm, maxBpm };
+  return { durationMs, averageBpm, maxBpm, pausedMs };
 }
 
 /**

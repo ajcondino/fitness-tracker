@@ -103,7 +103,6 @@
       "waiting": "WAITING FOR SIGNAL…"
     },
     "discard": "DISCARD",
-    "save": "SAVE",
     "start": "START",
     "pause": "PAUSE",
     "resume": "RESUME",
@@ -120,8 +119,26 @@
       "elapsed": "ELAPSED",
       "avgBpm": "AVG BPM",
       "maxBpm": "MAX BPM"
+    }
+  },
+  "sessionSummary": {
+    "stats": {
+      "activeDuration": "ACTIVE DURATION",
+      "avgBpm": "AVG BPM",
+      "maxBpm": "MAX BPM",
+      "device": "DEVICE",
+      "pausedTime": "PAUSED TIME"
     },
-    "saveDisabledHint": "Wait for a reading before saving"
+    "save": "SAVE",
+    "discard": "DISCARD",
+    "saveDisabledHint": "Wait for a reading before saving",
+    "leaveConfirm": {
+      "title": "Discard this workout?",
+      "message": "This session hasn't been saved yet. Going back will discard it.",
+      "cancel": "CANCEL",
+      "discard": "DISCARD"
+    },
+    "notFound": "Session not found."
   },
   "history": {
     "stats": {

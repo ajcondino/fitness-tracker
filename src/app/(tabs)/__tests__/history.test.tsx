@@ -1,5 +1,5 @@
-import { act, render, screen } from '@testing-library/react-native';
-import { useIsFocused } from 'expo-router';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { useIsFocused, useRouter } from 'expo-router';
 
 import History from '@/app/(tabs)/history';
 import { usePairingStore } from '@/ble/pairing-store';
@@ -8,10 +8,11 @@ import { colors } from '@/constants/theme';
 import { loadWorkoutSessions } from '@/workout/workout-store';
 import type { WorkoutRecord } from '@/workout/workout-record';
 
-jest.mock('expo-router', () => ({ useIsFocused: jest.fn() }));
+jest.mock('expo-router', () => ({ useIsFocused: jest.fn(), useRouter: jest.fn() }));
 jest.mock('@/workout/workout-store');
 
 const mockedUseIsFocused = useIsFocused as jest.MockedFunction<typeof useIsFocused>;
+const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedLoadWorkoutSessions = loadWorkoutSessions as jest.MockedFunction<
   typeof loadWorkoutSessions
 >;
@@ -45,8 +46,12 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
 }
 
 describe('<History />', () => {
+  const push = jest.fn();
+
   beforeEach(() => {
     mockedUseIsFocused.mockReset().mockReturnValue(true);
+    push.mockClear();
+    mockedUseRouter.mockReturnValue({ push } as unknown as ReturnType<typeof useRouter>);
     mockedLoadWorkoutSessions.mockReset().mockResolvedValue([]);
     usePairingStore.getState().reset();
   });
@@ -120,6 +125,24 @@ describe('<History />', () => {
     // second record is a single-sample, zero-duration session
     expect(screen.getByText('00:00')).toBeOnTheScreen();
     expect(screen.getByText('100 avg')).toBeOnTheScreen();
+  });
+
+  it("pressing a row calls router.push with that row's record id", async () => {
+    const first = makeRecord({ id: 'workout-1' });
+    const second = makeRecord({
+      id: 'workout-2',
+      startedAt: new Date('2026-08-16T07:00:00').getTime(),
+      samples: [{ bpm: 100, timestamp: new Date('2026-08-16T07:00:00').getTime() }],
+    });
+    mockedLoadWorkoutSessions.mockResolvedValue([first, second]);
+
+    await render(<History />);
+    await act(async () => {});
+
+    fireEvent.press(screen.getAllByTestId('session-row')[1]);
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith({ pathname: '/session/[id]', params: { id: 'workout-2' } });
   });
 
   it('rolls up only the last 7 days into the stat card, excluding older sessions', async () => {
