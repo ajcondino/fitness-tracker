@@ -138,6 +138,26 @@ export function selectDeviceDisplayName(
   return { text: fallback, isFallback: true };
 }
 
+// Takes a plain snapshot shape (structurally what the store holds) so this
+// stays testable with a hand-built object literal — no store import needed.
+// Shared by any screen that needs the paired device's display name (Home,
+// History), so the "look up the connected device, resolve its name" logic
+// lives in one place instead of being re-inlined per screen.
+export function selectConnectedDeviceName(
+  snapshot: { connection: ConnectionState; devices: DiscoveredDevice[] },
+  fallback: string,
+): { isConnected: boolean; deviceName: string } {
+  const { connection, devices } = snapshot;
+  if (connection.kind !== 'connected') {
+    return { isConnected: false, deviceName: fallback };
+  }
+  const device = devices.find((candidate) => candidate.id === connection.deviceId);
+  return {
+    isConnected: true,
+    deviceName: device ? selectDeviceDisplayName(device, fallback).text : fallback,
+  };
+}
+
 export type ScanBarState =
   | { kind: 'checkingAdapter' } // adapter === 'unknown'
   | { kind: 'adapterOff' }

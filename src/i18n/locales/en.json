@@ -2,7 +2,6 @@
   "tabs": {
     "home": "Home",
     "history": "History",
-    "historySubtitle": "A log of past workout sessions.",
     "device": "Device",
     "deviceSubtitle": "Pair and manage your heart-rate monitor."
   },
@@ -123,8 +122,17 @@
     "saveDisabledHint": "Wait for a reading before saving"
   },
   "history": {
+    "stats": {
+      "sevenDayLabel": "7-DAY",
+      "sessionsLabel": "SESSIONS",
+      "avgHrLabel": "AVG HR"
+    },
     "sessions": {
+      "header": "ALL SESSIONS",
       "empty": "No workouts saved yet."
+    },
+    "sessionRow": {
+      "avgSuffix": "avg"
     }
   }
 }

@@ -19,7 +19,7 @@ describe('<SessionRow />', () => {
     expect(screen.getByText('17')).toBeOnTheScreen();
     expect(screen.getByText('6:42 PM')).toBeOnTheScreen();
     expect(screen.getByText('42:10')).toBeOnTheScreen();
-    expect(screen.getByText('134')).toBeOnTheScreen();
+    expect(screen.getByText('134 avg')).toBeOnTheScreen();
   });
 
   it('renders the average BPM in the primary color', async () => {
@@ -33,7 +33,7 @@ describe('<SessionRow />', () => {
       />,
     );
 
-    const average = screen.getByText('134');
+    const average = screen.getByText('134 avg');
     expect(average.props.style).toEqual(expect.arrayContaining([{ color: colors.primary }]));
   });
 
@@ -48,10 +48,10 @@ describe('<SessionRow />', () => {
       />,
     );
 
-    expect(screen.getByText('--')).toBeOnTheScreen();
+    expect(screen.getByText('-- avg')).toBeOnTheScreen();
   });
 
-  it('renders no chevron and is not tappable', async () => {
+  it('renders a decorative chevron but stays non-tappable', async () => {
     await render(
       <SessionRow
         monthLabel="AUG"
@@ -62,6 +62,7 @@ describe('<SessionRow />', () => {
       />,
     );
 
+    expect(screen.getByText('›')).toBeOnTheScreen();
     expect(screen.queryByRole('button')).not.toBeOnTheScreen();
   });
 });

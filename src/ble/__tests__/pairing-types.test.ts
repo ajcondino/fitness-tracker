@@ -5,6 +5,7 @@ import {
   canScan,
   deriveScanBarState,
   RSSI_SORT_BUCKET_DBM,
+  selectConnectedDeviceName,
   selectDeviceDisplayName,
   selectSortedDevices,
   toAdapterPowerState,
@@ -101,6 +102,45 @@ describe('selectDeviceDisplayName', () => {
     expect(selectDeviceDisplayName(device, 'Unknown device')).toEqual({
       text: 'Unknown device',
       isFallback: true,
+    });
+  });
+});
+
+describe('selectConnectedDeviceName', () => {
+  it('reports not connected and the fallback name when disconnected', () => {
+    expect(
+      selectConnectedDeviceName({ connection: DISCONNECTED, devices: [] }, 'Fallback'),
+    ).toEqual({
+      isConnected: false,
+      deviceName: 'Fallback',
+    });
+  });
+
+  it("resolves the connected device's display name when it is present in devices", () => {
+    const device = makeDevice({ id: 'device-1', name: 'Pulse HRM' });
+    const connection: ConnectionState = { kind: 'connected', deviceId: 'device-1' };
+
+    expect(selectConnectedDeviceName({ connection, devices: [device] }, 'Fallback')).toEqual({
+      isConnected: true,
+      deviceName: 'Pulse HRM',
+    });
+  });
+
+  it('falls back when connected but the device is missing from devices', () => {
+    const connection: ConnectionState = { kind: 'connected', deviceId: 'device-1' };
+
+    expect(selectConnectedDeviceName({ connection, devices: [] }, 'Fallback')).toEqual({
+      isConnected: true,
+      deviceName: 'Fallback',
+    });
+  });
+
+  it('reports not connected for every non-connected connection kind', () => {
+    const connecting: ConnectionState = { kind: 'connecting', deviceId: 'device-1', startedAt: 0 };
+
+    expect(selectConnectedDeviceName({ connection: connecting, devices: [] }, 'Fallback')).toEqual({
+      isConnected: false,
+      deviceName: 'Fallback',
     });
   });
 });
