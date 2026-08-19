@@ -4,11 +4,12 @@ import { SessionRow } from '@/components/session-row';
 import { colors } from '@/constants/theme';
 
 describe('<SessionRow />', () => {
-  it('renders the date column, time, duration, and average BPM', async () => {
+  it('renders the date column, title, time, duration, and average BPM', async () => {
     await render(
       <SessionRow
         monthLabel="AUG"
         dayLabel="17"
+        titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="42:10"
         averageBpmLabel="134"
@@ -17,6 +18,7 @@ describe('<SessionRow />', () => {
 
     expect(screen.getByText('AUG')).toBeOnTheScreen();
     expect(screen.getByText('17')).toBeOnTheScreen();
+    expect(screen.getByText('Morning Workout')).toBeOnTheScreen();
     expect(screen.getByText('6:42 PM')).toBeOnTheScreen();
     expect(screen.getByText('42:10')).toBeOnTheScreen();
     expect(screen.getByText('134 avg')).toBeOnTheScreen();
@@ -27,6 +29,7 @@ describe('<SessionRow />', () => {
       <SessionRow
         monthLabel="AUG"
         dayLabel="17"
+        titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="42:10"
         averageBpmLabel="134"
@@ -42,6 +45,7 @@ describe('<SessionRow />', () => {
       <SessionRow
         monthLabel="AUG"
         dayLabel="17"
+        titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="00:00"
         averageBpmLabel="--"
@@ -56,6 +60,7 @@ describe('<SessionRow />', () => {
       <SessionRow
         monthLabel="AUG"
         dayLabel="17"
+        titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="42:10"
         averageBpmLabel="134"
@@ -72,6 +77,7 @@ describe('<SessionRow />', () => {
       <SessionRow
         monthLabel="AUG"
         dayLabel="17"
+        titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="42:10"
         averageBpmLabel="134"

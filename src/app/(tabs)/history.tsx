@@ -12,7 +12,11 @@ import { ThemedView } from '@/components/ui/themed-view';
 import { layout, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { WorkoutRecord } from '@/workout/workout-record';
-import { deriveWeeklyTotals, deriveWorkoutSummary } from '@/workout/workout-record';
+import {
+  deriveWeeklyTotals,
+  deriveWorkoutSummary,
+  describeSessionTime,
+} from '@/workout/workout-record';
 import { loadWorkoutSessions } from '@/workout/workout-store';
 
 function formatDuration(durationMs: number): string {
@@ -173,6 +177,7 @@ export default function History() {
                 <SessionRow
                   monthLabel={formatMonth(startedAtDate, i18n.language)}
                   dayLabel={String(startedAtDate.getDate())}
+                  titleLabel={t(`sessionSummary.title.${describeSessionTime(startedAtDate)}`)}
                   timeLabel={formatTime(startedAtDate, i18n.language)}
                   durationLabel={formatDuration(summary.durationMs)}
                   averageBpmLabel={

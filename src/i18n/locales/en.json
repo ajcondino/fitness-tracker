@@ -97,7 +97,7 @@
     }
   },
   "liveWorkout": {
-    "title": "LIVE WORKOUT",
+    "sessionLabel": "Session",
     "bpmUnit": "BPM",
     "status": {
       "live": "LIVE",

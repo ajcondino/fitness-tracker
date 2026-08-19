@@ -12,7 +12,7 @@ import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { deriveWorkoutSummary } from '@/workout/workout-record';
+import { deriveWorkoutSummary, describeSessionTime } from '@/workout/workout-record';
 import type { WorkoutRecord } from '@/workout/workout-record';
 import { loadWorkoutSessions } from '@/workout/workout-store';
 
@@ -187,6 +187,7 @@ export default function Index() {
                   key={record.id}
                   monthLabel={formatMonth(startedAtDate, i18n.language)}
                   dayLabel={String(startedAtDate.getDate())}
+                  titleLabel={t(`sessionSummary.title.${describeSessionTime(startedAtDate)}`)}
                   timeLabel={formatTime(startedAtDate, i18n.language)}
                   durationLabel={formatDuration(summary.durationMs)}
                   averageBpmLabel={
