@@ -2,16 +2,21 @@ import { useIsFocused, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePairingStore } from '@/ble/pairing-store';
 import { selectConnectedDeviceName } from '@/ble/pairing-types';
 import { SessionRow } from '@/components/session-row';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
-import { spacing } from '@/constants/theme';
+import { layout, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { WorkoutRecord } from '@/workout/workout-record';
-import { deriveWeeklyTotals, deriveWorkoutSummary } from '@/workout/workout-record';
+import {
+  deriveWeeklyTotals,
+  deriveWorkoutSummary,
+  describeSessionTime,
+} from '@/workout/workout-record';
 import { loadWorkoutSessions } from '@/workout/workout-store';
 
 function formatDuration(durationMs: number): string {
@@ -43,6 +48,11 @@ export default function History() {
   const theme = useTheme();
   const router = useRouter();
   const isFocused = useIsFocused();
+  // The root layout's SafeAreaView only consumes the top edge, and the
+  // floating tab bar's own bottom offset doesn't clear list content behind
+  // it — per DESIGN.md, scrollable tab screens reserve tabBarClearance in
+  // addition to the safe-area bottom inset themselves.
+  const insets = useSafeAreaInsets();
   const [sessions, setSessions] = useState<WorkoutRecord[] | undefined>(undefined);
   // undefined = not yet loaded this focus; WorkoutRecord[] (possibly []) =
   // loaded — mirrors use-device-pairing.ts's savedDevice undefined/null/value
@@ -150,7 +160,11 @@ export default function History() {
           <FlatList
             data={sessions}
             keyExtractor={(record) => record.id}
-            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: layout.tabBarClearance + insets.bottom },
+            ]}
             ListHeaderComponent={
               <ThemedText variant="labelCaps" color="onSurfaceDim">
                 {t('history.sessions.header')}
@@ -163,6 +177,7 @@ export default function History() {
                 <SessionRow
                   monthLabel={formatMonth(startedAtDate, i18n.language)}
                   dayLabel={String(startedAtDate.getDate())}
+                  titleLabel={t(`sessionSummary.title.${describeSessionTime(startedAtDate)}`)}
                   timeLabel={formatTime(startedAtDate, i18n.language)}
                   durationLabel={formatDuration(summary.durationMs)}
                   averageBpmLabel={

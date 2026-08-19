@@ -41,6 +41,7 @@ export default function SessionDetail() {
   }, [id]);
 
   const goBack = () => router.back();
+  const goHome = () => router.replace('/');
 
   if (record === undefined) {
     // No spinner — matches history.tsx's own "renders nothing further while
@@ -81,7 +82,7 @@ export default function SessionDetail() {
       testID="session-detail-container"
       style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}
     >
-      <SessionSummary mode="detail" record={record} onBack={goBack} />
+      <SessionSummary mode="detail" record={record} onBack={goBack} onDone={goHome} />
     </ThemedView>
   );
 }

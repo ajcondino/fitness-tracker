@@ -39,10 +39,12 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
 
 describe('<SessionDetail />', () => {
   const back = jest.fn();
+  const replace = jest.fn();
 
   beforeEach(() => {
     back.mockClear();
-    mockedUseRouter.mockReturnValue({ back } as unknown as ReturnType<typeof useRouter>);
+    replace.mockClear();
+    mockedUseRouter.mockReturnValue({ back, replace } as unknown as ReturnType<typeof useRouter>);
     mockedUseLocalSearchParams.mockReturnValue({ id: 'workout-1' } as unknown as ReturnType<
       typeof useLocalSearchParams
     >);
@@ -78,7 +80,6 @@ describe('<SessionDetail />', () => {
 
     expect(screen.getByText('AUG 19 · 6:42 PM')).toBeOnTheScreen();
     expect(screen.getByText('10:10')).toBeOnTheScreen();
-    expect(screen.getByText('Pulse HRM')).toBeOnTheScreen();
     expect(screen.queryByTestId('live-workout-save')).not.toBeOnTheScreen();
     expect(screen.queryByTestId('live-workout-discard')).not.toBeOnTheScreen();
   });
@@ -92,6 +93,17 @@ describe('<SessionDetail />', () => {
     fireEvent.press(screen.getByTestId('session-summary-back'));
 
     expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it('done control in detail mode calls router.replace with the home route', async () => {
+    mockedLoadWorkoutSession.mockResolvedValue(makeRecord());
+
+    await render(<SessionDetail />);
+    await act(async () => {});
+
+    fireEvent.press(screen.getByTestId('session-summary-done'));
+
+    expect(replace).toHaveBeenCalledWith('/');
   });
 
   it('calls loadWorkoutSession with the id from the route params', async () => {

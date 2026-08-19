@@ -40,6 +40,7 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
           bottom: insets.bottom + theme.layout.tabBarBottomOffset,
           height: theme.layout.tabBarHeight,
           borderRadius: theme.rounded.xl,
+          borderColor: theme.colors.outline,
         },
       ]}
     >
@@ -87,6 +88,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
   },
   item: {
     flex: 1,

@@ -6,6 +6,12 @@ import type { BlePermissionStatus } from '@/hooks/use-ble-permission-status';
 import { useBlePermissionStatus } from '@/hooks/use-ble-permission-status';
 import { useDevicePairing } from '@/hooks/use-device-pairing';
 
+// No <SafeAreaProvider> in this test tree — mocked with a representative
+// bottom inset (e.g. an iPhone home-indicator gesture bar) rather than the
+// zeros a missing provider would otherwise throw for.
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 34, left: 0 }),
+}));
 jest.mock('@/hooks/use-ble-permission-status');
 jest.mock('@/hooks/use-device-pairing');
 
@@ -70,14 +76,23 @@ describe('<Device />', () => {
     jest.resetAllMocks();
   });
 
-  it('keeps the existing header copy', async () => {
+  it('renders the eyebrow and title header', async () => {
     mockStatus('undetermined');
     mockPairing();
 
     await render(<Device />);
 
     expect(screen.getByText('Device')).toBeOnTheScreen();
-    expect(screen.getByText('Pair and manage your heart-rate monitor.')).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Connect a heart rate monitor' })).toBeOnTheScreen();
+  });
+
+  it('renders the footer note', async () => {
+    mockStatus('undetermined');
+    mockPairing();
+
+    await render(<Device />);
+
+    expect(screen.getByText('Works with any standard BLE HR profile')).toBeOnTheScreen();
   });
 
   it('calls useDevicePairing with false when permission is not granted', async () => {

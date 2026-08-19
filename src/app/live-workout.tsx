@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRouter } from 'expo-router';
@@ -10,6 +10,7 @@ import { selectDeviceDisplayName } from '@/ble/pairing-types';
 import { DeviceChip, type DeviceChipStatus } from '@/components/device-chip';
 import { SessionSummary } from '@/components/session-summary';
 import { Glow } from '@/components/ui/glow';
+import { PulseRing } from '@/components/ui/pulse-ring';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import type { ColorToken } from '@/constants/theme';
@@ -18,7 +19,11 @@ import { useTheme } from '@/hooks/use-theme';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import type { LiveHeartRateStatus } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
-import { WORKOUT_RECORD_SCHEMA_VERSION, createWorkoutId } from '@/workout/workout-record';
+import {
+  WORKOUT_RECORD_SCHEMA_VERSION,
+  createWorkoutId,
+  describeSessionTime,
+} from '@/workout/workout-record';
 import type { WorkoutRecord } from '@/workout/workout-record';
 import { saveWorkoutSession } from '@/workout/workout-store';
 
@@ -79,6 +84,19 @@ export default function LiveWorkout() {
 
   const { bpm, status, lastReadingAt } = useLiveHeartRate(deviceId, isConnected);
   const session = useWorkoutSession(bpm, lastReadingAt);
+
+  // The session header's derived name (e.g. "Morning Workout"), memoized on
+  // `startedAt` so it's computed once for the life of the session rather
+  // than on every render — a session that crosses a time-of-day boundary
+  // (e.g. starting 11:58, ending 12:20) keeps reading "Morning Workout" for
+  // its whole duration. See workout-record.ts's describeSessionTime and
+  // session-summary.tsx's identical use of it. Before the session actually
+  // starts, `startedAt` is null, so this falls back to the current time —
+  // there's no session identity yet to freeze.
+  const sessionTimeOfDay = useMemo(
+    () => describeSessionTime(new Date(session.startedAt ?? Date.now())),
+    [session.startedAt],
+  );
 
   // Whether Save/Discard has already been tapped — lets the beforeRemove
   // guard below allow that self-initiated navigation through without
@@ -212,7 +230,14 @@ export default function LiveWorkout() {
       {session.phase !== 'ended' && (
         <>
           <View style={styles.titleRow}>
-            <ThemedText variant="titleMd">{t('liveWorkout.title')}</ThemedText>
+            <View style={styles.sessionHeading}>
+              <ThemedText variant="labelCaps" color="onSurfaceDim" style={styles.eyebrow}>
+                {t('liveWorkout.sessionLabel')}
+              </ThemedText>
+              <ThemedText variant="titleMd" color="onSurface">
+                {t(`sessionSummary.title.${sessionTimeOfDay}`)}
+              </ThemedText>
+            </View>
             <DeviceChip
               deviceName={deviceName}
               status={chipStatus}
@@ -230,6 +255,7 @@ export default function LiveWorkout() {
           </ThemedText>
 
           <View style={styles.readoutContainer}>
+            <PulseRing active={session.phase === 'running'} />
             {/* Never dimmed/re-colored when stale — the status line alone
                 carries "this is frozen," per SPEC.md. */}
             <ThemedText variant="displayXl" color="primary">
@@ -243,7 +269,7 @@ export default function LiveWorkout() {
       )}
 
       {/* Removed once ended: replaced below by <SessionSummary mode="review" />,
-          which shows its own avg/max stat cards plus date/device/paused-time —
+          which shows its own title, hero duration, and avg/max stat cards —
           see docs/specs/session-summary/SPEC.md. */}
       {session.phase !== 'ended' && (
         <View style={styles.statsRow}>
@@ -301,24 +327,32 @@ export default function LiveWorkout() {
         </View>
       )}
 
+      {/* The left slot is a fixed 64x64 square in every phase — only what's
+          inside it (and what it's wired to) changes. Pre-start there is no
+          session yet, so nothing there is destructive: it's a plain back
+          button to router.back() via the existing discard() (same one the
+          no-device guard above uses), not a variant of Stop. Once running or
+          paused, the same slot becomes the red Stop square. See the ticket's
+          "idle controls" decision. */}
       {session.phase === 'idle' && (
         <View style={styles.actionRow}>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={t('liveWorkout.discard')}
             onPress={discard}
             testID="live-workout-discard"
             style={({ pressed }) => [
-              styles.ghostButton,
-              styles.actionButton,
+              styles.squareButton,
               {
-                borderColor: theme.colors.outlineEmphasis,
-                borderRadius: theme.rounded.lg,
+                backgroundColor: theme.colors.surfaceRaised,
+                borderColor: theme.colors.outline,
+                borderRadius: theme.rounded.xl,
                 opacity: pressed ? 0.82 : 1,
               },
             ]}
           >
-            <ThemedText variant="actionSm" color="onSurfaceMuted">
-              {t('liveWorkout.discard')}
+            <ThemedText variant="titleMd" color="onSurfaceMuted">
+              ‹
             </ThemedText>
           </Pressable>
 
@@ -328,7 +362,6 @@ export default function LiveWorkout() {
             testID="live-workout-start"
             style={({ pressed }) => [
               styles.primaryButton,
-              styles.actionButton,
               {
                 backgroundColor: theme.colors.primary,
                 borderRadius: theme.rounded.xl,
@@ -336,7 +369,8 @@ export default function LiveWorkout() {
               },
             ]}
           >
-            <ThemedText variant="actionMd" color="onPrimary">
+            <View style={[styles.playTriangle, { borderLeftColor: theme.colors.onPrimary }]} />
+            <ThemedText variant="actionLg" color="onPrimary">
               {t('liveWorkout.start')}
             </ThemedText>
           </Pressable>
@@ -347,30 +381,27 @@ export default function LiveWorkout() {
         <View style={styles.actionRow}>
           <Pressable
             accessibilityRole="button"
-            onPress={session.pause}
-            testID="live-workout-pause"
+            accessibilityLabel={t('liveWorkout.stop')}
+            onPress={session.stop}
+            testID="live-workout-stop"
             style={({ pressed }) => [
-              styles.ghostButton,
-              styles.actionButton,
+              styles.squareButton,
               {
-                borderColor: theme.colors.outlineEmphasis,
-                borderRadius: theme.rounded.lg,
-                opacity: pressed ? 0.82 : 1,
+                backgroundColor: theme.colors.surfaceRaised,
+                borderColor: pressed ? theme.colors.danger : theme.colors.outlineEmphasis,
+                borderRadius: theme.rounded.xl,
               },
             ]}
           >
-            <ThemedText variant="actionSm" color="onSurfaceMuted">
-              {t('liveWorkout.pause')}
-            </ThemedText>
+            <View style={[styles.stopSquare, { backgroundColor: theme.colors.danger }]} />
           </Pressable>
 
           <Pressable
             accessibilityRole="button"
-            onPress={session.stop}
-            testID="live-workout-stop"
+            onPress={session.pause}
+            testID="live-workout-pause"
             style={({ pressed }) => [
               styles.primaryButton,
-              styles.actionButton,
               {
                 backgroundColor: theme.colors.primary,
                 borderRadius: theme.rounded.xl,
@@ -378,8 +409,12 @@ export default function LiveWorkout() {
               },
             ]}
           >
-            <ThemedText variant="actionMd" color="onPrimary">
-              {t('liveWorkout.stop')}
+            <View style={styles.pauseBars}>
+              <View style={[styles.pauseBar, { backgroundColor: theme.colors.onPrimary }]} />
+              <View style={[styles.pauseBar, { backgroundColor: theme.colors.onPrimary }]} />
+            </View>
+            <ThemedText variant="actionLg" color="onPrimary">
+              {t('liveWorkout.pause')}
             </ThemedText>
           </Pressable>
         </View>
@@ -389,21 +424,19 @@ export default function LiveWorkout() {
         <View style={styles.actionRow}>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={t('liveWorkout.stop')}
             onPress={session.stop}
             testID="live-workout-stop"
             style={({ pressed }) => [
-              styles.ghostButton,
-              styles.actionButton,
+              styles.squareButton,
               {
-                borderColor: theme.colors.outlineEmphasis,
-                borderRadius: theme.rounded.lg,
-                opacity: pressed ? 0.82 : 1,
+                backgroundColor: theme.colors.surfaceRaised,
+                borderColor: pressed ? theme.colors.danger : theme.colors.outlineEmphasis,
+                borderRadius: theme.rounded.xl,
               },
             ]}
           >
-            <ThemedText variant="actionSm" color="onSurfaceMuted">
-              {t('liveWorkout.stop')}
-            </ThemedText>
+            <View style={[styles.stopSquare, { backgroundColor: theme.colors.danger }]} />
           </Pressable>
 
           <Pressable
@@ -412,7 +445,6 @@ export default function LiveWorkout() {
             testID="live-workout-resume"
             style={({ pressed }) => [
               styles.primaryButton,
-              styles.actionButton,
               {
                 backgroundColor: theme.colors.primary,
                 borderRadius: theme.rounded.xl,
@@ -420,7 +452,8 @@ export default function LiveWorkout() {
               },
             ]}
           >
-            <ThemedText variant="actionMd" color="onPrimary">
+            <View style={[styles.playTriangle, { borderLeftColor: theme.colors.onPrimary }]} />
+            <ThemedText variant="actionLg" color="onPrimary">
               {t('liveWorkout.resume')}
             </ThemedText>
           </Pressable>
@@ -459,6 +492,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     zIndex: 1,
   },
+  sessionHeading: {
+    gap: 2,
+  },
+  eyebrow: {
+    textTransform: 'uppercase',
+  },
   status: {
     marginTop: spacing.lg,
     textAlign: 'center',
@@ -470,6 +509,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xs,
     zIndex: 1,
+    // Gives <PulseRing />'s absolute positioning a frame to center within —
+    // see pulse-ring.tsx's own centering note.
+    position: 'relative',
   },
   statsRow: {
     flexDirection: 'row',
@@ -485,22 +527,58 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.lg,
     zIndex: 1,
   },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  // Only used by the no-device guard screen's own Discard button, above —
+  // unrelated to the phase-conditional row below it.
   ghostButton: {
     height: 56,
     borderWidth: 1,
   },
+  // The fixed-width left slot of the phase-conditional row: a plain back
+  // chevron pre-start, the red Stop square once running/paused.
+  squareButton: {
+    width: 64,
+    height: 64,
+    borderWidth: 1,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopSquare: {
+    width: 18,
+    height: 18,
+    borderRadius: 3,
+  },
   primaryButton: {
-    height: 60,
+    flex: 1,
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  pauseBars: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  pauseBar: {
+    width: 6,
+    height: 20,
+    borderRadius: 2,
+  },
+  playTriangle: {
+    width: 0,
+    height: 0,
+    borderTopWidth: 10,
+    borderBottomWidth: 10,
+    borderLeftWidth: 15,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
   },
   summaryContainer: {
+    flex: 1,
     zIndex: 1,
   },
 });

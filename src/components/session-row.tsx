@@ -16,7 +16,11 @@ import { useTheme } from '@/hooks/use-theme';
 export type SessionRowProps = {
   monthLabel: string; // e.g. "AUG" — caller-formatted, already uppercase
   dayLabel: string; // e.g. "17"
-  timeLabel: string; // e.g. "6:42 PM" — this row's title line
+  titleLabel: string; // e.g. "Morning Workout" — this row's title line, the
+  // same describeSessionTime-derived name Live Workout's header and
+  // session-summary.tsx's hero title use
+  timeLabel: string; // e.g. "6:42 PM" — now a meta-line detail alongside
+  // duration/avg, not the title
   durationLabel: string; // e.g. "42:10" — mm:ss, same convention as Live Workout
   averageBpmLabel: string; // e.g. "134", or "--" for a null average
   onPress?: () => void; // omitted keeps the row exactly as non-interactive as before
@@ -25,6 +29,7 @@ export type SessionRowProps = {
 export function SessionRow({
   monthLabel,
   dayLabel,
+  titleLabel,
   timeLabel,
   durationLabel,
   averageBpmLabel,
@@ -65,9 +70,13 @@ export function SessionRow({
 
       <View style={styles.content}>
         <ThemedText variant="titleSm" color="onSurface" numberOfLines={1}>
-          {timeLabel}
+          {titleLabel}
         </ThemedText>
         <View style={styles.meta}>
+          <ThemedText variant="dataMd" color="onSurfaceMuted">
+            {timeLabel}
+          </ThemedText>
+          <View style={[styles.dot, { backgroundColor: theme.colors.outline }]} />
           <ThemedText variant="dataMd" color="onSurfaceMuted">
             {durationLabel}
           </ThemedText>

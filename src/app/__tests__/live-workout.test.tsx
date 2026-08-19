@@ -131,12 +131,34 @@ describe('<LiveWorkout />', () => {
     it('renders the title, device chip, BPM placeholder, and waiting status', async () => {
       await render(<LiveWorkout />);
 
-      expect(screen.getByText('LIVE WORKOUT')).toBeOnTheScreen();
+      // The session heading's eyebrow, not the (now time-derived, so
+      // non-deterministic here) session name below it.
+      expect(screen.getByText('Session')).toBeOnTheScreen();
       expect(screen.getByText('Pulse HRM')).toBeOnTheScreen();
       // BPM readout, avg BPM, and max BPM all fall back to the same
       // placeholder given the default null bpm/averageBpm/maxBpm mocks.
       expect(screen.getAllByText('--')).toHaveLength(3);
       expect(screen.getByText('WAITING FOR SIGNAL…')).toBeOnTheScreen();
+    });
+
+    it("derives the session heading's name from startedAt's time of day, matching session-summary.tsx's own titles", async () => {
+      mockedUseWorkoutSession.mockReturnValue({
+        phase: 'running',
+        startedAt: new Date('2026-08-19T07:30:00').getTime(), // morning
+        samples: [],
+        pauses: [],
+        elapsedMs: 0,
+        averageBpm: null,
+        maxBpm: null,
+        start: jest.fn(),
+        pause: jest.fn(),
+        resume: jest.fn(),
+        stop: jest.fn(),
+      });
+
+      await render(<LiveWorkout />);
+
+      expect(screen.getByText('Morning Workout')).toBeOnTheScreen();
     });
 
     it('falls back to the unknown-device label when the device is not in the store', async () => {
@@ -503,7 +525,9 @@ describe('<LiveWorkout />', () => {
       });
 
       expect(screen.queryByText('No monitor connected')).not.toBeOnTheScreen();
-      expect(screen.getByText('LIVE WORKOUT')).toBeOnTheScreen();
+      // The session heading's eyebrow, not the (now time-derived, so
+      // non-deterministic here) session name below it.
+      expect(screen.getByText('Session')).toBeOnTheScreen();
       expect(screen.queryByText('Pulse HRM')).not.toBeOnTheScreen();
       expect(screen.getByText('DISCONNECTED')).toBeOnTheScreen();
       expect(screen.getByText('128')).toBeOnTheScreen();
@@ -550,7 +574,9 @@ describe('<LiveWorkout />', () => {
         expect(screen.getByText('132')).toBeOnTheScreen();
         expect(screen.getByText('LIVE')).toBeOnTheScreen();
         // Same rendered tree throughout — no fresh render() call, i.e. no remount.
-        expect(screen.getByText('LIVE WORKOUT')).toBeOnTheScreen();
+        // The session heading's eyebrow, not the (now time-derived, so
+        // non-deterministic here) session name below it.
+        expect(screen.getByText('Session')).toBeOnTheScreen();
       });
 
       it('shows "DISCONNECTED" on the chip once reconnectFailed is reached, without changing the BPM readout or status line', async () => {

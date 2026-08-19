@@ -2,6 +2,7 @@ import {
   createWorkoutId,
   deriveWeeklyTotals,
   deriveWorkoutSummary,
+  describeSessionTime,
 } from '@/workout/workout-record';
 import type { WorkoutRecord } from '@/workout/workout-record';
 
@@ -211,5 +212,31 @@ describe('createWorkoutId', () => {
 
   it('returns different ids for two calls with the same startedAt', () => {
     expect(createWorkoutId(123_456)).not.toEqual(createWorkoutId(123_456));
+  });
+});
+
+describe('describeSessionTime', () => {
+  it('returns "morning" for an hour within 05:00–11:59', () => {
+    expect(describeSessionTime(new Date(2026, 0, 1, 8, 0))).toBe('morning');
+  });
+
+  it('returns "afternoon" for an hour within 12:00–16:59', () => {
+    expect(describeSessionTime(new Date(2026, 0, 1, 14, 0))).toBe('afternoon');
+  });
+
+  it('returns "evening" for an hour within 17:00–21:59', () => {
+    expect(describeSessionTime(new Date(2026, 0, 1, 19, 0))).toBe('evening');
+  });
+
+  it('returns "night" for an hour within 22:00–04:59', () => {
+    expect(describeSessionTime(new Date(2026, 0, 1, 23, 0))).toBe('night');
+  });
+
+  it('returns "night" at the 04:59 edge', () => {
+    expect(describeSessionTime(new Date(2026, 0, 1, 4, 59))).toBe('night');
+  });
+
+  it('returns "morning" at the 05:00 edge', () => {
+    expect(describeSessionTime(new Date(2026, 0, 1, 5, 0))).toBe('morning');
   });
 });
