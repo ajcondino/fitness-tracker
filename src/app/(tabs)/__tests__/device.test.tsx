@@ -70,14 +70,23 @@ describe('<Device />', () => {
     jest.resetAllMocks();
   });
 
-  it('keeps the existing header copy', async () => {
+  it('renders the eyebrow and title header', async () => {
     mockStatus('undetermined');
     mockPairing();
 
     await render(<Device />);
 
     expect(screen.getByText('Device')).toBeOnTheScreen();
-    expect(screen.getByText('Pair and manage your heart-rate monitor.')).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'Connect a heart rate monitor' })).toBeOnTheScreen();
+  });
+
+  it('renders the footer note', async () => {
+    mockStatus('undetermined');
+    mockPairing();
+
+    await render(<Device />);
+
+    expect(screen.getByText('Works with any standard BLE HR profile')).toBeOnTheScreen();
   });
 
   it('calls useDevicePairing with false when permission is not granted', async () => {

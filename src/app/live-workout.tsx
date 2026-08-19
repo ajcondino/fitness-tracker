@@ -243,7 +243,7 @@ export default function LiveWorkout() {
       )}
 
       {/* Removed once ended: replaced below by <SessionSummary mode="review" />,
-          which shows its own avg/max stat cards plus date/device/paused-time —
+          which shows its own title, hero duration, and avg/max stat cards —
           see docs/specs/session-summary/SPEC.md. */}
       {session.phase !== 'ended' && (
         <View style={styles.statsRow}>
@@ -501,6 +501,7 @@ const styles = StyleSheet.create({
     height: 60,
   },
   summaryContainer: {
+    flex: 1,
     zIndex: 1,
   },
 });

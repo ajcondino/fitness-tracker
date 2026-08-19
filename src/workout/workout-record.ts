@@ -82,6 +82,25 @@ export function deriveWorkoutSummary(record: WorkoutRecord): WorkoutSummary {
   return { durationMs, averageBpm, maxBpm, pausedMs };
 }
 
+export type SessionTimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
+
+/**
+ * Buckets a session's start time into a time-of-day label for the derived
+ * session title (e.g. "Morning Workout") — see session-summary's SPEC.md.
+ * Pure function of the local hour alone; boundaries are
+ * 05:00–11:59 morning, 12:00–16:59 afternoon, 17:00–21:59 evening, and
+ * 22:00–04:59 night. Deliberately lives here, not inside `SessionSummary`,
+ * so it's ready to reuse from `SessionRow`/Live Workout in a follow-up
+ * ticket without moving it out of a component first.
+ */
+export function describeSessionTime(date: Date): SessionTimeOfDay {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 22) return 'evening';
+  return 'night';
+}
+
 /**
  * Not cryptographically unique, but collision-proof enough for a
  * single-device, sequential-saves app — see SPEC.md's Dependencies for why

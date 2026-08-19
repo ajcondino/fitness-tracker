@@ -2,14 +2,15 @@
   "tabs": {
     "home": "Home",
     "history": "History",
-    "device": "Device",
-    "deviceSubtitle": "Pair and manage your heart-rate monitor."
+    "device": "Device"
   },
   "errorFallback": {
     "title": "Something went wrong",
     "retry": "Try again"
   },
   "pairing": {
+    "title": "Connect a heart rate monitor",
+    "bleProfileNote": "Works with any standard BLE HR profile",
     "scanStatus": {
       "undetermined": "BLUETOOTH ACCESS NEEDED",
       "requesting": "REQUESTING ACCESS…",
@@ -122,15 +123,25 @@
     }
   },
   "sessionSummary": {
+    "flag": {
+      "complete": "SESSION COMPLETE",
+      "saved": "SAVED SESSION"
+    },
+    "title": {
+      "morning": "Morning Workout",
+      "afternoon": "Afternoon Workout",
+      "evening": "Evening Workout",
+      "night": "Night Workout"
+    },
     "stats": {
-      "activeDuration": "ACTIVE DURATION",
+      "totalTime": "TOTAL TIME",
       "avgBpm": "AVG BPM",
-      "maxBpm": "MAX BPM",
-      "device": "DEVICE",
-      "pausedTime": "PAUSED TIME"
+      "maxBpm": "MAX BPM"
     },
     "save": "SAVE",
     "discard": "DISCARD",
+    "back": "BACK",
+    "done": "DONE",
     "saveDisabledHint": "Wait for a reading before saving",
     "leaveConfirm": {
       "title": "Discard this workout?",

@@ -46,80 +46,90 @@ export default function Device() {
 
   return (
     <ThemedView style={styles.container}>
-      {/* See index.tsx for why these sibling tab stubs share the h2 role. */}
-      <ThemedText variant="h2">{t('tabs.device')}</ThemedText>
-      <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.subtitle}>
-        {t('tabs.deviceSubtitle')}
-      </ThemedText>
+      <View>
+        <ThemedText variant="labelCaps" color="onSurfaceDim" style={styles.eyebrow}>
+          {t('tabs.device')}
+        </ThemedText>
+        <ThemedText variant="h2" accessibilityRole="header" style={styles.title}>
+          {t('pairing.title')}
+        </ThemedText>
+      </View>
 
-      <View style={styles.content}>
-        <ScanStatusBar
-          status={status}
-          onRequestAccess={requestAccess}
-          onOpenSettings={openSettings}
-          scanBarState={scanBarState}
-          onRetryScan={retryScan}
-          onOpenBluetoothSettings={openBluetoothSettings}
-        />
+      <ScanStatusBar
+        status={status}
+        onRequestAccess={requestAccess}
+        onOpenSettings={openSettings}
+        scanBarState={scanBarState}
+        onRetryScan={retryScan}
+        onOpenBluetoothSettings={openBluetoothSettings}
+      />
 
-        {status === 'granted' ? (
-          <View style={styles.section}>
-            <ThemedText variant="labelCaps" color="onSurfaceFaint">
-              {t('pairing.nearbyDevices.header')}
-            </ThemedText>
-            {devices.length > 0 ? (
-              devices.map((device) => {
-                const rowStatus = selectRowStatus(device, connection);
-                const { text, isFallback } = selectDeviceDisplayName(
-                  device,
-                  t('pairing.deviceRow.unknownDevice'),
-                );
-
-                return (
-                  <DeviceRow
-                    key={device.id}
-                    name={text}
-                    isNameFallback={isFallback}
-                    rssi={device.medianRssi}
-                    status={rowStatus}
-                    disabled={connection.kind === 'connecting' && connection.deviceId !== device.id}
-                    onPress={() => {
-                      if (rowStatus === 'connecting') {
-                        cancelConnect();
-                      } else if (rowStatus === 'available' || rowStatus === 'failed') {
-                        connect(device.id);
-                      }
-                    }}
-                  />
-                );
-              })
-            ) : (
-              <ThemedText variant="bodyMd" color="onSurfaceMuted">
-                {t('pairing.nearbyDevices.empty')}
-              </ThemedText>
-            )}
-          </View>
-        ) : null}
-
+      {status === 'granted' ? (
         <View style={styles.section}>
           <ThemedText variant="labelCaps" color="onSurfaceFaint">
-            {t('pairing.previouslyPaired.header')}
+            {t('pairing.nearbyDevices.header')}
           </ThemedText>
-          {status === 'granted' && savedDevice != null ? (
-            <SavedDeviceRow
-              name={savedDevice.name ?? t('pairing.deviceRow.unknownDevice')}
-              isNameFallback={savedDevice.name == null}
-              onForget={forgetDevice}
-            />
+          {devices.length > 0 ? (
+            devices.map((device) => {
+              const rowStatus = selectRowStatus(device, connection);
+              const { text, isFallback } = selectDeviceDisplayName(
+                device,
+                t('pairing.deviceRow.unknownDevice'),
+              );
+
+              return (
+                <DeviceRow
+                  key={device.id}
+                  name={text}
+                  isNameFallback={isFallback}
+                  rssi={device.medianRssi}
+                  status={rowStatus}
+                  disabled={connection.kind === 'connecting' && connection.deviceId !== device.id}
+                  onPress={() => {
+                    if (rowStatus === 'connecting') {
+                      cancelConnect();
+                    } else if (rowStatus === 'available' || rowStatus === 'failed') {
+                      connect(device.id);
+                    }
+                  }}
+                />
+              );
+            })
           ) : (
-            <ThemedText variant="bodyMd" color="onSurfaceMuted">
-              {status === 'granted'
-                ? t('pairing.previouslyPaired.emptyGranted')
-                : t('pairing.previouslyPaired.emptyNoAccess')}
+            <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.emptyState}>
+              {t('pairing.nearbyDevices.empty')}
             </ThemedText>
           )}
         </View>
+      ) : null}
+
+      <View style={styles.section}>
+        <ThemedText variant="labelCaps" color="onSurfaceFaint">
+          {t('pairing.previouslyPaired.header')}
+        </ThemedText>
+        {status === 'granted' && savedDevice != null ? (
+          <SavedDeviceRow
+            name={savedDevice.name ?? t('pairing.deviceRow.unknownDevice')}
+            isNameFallback={savedDevice.name == null}
+            onForget={forgetDevice}
+          />
+        ) : (
+          <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.emptyState}>
+            {status === 'granted'
+              ? t('pairing.previouslyPaired.emptyGranted')
+              : t('pairing.previouslyPaired.emptyNoAccess')}
+          </ThemedText>
+        )}
       </View>
+
+      {/* No CONTINUE/proceed CTA here by design: connecting a device doesn't
+          navigate anywhere. Home's hero button is the single entry point
+          into a workout, and it already flips to "Start workout" once a
+          device is connected (see index.tsx). Don't reintroduce a second
+          CTA on this screen. */}
+      <ThemedText variant="dataSm" color="onSurfaceDim" style={styles.footerNote}>
+        {t('pairing.bleProfileNote')}
+      </ThemedText>
     </ThemedView>
   );
 }
@@ -127,16 +137,26 @@ export default function Device() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: 0,
+    gap: 22,
   },
-  subtitle: {
-    marginTop: spacing.sm,
+  eyebrow: {
+    textTransform: 'uppercase',
   },
-  content: {
-    marginTop: spacing.xl,
-    gap: spacing.xl,
+  title: {
+    marginTop: 6,
   },
   section: {
-    gap: spacing.sm,
+    gap: 10, // spacing.sm is 8, not 10 — the mock wants a hair more room here
+  },
+  emptyState: {
+    paddingVertical: 10,
+  },
+  footerNote: {
+    marginTop: 'auto',
+    alignSelf: 'center',
+    textAlign: 'center',
   },
 });
