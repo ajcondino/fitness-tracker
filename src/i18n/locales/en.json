@@ -121,6 +121,10 @@
       "elapsed": "ELAPSED",
       "avgBpm": "AVG BPM",
       "maxBpm": "MAX BPM"
+    },
+    "trace": {
+      "label": "LIVE TRACE",
+      "unit": "bpm"
     }
   },
   "sessionSummary": {
@@ -138,6 +142,10 @@
       "totalTime": "TOTAL TIME",
       "avgBpm": "AVG BPM",
       "maxBpm": "MAX BPM"
+    },
+    "trace": {
+      "label": "HEART RATE",
+      "unit": "bpm"
     },
     "save": "SAVE",
     "discard": "DISCARD",

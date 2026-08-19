@@ -10,6 +10,7 @@ import { selectDeviceDisplayName } from '@/ble/pairing-types';
 import { DeviceChip, type DeviceChipStatus } from '@/components/device-chip';
 import { SessionSummary } from '@/components/session-summary';
 import { Glow } from '@/components/ui/glow';
+import { HeartRateTrace } from '@/components/ui/heart-rate-trace';
 import { PulseRing } from '@/components/ui/pulse-ring';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
@@ -21,11 +22,17 @@ import type { LiveHeartRateStatus } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
 import {
   WORKOUT_RECORD_SCHEMA_VERSION,
+  bucketHeartRateSamples,
   createWorkoutId,
   describeSessionTime,
 } from '@/workout/workout-record';
 import type { WorkoutRecord } from '@/workout/workout-record';
 import { saveWorkoutSession } from '@/workout/workout-store';
+
+const LIVE_TRACE_WINDOW_MS = 3 * 60 * 1000; // 3-minute rolling window — long
+// enough to read a recent trend, short enough that bars stay legibly wide on
+// a phone screen at a fixed 36-bucket count; trivially retunable.
+const LIVE_TRACE_BUCKET_COUNT = 36; // 5s per bucket at the window above.
 
 function selectStatusCopy(
   status: LiveHeartRateStatus,
@@ -96,6 +103,20 @@ export default function LiveWorkout() {
   const sessionTimeOfDay = useMemo(
     () => describeSessionTime(new Date(session.startedAt ?? Date.now())),
     [session.startedAt],
+  );
+
+  // Rounded to the current whole second — the same granularity
+  // ELAPSED_TICK_INTERVAL_MS already re-renders this screen at — so this
+  // value, and therefore the bucketHeartRateSamples(...) call below, is
+  // stable across every render landing within the same second. See
+  // docs/specs/heart-rate-trace-graph/SPEC.md's Design decision: this is
+  // what makes the React Compiler's own memoization of that call effective
+  // without a manual useMemo.
+  const liveTraceNow = Math.floor(Date.now() / 1000) * 1000;
+  const liveTraceValues = bucketHeartRateSamples(
+    session.samples,
+    { start: liveTraceNow - LIVE_TRACE_WINDOW_MS, end: liveTraceNow },
+    LIVE_TRACE_BUCKET_COUNT,
   );
 
   // Whether Save/Discard has already been tapped — lets the beforeRemove
@@ -266,6 +287,34 @@ export default function LiveWorkout() {
             </ThemedText>
           </View>
         </>
+      )}
+
+      {/* Same gate as statsRow below: a recent-window trace visible from
+          idle through paused (an all-gap trace pre-start), replaced by
+          SessionSummary's own static, full-session trace once ended. Sits
+          above statsRow, mirroring Session Summary's own trace-above-stats
+          placement. See docs/specs/heart-rate-trace-graph/SPEC.md. */}
+      {session.phase !== 'ended' && (
+        <View
+          style={[
+            styles.traceContainer,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outline,
+              borderRadius: theme.rounded.lg,
+            },
+          ]}
+        >
+          <View style={styles.traceCardHeader}>
+            <ThemedText variant="labelCaps" color="onSurfaceDim">
+              {t('liveWorkout.trace.label')}
+            </ThemedText>
+            <ThemedText variant="labelCaps" color="onSurfaceDim">
+              {t('liveWorkout.trace.unit')}
+            </ThemedText>
+          </View>
+          <HeartRateTrace testID="live-workout-trace" values={liveTraceValues} height={64} />
+        </View>
       )}
 
       {/* Removed once ended: replaced below by <SessionSummary mode="review" />,
@@ -518,6 +567,20 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: spacing.lg,
     zIndex: 1,
+  },
+  // Card shell matching Session Summary's own trace card — exact vertical
+  // placement is an implementation-time judgment against a real build; see
+  // docs/specs/heart-rate-trace-graph/SPEC.md's Interfaces/API.
+  traceContainer: {
+    borderWidth: 1,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+    zIndex: 1,
+  },
+  traceCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   statCard: {
     flex: 1,

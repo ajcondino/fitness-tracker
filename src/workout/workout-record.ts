@@ -45,6 +45,8 @@ export type WorkoutSummary = {
   pausedMs: number;
 };
 
+export type HeartRateSampleRange = { start: number; end: number };
+
 /** Overlap, in ms, between the two closed intervals [aStart, aEnd] and
  * [bStart, bEnd] — 0 if they don't overlap. */
 function overlapMs(aStart: number, aEnd: number, bStart: number, bEnd: number): number {
@@ -80,6 +82,47 @@ export function deriveWorkoutSummary(record: WorkoutRecord): WorkoutSummary {
   const maxBpm = Math.max(...samples.map((s) => s.bpm));
 
   return { durationMs, averageBpm, maxBpm, pausedMs };
+}
+
+/**
+ * Buckets `samples` by time (never by array index — index-bucketing would
+ * render a dropout as continuous bars) into `bucketCount` equal-width slices
+ * of `[range.start, range.end]`. Each bucket's value is the arithmetic mean
+ * of every sample whose `timestamp` falls inside it (average, not max — see
+ * SPEC.md's Interfaces/API: the session's peak is already shown, undiluted,
+ * by the existing MAX BPM stat card, so a max-per-bucket trace would partly
+ * duplicate it and let a single noisy reading dominate its bucket), or
+ * `null` when no sample falls inside it: a dropout, a pause, or a
+ * rolling-live window's before-session-start slices all read as `null`,
+ * never `0` and never a dropped/skipped array slot. `range.end` is inclusive
+ * of a sample landing exactly on it. Never throws: 0 samples, an
+ * empty/inverted range, or `bucketCount <= 0` all degrade to an all-`null` /
+ * empty array rather than `NaN` or a division by zero.
+ */
+export function bucketHeartRateSamples(
+  samples: HeartRateSample[],
+  range: HeartRateSampleRange,
+  bucketCount: number,
+): Array<number | null> {
+  if (bucketCount <= 0) return [];
+  const { start, end } = range;
+  const span = end - start;
+  if (span <= 0) return Array.from({ length: bucketCount }, () => null);
+
+  const bucketWidth = span / bucketCount;
+  const sums = Array.from({ length: bucketCount }, () => 0);
+  const counts = Array.from({ length: bucketCount }, () => 0);
+
+  for (const sample of samples) {
+    if (sample.timestamp < start || sample.timestamp > end) continue; // outside range
+    // A sample with timestamp === end computes to exactly bucketCount before
+    // this clamp, which would index past the array.
+    const index = Math.min(bucketCount - 1, Math.floor((sample.timestamp - start) / bucketWidth));
+    sums[index] += sample.bpm;
+    counts[index] += 1;
+  }
+
+  return sums.map((sum, i) => (counts[i] === 0 ? null : sum / counts[i]));
 }
 
 export type SessionTimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';

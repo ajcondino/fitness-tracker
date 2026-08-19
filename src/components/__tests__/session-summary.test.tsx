@@ -1,7 +1,10 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { SessionSummary } from '@/components/session-summary';
+import { bucketHeartRateSamples } from '@/workout/workout-record';
 import type { WorkoutRecord } from '@/workout/workout-record';
+
+const TRACE_BUCKET_COUNT = 48; // mirrors session-summary.tsx's own private constant
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
@@ -31,7 +34,11 @@ describe('<SessionSummary />', () => {
       expect(screen.getByText('AUG 19 · 6:42 PM')).toBeOnTheScreen();
       expect(screen.getByText('Evening Workout')).toBeOnTheScreen();
       expect(screen.getByText('TOTAL TIME')).toBeOnTheScreen();
-      expect(screen.getByText('10:10')).toBeOnTheScreen();
+      // The trace card's own axis row shows the same span whenever a
+      // fixture has no pauses (see the Design decision on why the two
+      // durations otherwise diverge), so the hero figure is disambiguated
+      // by its own testID rather than a plain text query.
+      expect(screen.getByTestId('session-summary-hero-duration')).toHaveTextContent('10:10');
       expect(screen.getByText('130')).toBeOnTheScreen();
       expect(screen.getByText('140')).toBeOnTheScreen();
     });
@@ -43,8 +50,57 @@ describe('<SessionSummary />', () => {
         <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
       );
 
-      expect(screen.getByText('00:00')).toBeOnTheScreen();
+      expect(screen.getByTestId('session-summary-hero-duration')).toHaveTextContent('00:00');
       expect(screen.getAllByText('--')).toHaveLength(2);
+    });
+
+    it('renders the trace with a bucket array of length TRACE_BUCKET_COUNT, derived from the record', async () => {
+      const record = makeRecord();
+      const expectedValues = bucketHeartRateSamples(
+        record.samples,
+        { start: record.startedAt, end: record.samples[record.samples.length - 1].timestamp },
+        TRACE_BUCKET_COUNT,
+      );
+
+      await render(
+        <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
+      );
+
+      const barCount = screen.getByTestId('session-summary-trace', { hidden: true }).children
+        .length;
+      expect(barCount).toBe(TRACE_BUCKET_COUNT);
+      // At least one bucket is populated (not the empty-bucket color) given
+      // this record has samples — confirms the trace is actually wired to
+      // the record's own samples/startedAt, not a hardcoded all-null array.
+      expect(expectedValues.some((value) => value != null)).toBe(true);
+    });
+
+    it('renders the trace with no crash for a 0-sample record (an all-null bucket array)', async () => {
+      const record = makeRecord({ samples: [] });
+
+      await render(
+        <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
+      );
+
+      const barCount = screen.getByTestId('session-summary-trace', { hidden: true }).children
+        .length;
+      expect(barCount).toBe(TRACE_BUCKET_COUNT);
+    });
+
+    it('wraps the trace in a card with a HEART RATE / bpm header and a 0:00–total-span axis row', async () => {
+      const record = makeRecord();
+
+      await render(
+        <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
+      );
+
+      expect(screen.getByText('HEART RATE')).toBeOnTheScreen();
+      expect(screen.getByText('bpm')).toBeOnTheScreen();
+      expect(screen.getByText('00:00')).toBeOnTheScreen();
+      // The axis's end label is the trace's own wall-clock span (10:10 for
+      // this pause-free fixture) — same value as the hero here, but a
+      // distinct instance of that text, not the hero's own testID'd node.
+      expect(screen.getAllByText('10:10')).toHaveLength(2);
     });
   });
 
@@ -59,6 +115,18 @@ describe('<SessionSummary />', () => {
       expect(screen.getByText('SESSION COMPLETE')).toBeOnTheScreen();
       expect(screen.queryByTestId('session-summary-back')).not.toBeOnTheScreen();
       expect(screen.queryByTestId('session-summary-done')).not.toBeOnTheScreen();
+    });
+
+    it('renders the trace with a bucket array of length TRACE_BUCKET_COUNT', async () => {
+      const record = makeRecord();
+
+      await render(
+        <SessionSummary mode="review" record={record} onSave={jest.fn()} onDiscard={jest.fn()} />,
+      );
+
+      expect(screen.getByTestId('session-summary-trace', { hidden: true }).children.length).toBe(
+        TRACE_BUCKET_COUNT,
+      );
     });
 
     it('Save is disabled with a visible hint and is a no-op when there are no samples', async () => {

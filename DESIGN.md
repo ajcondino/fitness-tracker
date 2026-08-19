@@ -558,11 +558,19 @@ number is the only thing on screen at that scale.
 exclusive buckets Z2–Z5, colored `on-surface-ghost` → `primary-dim` →
 `primary` as intensity climbs. Widths are percentages of session time.
 
-**Trace chart** — flex row of bars, each `flex: 1` with 1.5px
-horizontal margin, height a 0–1 fraction of the container with a 3px
-floor. Color by threshold: ≥152bpm `primary`, ≥130 `primary-dim`, below
-that a near-ground grey. Empty slots render at 0.03 height so the axis
-stays legible.
+**Trace chart** — flex row of bars, each `flex: 1`, spaced with a 3px
+`gap` on the row (not a per-bar horizontal margin, so the first/last
+bar sit flush with the card edge). Height is a 0–1 fraction of the
+container against a fixed 80–180bpm range (fixed, not auto-scaled, so
+two sessions stay comparable), floored at 12% of the container height
+so a low reading stays visible without inflating the container's own
+peak-to-valley relief. Color by threshold: ≥152bpm `primary`, ≥130
+`primary-dim`, below that `on-surface-ghost`. Empty slots render at a
+fixed 3px height in `on-surface-ghost` — a "slot exists" marker, not a
+data value, so it doesn't share the populated bars' percentage floor.
+Wrapped in a `surface` card on `outline`, `lg` radius, 16px padding,
+with a `label-caps` header row (left-aligned title, right-aligned
+`bpm` unit) above the bars.
 
 **Signal bars** — four 3px columns at rising heights; filled bars use
 `primary`, empty use `outline-emphasis`.

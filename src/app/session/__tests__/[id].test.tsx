@@ -79,7 +79,7 @@ describe('<SessionDetail />', () => {
     await act(async () => {});
 
     expect(screen.getByText('AUG 19 · 6:42 PM')).toBeOnTheScreen();
-    expect(screen.getByText('10:10')).toBeOnTheScreen();
+    expect(screen.getByTestId('session-summary-hero-duration')).toHaveTextContent('10:10');
     expect(screen.queryByTestId('live-workout-save')).not.toBeOnTheScreen();
     expect(screen.queryByTestId('live-workout-discard')).not.toBeOnTheScreen();
   });
