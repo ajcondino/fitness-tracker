@@ -6,6 +6,12 @@ import type { BlePermissionStatus } from '@/hooks/use-ble-permission-status';
 import { useBlePermissionStatus } from '@/hooks/use-ble-permission-status';
 import { useDevicePairing } from '@/hooks/use-device-pairing';
 
+// No <SafeAreaProvider> in this test tree — mocked with a representative
+// bottom inset (e.g. an iPhone home-indicator gesture bar) rather than the
+// zeros a missing provider would otherwise throw for.
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 34, left: 0 }),
+}));
 jest.mock('@/hooks/use-ble-permission-status');
 jest.mock('@/hooks/use-device-pairing');
 

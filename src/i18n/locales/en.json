@@ -10,6 +10,7 @@
   },
   "pairing": {
     "title": "Connect a heart rate monitor",
+    "subtitle": "Wear your strap or start HR broadcast on your watch, then pick it from the list.",
     "bleProfileNote": "Works with any standard BLE HR profile",
     "scanStatus": {
       "undetermined": "BLUETOOTH ACCESS NEEDED",

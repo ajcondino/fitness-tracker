@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ConnectionState, DiscoveredDevice } from '@/ble/pairing-types';
 import { selectDeviceDisplayName } from '@/ble/pairing-types';
@@ -9,9 +10,18 @@ import { ScanStatusBar } from '@/components/scan-status-bar';
 import { SavedDeviceRow } from '@/components/saved-device-row';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
-import { spacing } from '@/constants/theme';
+import { layout, spacing } from '@/constants/theme';
 import { useBlePermissionStatus } from '@/hooks/use-ble-permission-status';
 import { useDevicePairing } from '@/hooks/use-device-pairing';
+
+// @react-navigation/bottom-tabs isn't a resolvable dependency here — expo-router
+// vendors it internally without re-exporting (see tab-bar.tsx) — and there's no
+// useBottomTabBarInset() in this codebase, so useBottomTabBarHeight() isn't an
+// option either. TabBar itself is a floating overlay (position: 'absolute'),
+// not a layout-reserving bar, so its footprint is exactly the same
+// insets.bottom + tabBarBottomOffset + tabBarHeight math TabBar uses to place
+// itself (see components/tab-bar.tsx) — that's the real "tab bar inset" here.
+const FOOTER_NOTE_BREATHING_ROOM = 14;
 
 function selectRowStatus(
   device: DiscoveredDevice,
@@ -31,6 +41,7 @@ function selectRowStatus(
 
 export default function Device() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { status, requestAccess, openSettings } = useBlePermissionStatus();
   const {
     scanBarState,
@@ -52,6 +63,9 @@ export default function Device() {
         </ThemedText>
         <ThemedText variant="h2" accessibilityRole="header" style={styles.title}>
           {t('pairing.title')}
+        </ThemedText>
+        <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.subtitle}>
+          {t('pairing.subtitle')}
         </ThemedText>
       </View>
 
@@ -127,7 +141,20 @@ export default function Device() {
           into a workout, and it already flips to "Start workout" once a
           device is connected (see index.tsx). Don't reintroduce a second
           CTA on this screen. */}
-      <ThemedText variant="dataSm" color="onSurfaceDim" style={styles.footerNote}>
+      <ThemedText
+        variant="dataSm"
+        color="onSurfaceDim"
+        style={[
+          styles.footerNote,
+          {
+            paddingBottom:
+              insets.bottom +
+              layout.tabBarBottomOffset +
+              layout.tabBarHeight +
+              FOOTER_NOTE_BREATHING_ROOM,
+          },
+        ]}
+      >
         {t('pairing.bleProfileNote')}
       </ThemedText>
     </ThemedView>
@@ -147,6 +174,9 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 6,
+  },
+  subtitle: {
+    marginTop: 8,
   },
   section: {
     gap: 10, // spacing.sm is 8, not 10 — the mock wants a hair more room here
