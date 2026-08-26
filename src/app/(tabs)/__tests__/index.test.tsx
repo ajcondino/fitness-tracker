@@ -139,7 +139,7 @@ describe('<Index /> (Home)', () => {
     expect(screen.getByText('Unknown device')).toBeOnTheScreen();
   });
 
-  it('renders an inert mocked avatar tile in place of the profile control', async () => {
+  it('renders a mocked avatar tile that navigates to Profile', async () => {
     await render(<Index />);
     await act(async () => {});
 
@@ -150,7 +150,7 @@ describe('<Index /> (Home)', () => {
     await act(async () => {
       fireEvent.press(profileControl);
     });
-    expect(navigate).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/profile');
   });
 
   it('renders the RECENT empty state when there are no saved sessions', async () => {

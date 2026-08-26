@@ -96,6 +96,7 @@ export default function Index() {
         <Pressable
           accessibilityLabel={t('home.profile.label')}
           testID="home-profile-control"
+          onPress={() => router.navigate('/profile')}
           style={[
             styles.profileControl,
             {

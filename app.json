@@ -18,7 +18,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.a.condino.fitnesstracker"
+      "package": "com.a.condino.fitnesstracker",
+      "permissions": [
+        "android.permission.health.WRITE_EXERCISE",
+        "android.permission.health.WRITE_HEART_RATE"
+      ]
     },
     "web": {
       "output": "static",
@@ -59,6 +63,15 @@
         {
           "isBackgroundEnabled": false,
           "neverForLocation": true
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
         }
       ]
     ],

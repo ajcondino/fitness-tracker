@@ -173,5 +173,33 @@
     "sessionRow": {
       "avgSuffix": "avg"
     }
+  },
+  "profile": {
+    "title": "Profile",
+    "back": "Back"
+  },
+  "healthConnect": {
+    "sectionHeader": "HEALTH CONNECT",
+    "notGranted": {
+      "body": "Pulse can save your workout sessions and heart rate data to Health Connect.",
+      "grantAction": "GRANT ACCESS"
+    },
+    "granted": {
+      "toggleLabel": "Save to Health Connect",
+      "enabledBody": "Workout sessions and heart rate data are saved to Health Connect automatically.",
+      "disabledBody": "Turn this on to save workout sessions and heart rate data to Health Connect."
+    },
+    "unavailable": {
+      "body": "Health Connect isn't available on this device. Install or update it from Google Play to enable syncing.",
+      "action": "OPEN GOOGLE PLAY"
+    },
+    "noScreenLock": {
+      "body": "Health Connect requires a screen lock. Set a PIN, pattern, or password to enable it.",
+      "action": "OPEN SECURITY SETTINGS"
+    },
+    "permissionExhausted": {
+      "body": "You've already responded to this request twice, so Pulse can't ask again here. Open the Health Connect app to grant access manually.",
+      "action": "OPEN HEALTH CONNECT APP"
+    }
   }
 }
