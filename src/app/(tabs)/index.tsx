@@ -7,6 +7,7 @@ import { usePairingStore } from '@/ble/pairing-store';
 import { selectConnectedDeviceName } from '@/ble/pairing-types';
 import { DeviceCard } from '@/components/device-card';
 import { SessionRow } from '@/components/session-row';
+import { Avatar } from '@/components/ui/avatar';
 import { Glow } from '@/components/ui/glow';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
@@ -97,19 +98,8 @@ export default function Index() {
           accessibilityLabel={t('home.profile.label')}
           testID="home-profile-control"
           onPress={() => router.navigate('/profile')}
-          style={[
-            styles.profileControl,
-            {
-              backgroundColor: theme.colors.surfaceRaised,
-              borderRadius: theme.rounded.sm,
-              borderWidth: 1,
-              borderColor: theme.colors.outline,
-            },
-          ]}
         >
-          <ThemedText variant="actionSm" color="primary">
-            {MOCK_USER_INITIAL}
-          </ThemedText>
+          <Avatar size="sm" initial={MOCK_USER_INITIAL} />
         </Pressable>
       </View>
 
@@ -216,12 +206,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 1, // renders above <Glow /> — see glow.tsx's stacking note
-  },
-  profileControl: {
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   greeting: {
     marginTop: spacing.lg,

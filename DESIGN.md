@@ -145,6 +145,10 @@ typography:
     fontSize: 9px
     fontWeight: 400
     letterSpacing: 1px
+  avatar-lg: # the single initial inside Profile's 56px identity avatar
+    fontFamily: JetBrains Mono
+    fontSize: 20px
+    fontWeight: 700
 
 spacing:
   xs: 4px
@@ -574,6 +578,17 @@ with a `label-caps` header row (left-aligned title, right-aligned
 
 **Signal bars** — four 3px columns at rising heights; filled bars use
 `primary`, empty use `outline-emphasis`.
+
+**Avatar** — `surface-raised` on `outline`, a single uppercase initial in
+`primary`, centered. Two sizes: `sm` (34px, `sm` radius, `action-sm`
+label) is the Home header's profile control; `lg` (56px, `lg` radius,
+`avatar-lg` label) is the identity mark on Profile. Same component,
+sized by props — never re-implemented per screen.
+
+**Back button** — a 36px square tile, `surface-raised` on `outline`,
+`md` radius, a centered ‹ chevron in `on-surface-muted`. Pressed state
+shifts the border to `outline-emphasis`. Currently used by Profile's
+header only.
 
 **Tab bar** — a JS-rendered floating pill, not a native tab bar (native
 tab bars can't express mono uppercase labels or this shape). `64px`

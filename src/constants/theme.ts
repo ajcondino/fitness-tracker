@@ -92,7 +92,8 @@ type TypographyKey =
   | 'labelCaps'
   | 'labelMicro'
   | 'wordmark'
-  | 'tabLabel';
+  | 'tabLabel'
+  | 'avatarLg';
 
 export const typography: Record<TypographyKey, TypographyToken> = {
   displayXl: {
@@ -218,6 +219,14 @@ export const typography: Record<TypographyKey, TypographyToken> = {
     fontSize: 9,
     fontWeight: 400,
     letterSpacing: 1,
+  },
+  // The single uppercase initial inside the 56px identity Avatar on
+  // Profile — see components/ui/avatar.tsx. No letterSpacing: it's one
+  // glyph, centered, not a tracked word like the action/label tokens.
+  avatarLg: {
+    fontFamily: monoBold,
+    fontSize: 20,
+    fontWeight: 700,
   },
 };
 
