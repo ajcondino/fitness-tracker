@@ -8,6 +8,7 @@ import { SessionSummary } from '@/components/session-summary';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
+import { syncWorkoutSessionToHealthConnect } from '@/health/health-connect-sync';
 import type { WorkoutRecord } from '@/workout/workout-record';
 import { loadWorkoutSession } from '@/workout/workout-store';
 
@@ -28,6 +29,15 @@ export default function SessionDetail() {
   // loaded — same three-state pattern history.tsx/index.tsx already use for
   // their own loads.
   const [record, setRecord] = useState<WorkoutRecord | null | undefined>(undefined);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = () => {
+    if (record == null || isSyncing) return;
+    setIsSyncing(true);
+    syncWorkoutSessionToHealthConnect(record)
+      .then(setRecord)
+      .finally(() => setIsSyncing(false));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +92,14 @@ export default function SessionDetail() {
       testID="session-detail-container"
       style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}
     >
-      <SessionSummary mode="detail" record={record} onBack={goBack} onDone={goHome} />
+      <SessionSummary
+        mode="detail"
+        record={record}
+        onBack={goBack}
+        onDone={goHome}
+        onSync={handleSync}
+        isSyncing={isSyncing}
+      />
     </ThemedView>
   );
 }

@@ -6,7 +6,20 @@ import type { HeartRateSample, WorkoutPause } from '@/hooks/use-workout-session'
  * derivations" layer.
  */
 
-export const WORKOUT_RECORD_SCHEMA_VERSION = 1;
+export const WORKOUT_RECORD_SCHEMA_VERSION = 2;
+
+export type HealthConnectWriteStatus = 'notWritten' | 'written' | 'failed';
+
+export type HealthConnectWriteInfo = {
+  status: HealthConnectWriteStatus;
+  // Health Connect's own returned record ids (one exercise-session id plus
+  // one per HeartRateRecord chunk) — only ever non-empty when
+  // status === 'written'. Not read by anything in this app today; kept so
+  // a record's Health Connect identity is recoverable without a second
+  // read-back, and so a future "open in Health Connect" deep link (out of
+  // scope here) has something to point at.
+  recordIds: string[];
+};
 
 export type WorkoutDevice = {
   id: string;
@@ -36,6 +49,7 @@ export type WorkoutRecord = {
   samples: HeartRateSample[];
   device: WorkoutDevice;
   pauses: WorkoutPause[];
+  healthConnect: HealthConnectWriteInfo;
 };
 
 export type WorkoutSummary = {

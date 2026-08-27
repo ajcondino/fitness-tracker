@@ -9,7 +9,7 @@ describe('theme tokens', () => {
   });
 
   it('has exactly the typography scales defined in DESIGN.md', () => {
-    expect(Object.keys(typography)).toHaveLength(21);
+    expect(Object.keys(typography)).toHaveLength(22);
 
     Object.values(typography).forEach((scale) => {
       expect(scale.fontFamily).toBeTruthy();

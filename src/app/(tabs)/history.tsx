@@ -183,6 +183,7 @@ export default function History() {
                   averageBpmLabel={
                     summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
                   }
+                  writeStatus={record.healthConnect.status}
                   onPress={() =>
                     router.push({ pathname: '/session/[id]', params: { id: record.id } })
                   }

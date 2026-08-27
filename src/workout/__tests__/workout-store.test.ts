@@ -9,12 +9,13 @@ import type { WorkoutRecord } from '@/workout/workout-record';
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: 'workout-1',
     startedAt: 1_000,
     samples: [{ bpm: 120, timestamp: 1_000 }],
     device: { id: 'device-1', name: 'Pulse HRM' },
     pauses: [],
+    healthConnect: { status: 'notWritten', recordIds: [] },
     ...overrides,
   };
 }
@@ -129,6 +130,41 @@ describe('workout-store', () => {
       jest.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('storage unavailable'));
 
       await expect(loadWorkoutSession('workout-1')).resolves.toBeNull();
+    });
+  });
+
+  describe('healthConnect field defaulting', () => {
+    it('defaults to notWritten/[] for a schema-version-1 record with no healthConnect field', async () => {
+      const legacy = { ...makeRecord(), schemaVersion: 1 } as Record<string, unknown>;
+      delete legacy.healthConnect;
+      await AsyncStorage.setItem('workout.session.workout-1', JSON.stringify(legacy));
+      await AsyncStorage.setItem('workout.sessionIndex', JSON.stringify(['workout-1']));
+
+      const loaded = await loadWorkoutSession('workout-1');
+
+      expect(loaded?.healthConnect).toEqual({ status: 'notWritten', recordIds: [] });
+      expect(loaded?.id).toBe('workout-1');
+    });
+
+    it('defaults a malformed healthConnect value without dropping the record', async () => {
+      const malformed = { ...makeRecord(), healthConnect: { status: 'bogus', recordIds: 'nope' } };
+      await AsyncStorage.setItem('workout.session.workout-1', JSON.stringify(malformed));
+      await AsyncStorage.setItem('workout.sessionIndex', JSON.stringify(['workout-1']));
+
+      const loaded = await loadWorkoutSession('workout-1');
+
+      expect(loaded).not.toBeNull();
+      expect(loaded?.healthConnect).toEqual({ status: 'notWritten', recordIds: [] });
+    });
+
+    it('round-trips a non-default healthConnect value as-is', async () => {
+      const record = makeRecord({
+        healthConnect: { status: 'written', recordIds: ['exercise-1', 'heartrate-1'] },
+      });
+
+      await saveWorkoutSession(record);
+
+      expect(await loadWorkoutSession('workout-1')).toEqual(record);
     });
   });
 });

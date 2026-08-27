@@ -402,29 +402,30 @@ between 9px and 34px.
 
 **Hierarchy**
 
-| Token         | Family         | Size / line | Weight | Where                          |
-| ------------- | -------------- | ----------- | ------ | ------------------------------ |
-| `display-xl`  | Archivo        | 132 / 138   | 800    | Live BPM                       |
-| `display-lg`  | Archivo        | 56 / 60     | 800    | Session duration (Summary)     |
-| `h1`          | Archivo        | 34 / 38     | 800    | Home greeting                  |
-| `h2`          | Archivo        | 32 / 36     | 800    | Pairing, History               |
-| `h3`          | Archivo        | 26          | 800    | Summary title, stat values     |
-| `stat-md`     | Archivo        | 22          | 800    | History summary figures        |
-| `stat-sm`     | Archivo        | 20          | 800    | Day number in a session row    |
-| `title-md`    | Archivo        | 17          | 700    | Live session title             |
-| `title-sm`    | Archivo        | 15          | 700    | Row and card titles            |
-| `body-md`     | Archivo        | 15 / 22     | 400    | Subtitles, descriptions        |
-| `body-sm`     | Archivo        | 14          | 400    | Toast, auth prompts            |
-| `caption`     | Archivo        | 12 / 19     | 400    | Legal copy                     |
-| `action-lg`   | JetBrains Mono | 15          | 700    | Hero CTA                       |
-| `action-md`   | JetBrains Mono | 14          | 700    | Primary buttons                |
-| `action-sm`   | JetBrains Mono | 12          | 700    | Ghost buttons                  |
-| `data-md`     | JetBrains Mono | 12          | 400    | Inline durations, avg bpm      |
-| `data-sm`     | JetBrains Mono | 11          | 400    | Zone labels, trend, RSSI       |
-| `label-caps`  | JetBrains Mono | 11          | 400    | Section headers (uppercase)    |
-| `label-micro` | JetBrains Mono | 10          | 400    | Stat card captions (uppercase) |
-| `wordmark`    | JetBrains Mono | 12          | 400    | `PULSE`                        |
-| `tab-label`   | JetBrains Mono | 9           | 400    | Tab bar                        |
+| Token         | Family         | Size / line | Weight | Where                                |
+| ------------- | -------------- | ----------- | ------ | ------------------------------------ |
+| `display-xl`  | Archivo        | 132 / 138   | 800    | Live BPM                             |
+| `display-lg`  | Archivo        | 56 / 60     | 800    | Session duration (Summary)           |
+| `h1`          | Archivo        | 34 / 38     | 800    | Home greeting                        |
+| `h2`          | Archivo        | 32 / 36     | 800    | Pairing, History                     |
+| `h3`          | Archivo        | 26          | 800    | Summary title, stat values           |
+| `stat-md`     | Archivo        | 22          | 800    | History summary figures              |
+| `stat-sm`     | Archivo        | 20          | 800    | Day number in a session row          |
+| `title-md`    | Archivo        | 17          | 700    | Live session title                   |
+| `title-sm`    | Archivo        | 15          | 700    | Row and card titles                  |
+| `body-md`     | Archivo        | 15 / 22     | 400    | Subtitles, descriptions              |
+| `body-sm`     | Archivo        | 14          | 400    | Toast, auth prompts                  |
+| `caption`     | Archivo        | 12 / 19     | 400    | Legal copy                           |
+| `action-lg`   | JetBrains Mono | 15          | 700    | Hero CTA                             |
+| `action-md`   | JetBrains Mono | 14          | 700    | Primary buttons                      |
+| `action-sm`   | JetBrains Mono | 12          | 700    | Ghost buttons                        |
+| `data-md`     | JetBrains Mono | 12          | 400    | Inline durations, avg bpm            |
+| `data-sm`     | JetBrains Mono | 11          | 400    | Zone labels, trend, RSSI             |
+| `label-caps`  | JetBrains Mono | 11          | 400    | Section headers (uppercase)          |
+| `label-micro` | JetBrains Mono | 10          | 400    | Stat card captions (uppercase)       |
+| `wordmark`    | JetBrains Mono | 12          | 400    | `PULSE`                              |
+| `tab-label`   | JetBrains Mono | 9           | 400    | Tab bar                              |
+| `avatar-lg`   | JetBrains Mono | 20          | 700    | Initial in Profile's identity avatar |
 
 All-caps applies to `label-caps`, `label-micro`, `wordmark`,
 `tab-label`, and every button label. It never applies to body copy or

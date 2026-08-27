@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import SessionDetail from '@/app/session/[id]';
+import { syncWorkoutSessionToHealthConnect } from '@/health/health-connect-sync';
 import { loadWorkoutSession } from '@/workout/workout-store';
 import type { WorkoutRecord } from '@/workout/workout-record';
 
@@ -13,6 +14,7 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 34, left: 0 }),
 }));
 jest.mock('@/workout/workout-store');
+jest.mock('@/health/health-connect-sync');
 
 const mockedUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<
   typeof useLocalSearchParams
@@ -21,10 +23,13 @@ const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedLoadWorkoutSession = loadWorkoutSession as jest.MockedFunction<
   typeof loadWorkoutSession
 >;
+const mockedSyncWorkoutSession = syncWorkoutSessionToHealthConnect as jest.MockedFunction<
+  typeof syncWorkoutSessionToHealthConnect
+>;
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: 'workout-1',
     startedAt: new Date('2026-08-19T18:42:00').getTime(),
     samples: [
@@ -33,6 +38,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     ],
     device: { id: 'device-1', name: 'Pulse HRM' },
     pauses: [],
+    healthConnect: { status: 'notWritten', recordIds: [] },
     ...overrides,
   };
 }
@@ -49,6 +55,7 @@ describe('<SessionDetail />', () => {
       typeof useLocalSearchParams
     >);
     mockedLoadWorkoutSession.mockReset();
+    mockedSyncWorkoutSession.mockReset();
   });
 
   it('renders nothing while loading', async () => {
@@ -113,5 +120,57 @@ describe('<SessionDetail />', () => {
     await act(async () => {});
 
     expect(mockedLoadWorkoutSession).toHaveBeenCalledWith('workout-1');
+  });
+
+  describe('Sync', () => {
+    it('tapping Sync calls syncWorkoutSessionToHealthConnect with the loaded record and re-renders with the resolved status', async () => {
+      const loaded = makeRecord({ healthConnect: { status: 'failed', recordIds: [] } });
+      const synced = { ...loaded, healthConnect: { status: 'written' as const, recordIds: ['a'] } };
+      mockedLoadWorkoutSession.mockResolvedValue(loaded);
+      let resolveSync: (value: typeof synced) => void = () => {};
+      mockedSyncWorkoutSession.mockReturnValue(
+        new Promise((resolve) => {
+          resolveSync = resolve;
+        }),
+      );
+
+      await render(<SessionDetail />);
+      await act(async () => {});
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('session-summary-sync'));
+      });
+
+      expect(mockedSyncWorkoutSession).toHaveBeenCalledWith(loaded);
+      // Disabled while the call is in flight.
+      expect(screen.getByTestId('session-summary-sync').props.accessibilityState.disabled).toBe(
+        true,
+      );
+
+      await act(async () => {
+        resolveSync(synced);
+      });
+
+      expect(screen.getByText('Saved to Health Connect')).toBeOnTheScreen();
+      expect(screen.queryByTestId('session-summary-sync')).not.toBeOnTheScreen();
+    });
+
+    it('does not issue a second syncWorkoutSessionToHealthConnect call when Sync is tapped twice before the first resolves', async () => {
+      const loaded = makeRecord({ healthConnect: { status: 'failed', recordIds: [] } });
+      mockedLoadWorkoutSession.mockResolvedValue(loaded);
+      mockedSyncWorkoutSession.mockReturnValue(new Promise(() => {})); // never resolves
+
+      await render(<SessionDetail />);
+      await act(async () => {});
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('session-summary-sync'));
+      });
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('session-summary-sync'));
+      });
+
+      expect(mockedSyncWorkoutSession).toHaveBeenCalledTimes(1);
+    });
   });
 });

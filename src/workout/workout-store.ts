@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { WorkoutRecord } from '@/workout/workout-record';
+import type { HealthConnectWriteInfo, WorkoutRecord } from '@/workout/workout-record';
 
 /**
  * Framework-free storage module: no BLE, Zustand, or React import — mirrors
@@ -28,6 +28,27 @@ async function readSessionIndex(): Promise<string[]> {
   }
 }
 
+// Lenient — unlike every other field parseWorkoutRecord validates, a
+// missing or malformed healthConnect value never invalidates the whole
+// record. See SPEC.md's Design decision: this field is metadata about the
+// record, not part of what makes the session real. Never throws, matching
+// every other private parse helper in this file.
+function parseHealthConnectWriteInfo(raw: unknown): HealthConnectWriteInfo {
+  const fallback: HealthConnectWriteInfo = { status: 'notWritten', recordIds: [] };
+  if (typeof raw !== 'object' || raw === null) {
+    return fallback;
+  }
+  const { status, recordIds } = raw as Record<string, unknown>;
+  const validStatus =
+    status === 'notWritten' || status === 'written' || status === 'failed'
+      ? status
+      : fallback.status;
+  const validRecordIds = Array.isArray(recordIds)
+    ? recordIds.filter((entry): entry is string => typeof entry === 'string')
+    : fallback.recordIds;
+  return { status: validStatus, recordIds: validRecordIds };
+}
+
 function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
   if (raw == null) {
     return null;
@@ -37,10 +58,8 @@ function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
     if (typeof parsed !== 'object' || parsed === null) {
       return null;
     }
-    const { schemaVersion, id, startedAt, samples, device, pauses } = parsed as Record<
-      string,
-      unknown
-    >;
+    const { schemaVersion, id, startedAt, samples, device, pauses, healthConnect } =
+      parsed as Record<string, unknown>;
     if (
       typeof schemaVersion !== 'number' ||
       typeof id !== 'string' ||
@@ -53,7 +72,10 @@ function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
     ) {
       return null;
     }
-    return parsed as WorkoutRecord;
+    return {
+      ...parsed,
+      healthConnect: parseHealthConnectWriteInfo(healthConnect),
+    } as WorkoutRecord;
   } catch {
     return null;
   }

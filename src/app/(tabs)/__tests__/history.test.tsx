@@ -38,7 +38,7 @@ function makeDevice(overrides: Partial<DiscoveredDevice> = {}): DiscoveredDevice
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: 'workout-1',
     startedAt: new Date('2026-08-17T18:42:00').getTime(),
     samples: [
@@ -47,6 +47,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     ],
     device: { id: 'device-1', name: 'Pulse HRM' },
     pauses: [],
+    healthConnect: { status: 'notWritten', recordIds: [] },
     ...overrides,
   };
 }
@@ -131,6 +132,26 @@ describe('<History />', () => {
     // second record is a single-sample, zero-duration session
     expect(screen.getByText('00:00')).toBeOnTheScreen();
     expect(screen.getByText('100 avg')).toBeOnTheScreen();
+  });
+
+  it("passes each record's healthConnect.status into its SessionRow's writeStatus marker", async () => {
+    const written = makeRecord({
+      id: 'workout-written',
+      healthConnect: { status: 'written', recordIds: ['a'] },
+    });
+    const failed = makeRecord({
+      id: 'workout-failed',
+      startedAt: new Date('2026-08-16T07:00:00').getTime(),
+      samples: [{ bpm: 100, timestamp: new Date('2026-08-16T07:00:00').getTime() }],
+      healthConnect: { status: 'failed', recordIds: [] },
+    });
+    mockedLoadWorkoutSessions.mockResolvedValue([written, failed]);
+
+    await render(<History />);
+    await act(async () => {});
+
+    expect(screen.getByTestId('write-status-marker-written', { hidden: true })).toBeOnTheScreen();
+    expect(screen.getByTestId('write-status-marker-failed', { hidden: true })).toBeOnTheScreen();
   });
 
   it("pressing a row calls router.push with that row's record id", async () => {

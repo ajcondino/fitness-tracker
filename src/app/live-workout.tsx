@@ -16,6 +16,7 @@ import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import type { ColorToken } from '@/constants/theme';
 import { spacing } from '@/constants/theme';
+import { autoSyncWorkoutSessionToHealthConnect } from '@/health/health-connect-sync';
 import { useTheme } from '@/hooks/use-theme';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import type { LiveHeartRateStatus } from '@/hooks/use-live-heart-rate';
@@ -145,6 +146,7 @@ export default function LiveWorkout() {
         samples,
         device: { id: deviceId, name: device?.name ?? device?.lastKnownName ?? null },
         pauses,
+        healthConnect: { status: 'notWritten', recordIds: [] },
       };
     });
   }, [deviceId, device, session.phase, session.startedAt, session.samples, session.pauses]);
@@ -231,9 +233,15 @@ export default function LiveWorkout() {
   const save = () => {
     if (record == null) return;
     setDecided(true);
-    void saveWorkoutSession(record); // fire-and-forget — same contract as
-    // use-device-pairing.ts's `void saveDevice(saved)`; the write is not
-    // awaited before navigating back.
+    // Fire-and-forget — same contract as use-device-pairing.ts's
+    // `void saveDevice(saved)`; the write is not awaited before navigating
+    // back. Chained, not parallel: autoSyncWorkoutSessionToHealthConnect's
+    // own saveWorkoutSession call (inside syncWorkoutSessionToHealthConnect,
+    // same `id` key) must not race this initial save and risk being
+    // overwritten by it.
+    void saveWorkoutSession(record).then(() => {
+      void autoSyncWorkoutSessionToHealthConnect(record);
+    });
     router.back();
   };
 

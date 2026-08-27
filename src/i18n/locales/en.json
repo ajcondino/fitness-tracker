@@ -158,7 +158,23 @@
       "cancel": "CANCEL",
       "discard": "DISCARD"
     },
-    "notFound": "Session not found."
+    "notFound": "Session not found.",
+    "writeStatus": {
+      "written": {
+        "title": "Saved to Health Connect",
+        "caption": "This workout is in your Health Connect history."
+      },
+      "notWritten": {
+        "title": "Not synced to Health Connect",
+        "caption": "This workout hasn't been saved to Health Connect yet."
+      },
+      "failed": {
+        "title": "Sync failed",
+        "caption": "Pulse couldn't save this workout to Health Connect."
+      },
+      "syncAction": "SYNC",
+      "syncing": "SYNCING…"
+    }
   },
   "history": {
     "stats": {
@@ -172,6 +188,11 @@
     },
     "sessionRow": {
       "avgSuffix": "avg"
+    },
+    "writeStatus": {
+      "written": "Written to Health Connect",
+      "notWritten": "Not written to Health Connect",
+      "failed": "Health Connect sync failed"
     }
   },
   "profile": {

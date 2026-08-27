@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Alert, StyleSheet } from 'react-native';
 import { useNavigation, useRouter } from 'expo-router';
 
@@ -7,6 +7,7 @@ import { bleManager } from '@/ble/manager';
 import { usePairingStore } from '@/ble/pairing-store';
 import type { DiscoveredDevice } from '@/ble/pairing-types';
 import { spacing } from '@/constants/theme';
+import { autoSyncWorkoutSessionToHealthConnect } from '@/health/health-connect-sync';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
 import type { WorkoutSessionSnapshot } from '@/hooks/use-workout-session';
@@ -29,6 +30,7 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('@/hooks/use-live-heart-rate');
 jest.mock('@/hooks/use-workout-session');
 jest.mock('@/workout/workout-store');
+jest.mock('@/health/health-connect-sync');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedUseNavigation = useNavigation as jest.MockedFunction<typeof useNavigation>;
@@ -37,6 +39,9 @@ const mockedUseWorkoutSession = useWorkoutSession as jest.MockedFunction<typeof 
 const mockedCancelDeviceConnection = jest.mocked(bleManager.cancelDeviceConnection);
 const mockedSaveWorkoutSession = saveWorkoutSession as jest.MockedFunction<
   typeof saveWorkoutSession
+>;
+const mockedAutoSyncWorkoutSession = autoSyncWorkoutSessionToHealthConnect as jest.MockedFunction<
+  typeof autoSyncWorkoutSessionToHealthConnect
 >;
 
 // Captures whatever listener LiveWorkout registers for 'beforeRemove', so
@@ -92,6 +97,7 @@ describe('<LiveWorkout />', () => {
       stop: jest.fn(),
     });
     mockedSaveWorkoutSession.mockReset().mockResolvedValue(undefined);
+    mockedAutoSyncWorkoutSession.mockReset().mockResolvedValue(undefined);
   });
 
   describe('guard branch (no connected device)', () => {
@@ -311,9 +317,48 @@ describe('<LiveWorkout />', () => {
             samples,
             device: { id: 'device-1', name: 'Pulse HRM' },
             pauses,
+            healthConnect: { status: 'notWritten', recordIds: [] },
           }),
         );
         expect(back).toHaveBeenCalledTimes(1);
+      });
+
+      it('calls autoSyncWorkoutSessionToHealthConnect with the same record only after saveWorkoutSession resolves, with router.back() already fired before either settles', async () => {
+        const samples = [{ bpm: 120, timestamp: 1_000 }];
+        mockedUseWorkoutSession.mockReturnValue({
+          phase: 'ended',
+          startedAt: 500,
+          samples,
+          pauses: [],
+          elapsedMs: 500,
+          averageBpm: 120,
+          maxBpm: 120,
+          start: jest.fn(),
+          pause: jest.fn(),
+          resume: jest.fn(),
+          stop: jest.fn(),
+        });
+
+        await render(<LiveWorkout />);
+        fireEvent.press(screen.getByTestId('live-workout-save'));
+
+        // router.back() already fired synchronously, before
+        // saveWorkoutSession's promise (and therefore
+        // autoSyncWorkoutSessionToHealthConnect) has had any chance to
+        // settle — Save's navigation timing is unchanged by this ticket.
+        expect(back).toHaveBeenCalledTimes(1);
+        expect(mockedAutoSyncWorkoutSession).not.toHaveBeenCalled();
+
+        // Waits for the fire-and-forget saveWorkoutSession(...).then(...)
+        // chain to run, without an extra manual act() wrapper (which
+        // overlaps with fireEvent.press's own act scope here).
+        await waitFor(() => expect(mockedAutoSyncWorkoutSession).toHaveBeenCalledTimes(1));
+
+        const [savedRecord] = mockedSaveWorkoutSession.mock.calls[0];
+        expect(mockedAutoSyncWorkoutSession).toHaveBeenCalledWith(savedRecord);
+        expect(back.mock.invocationCallOrder[0]).toBeLessThan(
+          mockedAutoSyncWorkoutSession.mock.invocationCallOrder[0],
+        );
       });
     });
 
