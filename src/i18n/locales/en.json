@@ -176,18 +176,23 @@
   },
   "profile": {
     "title": "Profile",
-    "back": "Back"
+    "back": "Back",
+    "signOut": "SIGN OUT"
   },
   "healthConnect": {
     "sectionHeader": "HEALTH CONNECT",
+    "notAvailableTitle": "Health Connect isn't available",
     "notGranted": {
+      "title": "Sync workouts to Health Connect",
       "body": "Pulse can save your workout sessions and heart rate data to Health Connect.",
       "grantAction": "GRANT ACCESS"
     },
     "granted": {
+      "enabledTitle": "Connected",
+      "disabledTitle": "Connected · sync off",
       "toggleLabel": "Save to Health Connect",
-      "enabledBody": "Workout sessions and heart rate data are saved to Health Connect automatically.",
-      "disabledBody": "Turn this on to save workout sessions and heart rate data to Health Connect."
+      "enabledCaption": "Writing sessions after each workout",
+      "disabledCaption": "New sessions won't be written"
     },
     "unavailable": {
       "body": "Health Connect isn't available on this device. Install or update it from Google Play to enable syncing.",
