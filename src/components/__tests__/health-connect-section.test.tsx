@@ -45,11 +45,8 @@ describe('<HealthConnectSection />', () => {
   it('renders grantedEnabled with a checked toggle and calls onToggleWriteBack(false) when pressed', async () => {
     const { props } = await renderSection('grantedEnabled');
 
-    expect(
-      screen.getByText(
-        'Workout sessions and heart rate data are saved to Health Connect automatically.',
-      ),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('Connected')).toBeOnTheScreen();
+    expect(screen.getByText('Writing sessions after each workout')).toBeOnTheScreen();
     const toggle = screen.getByTestId('health-connect-toggle');
     expect(toggle).toHaveProp('accessibilityState', { checked: true, disabled: undefined });
 
@@ -60,11 +57,8 @@ describe('<HealthConnectSection />', () => {
   it('renders grantedDisabled with an unchecked toggle and calls onToggleWriteBack(true) when pressed', async () => {
     const { props } = await renderSection('grantedDisabled');
 
-    expect(
-      screen.getByText(
-        'Turn this on to save workout sessions and heart rate data to Health Connect.',
-      ),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('Connected · sync off')).toBeOnTheScreen();
+    expect(screen.getByText("New sessions won't be written")).toBeOnTheScreen();
     const toggle = screen.getByTestId('health-connect-toggle');
     expect(toggle).toHaveProp('accessibilityState', { checked: false, disabled: undefined });
 

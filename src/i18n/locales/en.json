@@ -191,9 +191,7 @@
       "enabledTitle": "Connected",
       "disabledTitle": "Connected · sync off",
       "toggleLabel": "Save to Health Connect",
-      "enabledBody": "Workout sessions and heart rate data are saved to Health Connect automatically.",
       "enabledCaption": "Writing sessions after each workout",
-      "disabledBody": "Turn this on to save workout sessions and heart rate data to Health Connect.",
       "disabledCaption": "New sessions won't be written"
     },
     "unavailable": {
