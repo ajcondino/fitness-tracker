@@ -1,4 +1,5 @@
 import {
+  WORKOUT_RECORD_SCHEMA_VERSION,
   bucketHeartRateSamples,
   createWorkoutId,
   deriveWeeklyTotals,
@@ -9,15 +10,22 @@ import type { WorkoutRecord } from '@/workout/workout-record';
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 1,
+    schemaVersion: WORKOUT_RECORD_SCHEMA_VERSION,
     id: 'workout-1',
     startedAt: 0,
     samples: [],
     device: { id: 'device-1', name: 'Pulse HRM' },
     pauses: [],
+    healthConnect: { status: 'notWritten', recordIds: [] },
     ...overrides,
   };
 }
+
+describe('WORKOUT_RECORD_SCHEMA_VERSION', () => {
+  it('is 2', () => {
+    expect(WORKOUT_RECORD_SCHEMA_VERSION).toBe(2);
+  });
+});
 
 describe('deriveWorkoutSummary', () => {
   it('returns zeroed, never-NaN stats for a record with 0 samples', () => {

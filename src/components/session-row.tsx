@@ -2,7 +2,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { ThemedText } from '@/components/ui/themed-text';
+import { WriteStatusMarker } from '@/components/ui/write-status-marker';
 import { useTheme } from '@/hooks/use-theme';
+import type { HealthConnectWriteStatus } from '@/workout/workout-record';
 
 // Renders `DESIGN.md`'s `row-session`/`row-session-meta` tokens in full,
 // including the trailing chevron. Otherwise presentational, mirroring
@@ -23,6 +25,8 @@ export type SessionRowProps = {
   // duration/avg, not the title
   durationLabel: string; // e.g. "42:10" — mm:ss, same convention as Live Workout
   averageBpmLabel: string; // e.g. "134", or "--" for a null average
+  writeStatus: HealthConnectWriteStatus; // required — every real WorkoutRecord
+  // always has a healthConnect field, so there's no meaningful omitted state
   onPress?: () => void; // omitted keeps the row exactly as non-interactive as before
 };
 
@@ -33,6 +37,7 @@ export function SessionRow({
   timeLabel,
   durationLabel,
   averageBpmLabel,
+  writeStatus,
   onPress,
 }: SessionRowProps) {
   const theme = useTheme();
@@ -86,6 +91,11 @@ export function SessionRow({
           </ThemedText>
         </View>
       </View>
+
+      <WriteStatusMarker
+        status={writeStatus}
+        accessibilityLabel={t(`history.writeStatus.${writeStatus}`)}
+      />
 
       <ThemedText variant="titleMd" color="onSurfaceDim">
         ›

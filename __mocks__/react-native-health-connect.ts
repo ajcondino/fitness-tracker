@@ -8,8 +8,13 @@ export const SdkAvailabilityStatus = {
   SDK_AVAILABLE: 3,
 } as const;
 
+export const ExerciseType = {
+  OTHER_WORKOUT: 0,
+} as const;
+
 export const getSdkStatus = jest.fn();
 export const initialize = jest.fn();
 export const getGrantedPermissions = jest.fn();
 export const requestPermission = jest.fn();
 export const openHealthConnectSettings = jest.fn();
+export const insertRecords = jest.fn();

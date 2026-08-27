@@ -2,13 +2,13 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { SessionSummary } from '@/components/session-summary';
 import { bucketHeartRateSamples } from '@/workout/workout-record';
-import type { WorkoutRecord } from '@/workout/workout-record';
+import type { HealthConnectWriteStatus, WorkoutRecord } from '@/workout/workout-record';
 
 const TRACE_BUCKET_COUNT = 48; // mirrors session-summary.tsx's own private constant
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: 'workout-1',
     // 6:42 PM — within the 17:00–21:59 "evening" bucket.
     startedAt: new Date('2026-08-19T18:42:00').getTime(),
@@ -18,6 +18,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     ],
     device: { id: 'device-1', name: 'Pulse HRM' },
     pauses: [],
+    healthConnect: { status: 'notWritten', recordIds: [] },
     ...overrides,
   };
 }
@@ -28,7 +29,14 @@ describe('<SessionSummary />', () => {
       const record = makeRecord();
 
       await render(
-        <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
       );
 
       expect(screen.getByText('AUG 19 · 6:42 PM')).toBeOnTheScreen();
@@ -47,7 +55,14 @@ describe('<SessionSummary />', () => {
       const record = makeRecord({ samples: [] });
 
       await render(
-        <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
       );
 
       expect(screen.getByTestId('session-summary-hero-duration')).toHaveTextContent('00:00');
@@ -63,7 +78,14 @@ describe('<SessionSummary />', () => {
       );
 
       await render(
-        <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
       );
 
       const barCount = screen.getByTestId('session-summary-trace', { hidden: true }).children
@@ -79,7 +101,14 @@ describe('<SessionSummary />', () => {
       const record = makeRecord({ samples: [] });
 
       await render(
-        <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
       );
 
       const barCount = screen.getByTestId('session-summary-trace', { hidden: true }).children
@@ -91,7 +120,14 @@ describe('<SessionSummary />', () => {
       const record = makeRecord();
 
       await render(
-        <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
       );
 
       expect(screen.getByText('HEART RATE')).toBeOnTheScreen();
@@ -175,6 +211,22 @@ describe('<SessionSummary />', () => {
 
       expect(onDiscard).toHaveBeenCalledTimes(1);
     });
+
+    it.each<HealthConnectWriteStatus>(['notWritten', 'written', 'failed'])(
+      'renders no write-status row and no Sync action for healthConnect.status %s',
+      async (status) => {
+        const record = makeRecord({ healthConnect: { status, recordIds: [] } });
+
+        await render(
+          <SessionSummary mode="review" record={record} onSave={jest.fn()} onDiscard={jest.fn()} />,
+        );
+
+        expect(screen.queryByTestId('session-summary-sync')).not.toBeOnTheScreen();
+        expect(screen.queryByText('Saved to Health Connect')).not.toBeOnTheScreen();
+        expect(screen.queryByText('Not synced to Health Connect')).not.toBeOnTheScreen();
+        expect(screen.queryByText('Sync failed')).not.toBeOnTheScreen();
+      },
+    );
   });
 
   describe('mode="detail"', () => {
@@ -182,7 +234,14 @@ describe('<SessionSummary />', () => {
       const record = makeRecord();
 
       await render(
-        <SessionSummary mode="detail" record={record} onBack={jest.fn()} onDone={jest.fn()} />,
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
       );
 
       expect(screen.getByText('SAVED SESSION')).toBeOnTheScreen();
@@ -196,7 +255,14 @@ describe('<SessionSummary />', () => {
       const onDone = jest.fn();
 
       await render(
-        <SessionSummary mode="detail" record={record} onBack={onBack} onDone={onDone} />,
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={onBack}
+          onDone={onDone}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
       );
 
       await act(async () => {
@@ -208,6 +274,115 @@ describe('<SessionSummary />', () => {
 
       expect(onBack).toHaveBeenCalledTimes(1);
       expect(onDone).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders the written title/caption with no Sync action', async () => {
+      const record = makeRecord({ healthConnect: { status: 'written', recordIds: ['a'] } });
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+
+      expect(screen.getByText('Saved to Health Connect')).toBeOnTheScreen();
+      expect(screen.getByText('This workout is in your Health Connect history.')).toBeOnTheScreen();
+      expect(screen.queryByTestId('session-summary-sync')).not.toBeOnTheScreen();
+    });
+
+    it('renders the notWritten title/caption with a visible, enabled Sync action', async () => {
+      const record = makeRecord({ healthConnect: { status: 'notWritten', recordIds: [] } });
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+
+      expect(screen.getByText('Not synced to Health Connect')).toBeOnTheScreen();
+      expect(
+        screen.getByText("This workout hasn't been saved to Health Connect yet."),
+      ).toBeOnTheScreen();
+      const sync = screen.getByTestId('session-summary-sync');
+      expect(sync).toBeOnTheScreen();
+      expect(sync.props.accessibilityState?.disabled).not.toBe(true);
+      expect(screen.getByText('SYNC')).toBeOnTheScreen();
+    });
+
+    it('renders the failed title/caption with a visible, enabled Sync action', async () => {
+      const record = makeRecord({ healthConnect: { status: 'failed', recordIds: [] } });
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+
+      expect(screen.getByText('Sync failed')).toBeOnTheScreen();
+      expect(
+        screen.getByText("Pulse couldn't save this workout to Health Connect."),
+      ).toBeOnTheScreen();
+      expect(screen.getByTestId('session-summary-sync')).toBeOnTheScreen();
+      expect(screen.getByText('SYNC')).toBeOnTheScreen();
+    });
+
+    it('tapping Sync calls onSync exactly once', async () => {
+      const record = makeRecord({ healthConnect: { status: 'failed', recordIds: [] } });
+      const onSync = jest.fn();
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={onSync}
+          isSyncing={false}
+        />,
+      );
+
+      fireEvent.press(screen.getByTestId('session-summary-sync'));
+
+      expect(onSync).toHaveBeenCalledTimes(1);
+    });
+
+    it('disables the Sync action and swaps its label while isSyncing is true', async () => {
+      const record = makeRecord({ healthConnect: { status: 'failed', recordIds: [] } });
+      const onSync = jest.fn();
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={onSync}
+          isSyncing={true}
+        />,
+      );
+
+      const sync = screen.getByTestId('session-summary-sync');
+      expect(sync.props.accessibilityState.disabled).toBe(true);
+      expect(screen.getByText('SYNCING…')).toBeOnTheScreen();
+      expect(screen.queryByText('SYNC')).not.toBeOnTheScreen();
+
+      fireEvent.press(sync);
+      expect(onSync).not.toHaveBeenCalled();
     });
   });
 });

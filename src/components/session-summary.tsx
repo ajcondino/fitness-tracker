@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { HeartRateTrace } from '@/components/ui/heart-rate-trace';
 import { ThemedText } from '@/components/ui/themed-text';
+import { WriteStatusMarker } from '@/components/ui/write-status-marker';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -25,7 +26,14 @@ const TRACE_BUCKET_COUNT = 48;
 // `SessionRow` does.
 export type SessionSummaryProps =
   | { mode: 'review'; record: WorkoutRecord; onSave: () => void; onDiscard: () => void }
-  | { mode: 'detail'; record: WorkoutRecord; onBack: () => void; onDone: () => void };
+  | {
+      mode: 'detail';
+      record: WorkoutRecord;
+      onBack: () => void;
+      onDone: () => void;
+      onSync: () => void;
+      isSyncing: boolean;
+    };
 
 // mm:ss — identical to history.tsx's/index.tsx's own private copies (see
 // SPEC.md's Style & Conventions for why this isn't extracted into a shared
@@ -176,6 +184,46 @@ export function SessionSummary(props: SessionSummaryProps) {
         </View>
       </View>
 
+      {props.mode === 'detail' && (
+        <View
+          style={[
+            styles.writeStatusCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outline,
+              borderRadius: theme.rounded.md,
+            },
+          ]}
+        >
+          <WriteStatusMarker status={record.healthConnect.status} size={11} />
+          <View style={styles.writeStatusText}>
+            <ThemedText variant="bodyMd" color="onSurface">
+              {t(`sessionSummary.writeStatus.${record.healthConnect.status}.title`)}
+            </ThemedText>
+            <ThemedText variant="dataSm" color="onSurfaceMuted">
+              {t(`sessionSummary.writeStatus.${record.healthConnect.status}.caption`)}
+            </ThemedText>
+          </View>
+          {record.healthConnect.status !== 'written' && (
+            <Pressable
+              accessibilityRole="button"
+              testID="session-summary-sync"
+              disabled={props.isSyncing}
+              onPress={props.onSync}
+              style={({ pressed }) => ({ opacity: pressed && !props.isSyncing ? 0.82 : 1 })}
+            >
+              <ThemedText variant="actionSm" color="primary">
+                {t(
+                  props.isSyncing
+                    ? 'sessionSummary.writeStatus.syncing'
+                    : 'sessionSummary.writeStatus.syncAction',
+                )}
+              </ThemedText>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       {props.mode === 'review' && (
         <>
           <View style={styles.actionRow}>
@@ -314,6 +362,17 @@ const styles = StyleSheet.create({
   },
   statValue: {
     lineHeight: 26,
+  },
+  writeStatusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    padding: spacing.lg,
+    gap: 12,
+  },
+  writeStatusText: {
+    flex: 1,
+    gap: 2,
   },
   actionRow: {
     flexDirection: 'row',
