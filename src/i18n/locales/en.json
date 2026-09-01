@@ -197,8 +197,24 @@
   },
   "profile": {
     "title": "Profile",
-    "back": "Back",
-    "signOut": "SIGN OUT"
+    "back": "Back"
+  },
+  "account": {
+    "sectionHeader": "ACCOUNT",
+    "signedOut": {
+      "title": "Sign in to sync your settings",
+      "body": "Sign in with Google to sync your settings across devices. Your workouts stay local and in Health Connect either way — signing in doesn't change that.",
+      "signInAction": "SIGN IN WITH GOOGLE"
+    },
+    "signingIn": "SIGNING IN…",
+    "error": {
+      "network": { "body": "Couldn't sign in — check your connection and try again." },
+      "unknown": { "body": "Sign-in failed. Try again." },
+      "retryAction": "TRY AGAIN"
+    },
+    "signedIn": {
+      "signOutAction": "SIGN OUT"
+    }
   },
   "healthConnect": {
     "sectionHeader": "HEALTH CONNECT",

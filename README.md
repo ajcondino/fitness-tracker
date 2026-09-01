@@ -22,6 +22,20 @@ Copy [.env.example](.env.example) to `.env.local` (already git-ignored) and fill
 
 For EAS builds/updates, set the same variable in the `preview` EAS Environment (`eas env:create/update --environment preview`) so it's available during CI builds too.
 
+## Firebase / Google Sign-In setup
+
+Sign-in (`src/auth/`) needs a native `google-services.json` at the project root — it's **not** committed (gitignored alongside `.env*.local`, same as the rest of this repo's per-environment config), so every developer and the `preview` EAS Environment each need their own copy:
+
+1. In the [Firebase console](https://console.firebase.google.com), open (or create) the project, enable the **Google** sign-in provider under Authentication, and add an Android app with package name `com.a.condino.fitnesstracker` if one isn't registered yet.
+2. Under that Android app's settings, register the SHA-1 of **both** keystores used to sign a build:
+   - **Debug**: `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` — **not** your machine's `~/.android/debug.keystore`. `expo prebuild` always bundles its own project-local `android/app/debug.keystore` (Expo's shared default template debug key, the same across every default-template Expo project), and that's what actually signs local dev builds. Get it via `keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android` (or `cd android && ./gradlew signingReport`) after `android/` has been generated. Because it's Expo's fixed template keystore rather than a per-machine one, this one fingerprint covers every developer's local build — it doesn't need re-registering per machine.
+   - **Release**: not yet registered — add the release keystore's SHA-1 the same way once one exists, and update this line.
+3. Download that Android app's `google-services.json` and place it at the project root.
+4. Copy the **Web application** OAuth client ID (the `client_type: 3` entry in that file — Firebase creates it automatically once the Google provider is enabled) into `WEB_CLIENT_ID` in [src/auth/google-sign-in.ts](src/auth/google-sign-in.ts). `@react-native-google-signin/google-signin` has no build-time mechanism to read this out of `google-services.json` itself, so it's hardcoded there — update it by hand if the OAuth client is ever regenerated.
+5. For EAS builds, add `google-services.json` as a **file-type** environment variable so CI has it too: `eas env:create --environment preview --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json` (mirrors this project's existing `EXPO_PUBLIC_SENTRY_DSN` entry in the same Environment, but for a file).
+
+Without step 4, a CI-triggered build will build successfully but Google Sign-In/Firebase Auth will silently fail at runtime — it only works locally where `google-services.json` was placed by hand.
+
 ## Setup
 
 ```bash

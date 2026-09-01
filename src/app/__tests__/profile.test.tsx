@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 
 import Profile from '@/app/profile';
+import { useAuth } from '@/hooks/use-auth';
 import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
 
 jest.mock('expo-router', () => ({
@@ -11,11 +12,13 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 34, left: 0 }),
 }));
 jest.mock('@/hooks/use-health-connect-settings');
+jest.mock('@/hooks/use-auth');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedUseHealthConnectSettings = useHealthConnectSettings as jest.MockedFunction<
   typeof useHealthConnectSettings
 >;
+const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
 function mockHealthConnectSettings(
   overrides: Partial<ReturnType<typeof useHealthConnectSettings>> = {},
@@ -31,6 +34,17 @@ function mockHealthConnectSettings(
   });
 }
 
+function mockAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
+  mockedUseAuth.mockReturnValue({
+    status: 'checking',
+    user: null,
+    signInError: null,
+    signInWithGoogle: jest.fn(),
+    signOut: jest.fn(),
+    ...overrides,
+  });
+}
+
 describe('<Profile />', () => {
   const back = jest.fn();
 
@@ -38,10 +52,12 @@ describe('<Profile />', () => {
     back.mockClear();
     mockedUseRouter.mockReturnValue({ back } as unknown as ReturnType<typeof useRouter>);
     mockedUseHealthConnectSettings.mockReset();
+    mockedUseAuth.mockReset();
   });
 
   it('renders the title and back chevron', async () => {
     mockHealthConnectSettings();
+    mockAuth();
 
     await render(<Profile />);
 
@@ -51,6 +67,7 @@ describe('<Profile />', () => {
 
   it('calls router.back() when the back chevron is pressed', async () => {
     mockHealthConnectSettings();
+    mockAuth();
 
     await render(<Profile />);
     await act(async () => {
@@ -62,6 +79,7 @@ describe('<Profile />', () => {
 
   it("passes the hook's live status through to HealthConnectSection", async () => {
     mockHealthConnectSettings({ status: 'notGranted' });
+    mockAuth();
 
     await render(<Profile />);
 
@@ -71,6 +89,7 @@ describe('<Profile />', () => {
 
   it('renders nothing from HealthConnectSection while checking', async () => {
     mockHealthConnectSettings({ status: 'checking' });
+    mockAuth();
 
     await render(<Profile />);
 
@@ -80,6 +99,7 @@ describe('<Profile />', () => {
   it("wires grantAccess through to the section's grant action", async () => {
     const grantAccess = jest.fn();
     mockHealthConnectSettings({ status: 'notGranted', grantAccess });
+    mockAuth();
 
     await render(<Profile />);
     await act(async () => {
@@ -87,5 +107,54 @@ describe('<Profile />', () => {
     });
 
     expect(grantAccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes the hook's live status through to AccountSection", async () => {
+    mockHealthConnectSettings();
+    mockAuth({ status: 'signedOut' });
+
+    await render(<Profile />);
+
+    expect(screen.getByText('ACCOUNT')).toBeOnTheScreen();
+    expect(screen.getByTestId('account-sign-in-action')).toBeOnTheScreen();
+  });
+
+  it('renders nothing from AccountSection while checking', async () => {
+    mockHealthConnectSettings();
+    mockAuth({ status: 'checking' });
+
+    await render(<Profile />);
+
+    expect(screen.queryByText('ACCOUNT')).not.toBeOnTheScreen();
+  });
+
+  it("wires signInWithGoogle through to AccountSection's sign-in action", async () => {
+    const signInWithGoogle = jest.fn();
+    mockHealthConnectSettings();
+    mockAuth({ status: 'signedOut', signInWithGoogle });
+
+    await render(<Profile />);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('account-sign-in-action'));
+    });
+
+    expect(signInWithGoogle).toHaveBeenCalledTimes(1);
+  });
+
+  it("wires signOut through to AccountSection's sign-out action", async () => {
+    const signOut = jest.fn();
+    mockHealthConnectSettings();
+    mockAuth({
+      status: 'signedIn',
+      user: { uid: 'uid-1', displayName: 'AJ', email: 'aj@pulse.app' },
+      signOut,
+    });
+
+    await render(<Profile />);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('account-sign-out-action'));
+    });
+
+    expect(signOut).toHaveBeenCalledTimes(1);
   });
 });
