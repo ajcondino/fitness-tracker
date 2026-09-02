@@ -115,7 +115,7 @@ describe('<Profile />', () => {
 
     await render(<Profile />);
 
-    expect(screen.getByText('ACCOUNT')).toBeOnTheScreen();
+    expect(screen.getByText('Not signed in')).toBeOnTheScreen();
     expect(screen.getByTestId('account-sign-in-action')).toBeOnTheScreen();
   });
 
@@ -125,7 +125,7 @@ describe('<Profile />', () => {
 
     await render(<Profile />);
 
-    expect(screen.queryByText('ACCOUNT')).not.toBeOnTheScreen();
+    expect(screen.queryByText('Not signed in')).not.toBeOnTheScreen();
   });
 
   it("wires signInWithGoogle through to AccountSection's sign-in action", async () => {
@@ -140,6 +140,33 @@ describe('<Profile />', () => {
 
     expect(signInWithGoogle).toHaveBeenCalledTimes(1);
   });
+
+  it('shows the signed-in identity header (name + email, no placeholder copy)', async () => {
+    mockHealthConnectSettings();
+    mockAuth({
+      status: 'signedIn',
+      user: { uid: 'uid-1', displayName: 'AJ', email: 'aj@pulse.app' },
+    });
+
+    await render(<Profile />);
+
+    expect(screen.getByText('AJ')).toBeOnTheScreen();
+    expect(screen.getByText('aj@pulse.app')).toBeOnTheScreen();
+    expect(screen.queryByText('Not signed in')).not.toBeOnTheScreen();
+  });
+
+  it.each(['signedOut', 'signingIn', 'error'] as const)(
+    'shows the signed-out identity placeholder for status %s, never an empty identity row',
+    async (status) => {
+      mockHealthConnectSettings();
+      mockAuth({ status });
+
+      await render(<Profile />);
+
+      expect(screen.getByText('Not signed in')).toBeOnTheScreen();
+      expect(screen.getByText('Workouts saved on this device')).toBeOnTheScreen();
+    },
+  );
 
   it("wires signOut through to AccountSection's sign-out action", async () => {
     const signOut = jest.fn();

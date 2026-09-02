@@ -75,9 +75,9 @@
   "home": {
     "wordmark": "PULSE",
     "greeting": {
-      "morning": "Good morning, {{name}}",
-      "afternoon": "Good afternoon, {{name}}",
-      "evening": "Good evening, {{name}}",
+      "morning": { "withName": "Good morning, {{name}}", "noName": "Good morning" },
+      "afternoon": { "withName": "Good afternoon, {{name}}", "noName": "Good afternoon" },
+      "evening": { "withName": "Good evening, {{name}}", "noName": "Good evening" },
       "subtitle": "Ready when you are."
     },
     "profile": {
@@ -197,20 +197,23 @@
   },
   "profile": {
     "title": "Profile",
-    "back": "Back"
+    "back": "Back",
+    "identity": {
+      "signedOutName": "Not signed in",
+      "signedOutMeta": "Workouts saved on this device"
+    }
   },
   "account": {
-    "sectionHeader": "ACCOUNT",
     "signedOut": {
-      "title": "Sign in to sync your settings",
-      "body": "Sign in with Google to sync your settings across devices. Your workouts stay local and in Health Connect either way — signing in doesn't change that.",
+      "body": "Sign in to carry your units and paired devices to another phone. Workouts stay on this device either way.",
       "signInAction": "SIGN IN WITH GOOGLE"
     },
-    "signingIn": "SIGNING IN…",
+    "signingIn": "Signing in…",
     "error": {
-      "network": { "body": "Couldn't sign in — check your connection and try again." },
-      "unknown": { "body": "Sign-in failed. Try again." },
-      "retryAction": "TRY AGAIN"
+      "title": "Couldn't sign in",
+      "body": "Check your connection and try again. Nothing was lost — your workouts are still on this device.",
+      "retryAction": "TRY AGAIN",
+      "dismissAction": "NOT NOW"
     },
     "signedIn": {
       "signOutAction": "SIGN OUT"

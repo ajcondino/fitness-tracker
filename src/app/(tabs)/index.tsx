@@ -12,17 +12,13 @@ import { Glow } from '@/components/ui/glow';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
+import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { deriveWorkoutSummary, describeSessionTime } from '@/workout/workout-record';
 import type { WorkoutRecord } from '@/workout/workout-record';
 import { loadWorkoutSessions } from '@/workout/workout-store';
 
 const RECENT_SESSION_COUNT = 3;
-
-// Mocked — there's no user/profile feature yet. Source both from the
-// signed-in user once auth/profile lands.
-const MOCK_USER_NAME = 'AJ';
-const MOCK_USER_INITIAL = MOCK_USER_NAME[0];
 
 function getGreetingKey(hour: number): 'morning' | 'afternoon' | 'evening' {
   if (hour < 12) return 'morning';
@@ -50,6 +46,13 @@ export default function Index() {
   const theme = useTheme();
   const router = useRouter();
   const isFocused = useIsFocused();
+
+  const { status: authStatus, user } = useAuth();
+  // Branch on !isSignedIn, not on `authStatus === 'signedOut'` — checking/
+  // signingIn/error must all read the same as signed-out here (no initial
+  // to show yet, or not currently authenticated), never an empty tile.
+  const isSignedIn = authStatus === 'signedIn';
+  const name = user?.displayName ?? user?.email ?? undefined;
 
   const connection = usePairingStore((state) => state.connection);
   const devices = usePairingStore((state) => state.devices);
@@ -81,9 +84,10 @@ export default function Index() {
   const heroOnPress = isConnected ? goToLiveWorkout : goToDevice;
   const heroLabel = isConnected ? t('home.startWorkoutCta') : t('home.connectCta');
 
-  const greetingText = t(`home.greeting.${getGreetingKey(new Date().getHours())}`, {
-    name: MOCK_USER_NAME,
-  });
+  const greetingText = t(
+    `home.greeting.${getGreetingKey(new Date().getHours())}.${isSignedIn ? 'withName' : 'noName'}`,
+    { name },
+  );
   const recentSessions = sessions?.slice(0, RECENT_SESSION_COUNT);
 
   return (
@@ -99,7 +103,11 @@ export default function Index() {
           testID="home-profile-control"
           onPress={() => router.navigate('/profile')}
         >
-          <Avatar size="sm" initial={MOCK_USER_INITIAL} />
+          {isSignedIn ? (
+            <Avatar size="sm" initial={(name ?? '?')[0]} />
+          ) : (
+            <Avatar size="sm" variant="placeholder" />
+          )}
         </Pressable>
       </View>
 

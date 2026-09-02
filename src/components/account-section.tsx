@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import type { AccountSectionStatus, AuthUser, SignInFailureReason } from '@/auth/auth-types';
+import type { AccountSectionStatus, AuthUser } from '@/auth/auth-types';
+import { AlertTriangleIcon } from '@/components/icons';
 import { Avatar } from '@/components/ui/avatar';
+import { GoogleLogo } from '@/components/ui/google-logo';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
@@ -12,24 +14,18 @@ import { useTheme } from '@/hooks/use-theme';
 export type AccountSectionProps = {
   status: AccountSectionStatus;
   user: AuthUser | null;
-  signInError: SignInFailureReason | null;
   onSignIn: () => void;
   onSignOut: () => void;
 };
 
-// Renders null for 'checking' — identical convention to
-// HealthConnectSection, so a cold-start auth restore never flashes a
-// signed-out state before settling. Reuses HealthConnectSection's exact
-// chrome (label-caps header above one surface/outline/md-radius container)
-// so the two sections read as one consistent "settings section" list. See
-// SPEC.md's Interfaces/API copy/control table.
-export function AccountSection({
-  status,
-  user,
-  signInError,
-  onSignIn,
-  onSignOut,
-}: AccountSectionProps) {
+// One unlabeled card — identity (avatar + name/email or a signed-out
+// placeholder) is present in every state, so it reads as the section
+// header on its own; no separate "ACCOUNT" label above it. State-specific
+// content (sign-in CTA / spinner / error) renders below the identity row,
+// inside the same card. Renders null for 'checking' — identical convention
+// to HealthConnectSection, so a cold-start auth restore never flashes a
+// signed-out state before settling.
+export function AccountSection({ status, user, onSignIn, onSignOut }: AccountSectionProps) {
   const { t } = useTranslation();
   const theme = useTheme();
 
@@ -37,160 +33,162 @@ export function AccountSection({
     return null;
   }
 
-  let content: ReactNode;
+  // Branch on this, not on `status === 'signedOut'` directly — checking/
+  // signingIn/error must all read the same as signed-out in the identity
+  // row (never an empty or broken-looking tile), and only 'signedIn' gets
+  // the sign-out pill.
+  const isSignedIn = status === 'signedIn';
+
+  let stateContent: ReactNode = null;
 
   switch (status) {
     case 'signedOut':
-      content = (
-        <SignInPrompt
-          title={t('account.signedOut.title')}
-          body={t('account.signedOut.body')}
-          actionLabel={t('account.signedOut.signInAction')}
-          onPress={onSignIn}
-          theme={theme}
-        />
+      stateContent = (
+        <>
+          <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.bodyLineHeight}>
+            {t('account.signedOut.body')}
+          </ThemedText>
+          <GoogleSignInButton onPress={onSignIn} theme={theme} />
+        </>
       );
       break;
     case 'signingIn':
-      content = (
-        <SignInPrompt
-          title={t('account.signedOut.title')}
-          body={t('account.signedOut.body')}
-          actionLabel={t('account.signingIn')}
-          onPress={onSignIn}
-          theme={theme}
-          disabled
-        />
+      stateContent = (
+        <View style={styles.signingInRow}>
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ThemedText variant="titleSm" color="onSurfaceMuted">
+            {t('account.signingIn')}
+          </ThemedText>
+        </View>
       );
       break;
     case 'error':
-      content = (
+      stateContent = (
         <>
-          <ThemedText variant="titleSm" color="onSurface">
-            {t('account.signedOut.title')}
-          </ThemedText>
-          <ThemedText variant="bodySm" color="danger">
-            {t(`account.error.${signInError ?? 'unknown'}.body`)}
-          </ThemedText>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onSignIn}
-            testID="account-sign-in-action"
-            style={[
-              styles.primaryButton,
-              { backgroundColor: theme.colors.primary, borderRadius: theme.rounded.md },
-            ]}
-          >
-            <ThemedText variant="actionSm" color="onPrimary">
-              {t('account.error.retryAction')}
+          <View style={styles.errorHeaderRow}>
+            <AlertTriangleIcon color={theme.colors.danger} size={18} />
+            <ThemedText variant="titleSm" color="onSurface">
+              {t('account.error.title')}
             </ThemedText>
-          </Pressable>
+          </View>
+          <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.bodyLineHeight}>
+            {t('account.error.body')}
+          </ThemedText>
+          <View style={styles.errorActionRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onSignIn}
+              testID="account-sign-in-action"
+              style={[
+                styles.button,
+                styles.primaryButton,
+                { flex: 1, backgroundColor: theme.colors.primary, borderRadius: theme.rounded.md },
+              ]}
+            >
+              <ThemedText variant="actionSm" color="onPrimary">
+                {t('account.error.retryAction')}
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onSignOut}
+              testID="account-dismiss-error-action"
+              style={[
+                styles.button,
+                styles.outlinedButton,
+                { borderColor: theme.colors.outlineEmphasis, borderRadius: theme.rounded.md },
+              ]}
+            >
+              <ThemedText variant="actionSm" color="onSurfaceMuted">
+                {t('account.error.dismissAction')}
+              </ThemedText>
+            </Pressable>
+          </View>
         </>
       );
       break;
     case 'signedIn':
-      content = (
-        <View style={styles.identityRow}>
-          <Avatar size="lg" initial={(user?.displayName ?? user?.email ?? '?')[0]} />
-          <View style={styles.identityText}>
-            <ThemedText variant="titleMd">{user?.displayName ?? user?.email}</ThemedText>
-            {user?.email != null && (
-              <ThemedText variant="dataSm" color="onSurfaceDim">
-                {user.email}
-              </ThemedText>
-            )}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onSignOut}
-            testID="account-sign-out-action"
-          >
-            <ThemedText variant="actionSm" color="primary">
-              {t('account.signedIn.signOutAction')}
-            </ThemedText>
-          </Pressable>
-        </View>
-      );
+      // Nothing below the identity row — the card is just the one row.
       break;
   }
 
   return (
-    <View style={styles.section}>
-      <ThemedText variant="labelCaps" color="onSurfaceFaint">
-        {t('account.sectionHeader')}
-      </ThemedText>
-      <ThemedView
-        background="surface"
-        style={[
-          styles.container,
-          { borderColor: theme.colors.outline, borderRadius: theme.rounded.md },
-        ]}
-      >
-        {content}
-      </ThemedView>
-    </View>
+    <ThemedView
+      background="surface"
+      style={[styles.card, { borderColor: theme.colors.outline, borderRadius: theme.rounded.lg }]}
+    >
+      <View style={styles.identityRow}>
+        {isSignedIn ? (
+          <Avatar size="lg" initial={(user?.displayName ?? user?.email ?? '?')[0]} />
+        ) : (
+          <Avatar size="lg" variant="placeholder" />
+        )}
+        <View style={styles.identityText}>
+          <ThemedText variant="titleMd" color="onSurface" numberOfLines={1}>
+            {isSignedIn ? (user?.displayName ?? user?.email) : t('profile.identity.signedOutName')}
+          </ThemedText>
+          <ThemedText variant="dataSm" color="onSurfaceDim" numberOfLines={1}>
+            {isSignedIn ? user?.email : t('profile.identity.signedOutMeta')}
+          </ThemedText>
+        </View>
+        {isSignedIn && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onSignOut}
+            testID="account-sign-out-action"
+            style={[
+              styles.signOutPill,
+              {
+                backgroundColor: theme.colors.surfaceRaised,
+                borderColor: theme.colors.outline,
+                borderRadius: theme.rounded.full,
+              },
+            ]}
+          >
+            <ThemedText variant="actionSm" color="onSurfaceMuted">
+              {t('account.signedIn.signOutAction')}
+            </ThemedText>
+          </Pressable>
+        )}
+      </View>
+
+      {stateContent}
+    </ThemedView>
   );
 }
 
-// The signedOut/signingIn shape: a title, a muted body, then the filled
-// primary sign-in button — HealthConnectSection's notGranted button style.
-// Same title/body for both statuses (unchanged, so the explanation doesn't
-// flicker) — only the button's label/disabled state differs.
-function SignInPrompt({
-  title,
-  body,
-  actionLabel,
+// A deliberate, narrow exception to DESIGN.md's "no second accent color" /
+// "no white" rules (confirmed with the user before implementing) — Google's
+// own sign-in button guidelines call for their exact mark on a light
+// background, not a re-skinned single-color version. See google-logo.tsx.
+function GoogleSignInButton({
   onPress,
   theme,
-  disabled,
 }: {
-  title: string;
-  body: string;
-  actionLabel: string;
   onPress: () => void;
   theme: ReturnType<typeof useTheme>;
-  disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
-    <>
-      <ThemedText variant="titleSm" color="onSurface">
-        {title}
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      testID="account-sign-in-action"
+      style={[styles.button, styles.googleButton, { borderRadius: theme.rounded.md }]}
+    >
+      <GoogleLogo size={18} />
+      <ThemedText variant="actionSm" style={styles.googleButtonLabel}>
+        {t('account.signedOut.signInAction')}
       </ThemedText>
-      <ThemedText variant="bodySm" color="onSurfaceMuted">
-        {body}
-      </ThemedText>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onPress}
-        disabled={disabled}
-        testID="account-sign-in-action"
-        style={[
-          styles.primaryButton,
-          { backgroundColor: theme.colors.primary, borderRadius: theme.rounded.md },
-        ]}
-      >
-        <ThemedText variant="actionSm" color="onPrimary">
-          {actionLabel}
-        </ThemedText>
-      </Pressable>
-    </>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  section: {
-    gap: 10,
-  },
-  container: {
+  card: {
     borderWidth: 1,
     padding: spacing.lg,
-    gap: 10,
-  },
-  primaryButton: {
-    height: 44,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 14,
   },
   identityRow: {
     flexDirection: 'row',
@@ -199,6 +197,64 @@ const styles = StyleSheet.create({
   },
   identityText: {
     flex: 1,
+    minWidth: 0,
     gap: 3,
+  },
+  bodyLineHeight: {
+    lineHeight: 21,
+  },
+  button: {
+    height: 44,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  primaryButton: {
+    width: undefined,
+  },
+  // Fixed width, 1px border — height stays 44 like the filled button
+  // alongside it (border is inset, not additive, so neither button is
+  // taller than the other).
+  outlinedButton: {
+    width: 110,
+    borderWidth: 1,
+    boxSizing: 'border-box',
+  },
+  errorActionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  errorHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  // Raw hex, deliberately not a theme token — see GoogleSignInButton's own
+  // comment above. Google's official "Sign in with Google" button spec
+  // fixes both this fill and this label color; there's no app token for
+  // either (this app has no white/near-black tokens at all, per DESIGN.md's
+  // "don't use white or pure black" rule), and inventing one for a single,
+  // brand-mandated button would misrepresent it as a reusable design
+  // decision rather than the one-off exception it is.
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+  },
+  googleButtonLabel: {
+    color: '#1F1F1F',
+  },
+  signingInRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  signOutPill: {
+    height: 30,
+    flexShrink: 0,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

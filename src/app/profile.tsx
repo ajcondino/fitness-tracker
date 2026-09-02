@@ -12,10 +12,11 @@ import { spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
 
-// Header (back chevron, title) plus whichever settings sections exist —
-// Account and Health Connect. No other profile content — per CLAUDE.md's
-// "don't invent cross-cutting structure," a Units section isn't built yet,
-// so it isn't listed here.
+// Header (back chevron, title), then whichever settings sections exist —
+// Account (unlabeled — its own identity row makes the section self-evident,
+// see account-section.tsx) and Health Connect. No other profile content —
+// per CLAUDE.md's "don't invent cross-cutting structure," a Units section
+// isn't built yet, so it isn't listed here.
 export default function Profile() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ export default function Profile() {
   // renders the floating tab bar and is responsible for its own bottom
   // safe-area inset — mirrors session/[id].tsx's own note.
   const insets = useSafeAreaInsets();
-  const { status: authStatus, user, signInError, signInWithGoogle, signOut } = useAuth();
+  const { status: authStatus, user, signInWithGoogle, signOut } = useAuth();
   const {
     status,
     grantAccess,
@@ -50,7 +51,6 @@ export default function Profile() {
       <AccountSection
         status={authStatus}
         user={user}
-        signInError={signInError}
         onSignIn={signInWithGoogle}
         onSignOut={signOut}
       />
