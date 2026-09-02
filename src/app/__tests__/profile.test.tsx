@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import Profile from '@/app/profile';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
+import { useUnitsPreference } from '@/hooks/use-units-preference';
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
@@ -13,12 +14,16 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('@/hooks/use-health-connect-settings');
 jest.mock('@/hooks/use-auth');
+jest.mock('@/hooks/use-units-preference');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedUseHealthConnectSettings = useHealthConnectSettings as jest.MockedFunction<
   typeof useHealthConnectSettings
 >;
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+const mockedUseUnitsPreference = useUnitsPreference as jest.MockedFunction<
+  typeof useUnitsPreference
+>;
 
 function mockHealthConnectSettings(
   overrides: Partial<ReturnType<typeof useHealthConnectSettings>> = {},
@@ -30,6 +35,16 @@ function mockHealthConnectSettings(
     openHealthConnectApp: jest.fn(),
     openSecuritySettings: jest.fn(),
     openPlayStore: jest.fn(),
+    ...overrides,
+  });
+}
+
+function mockUnitsPreference(overrides: Partial<ReturnType<typeof useUnitsPreference>> = {}) {
+  mockedUseUnitsPreference.mockReturnValue({
+    distance: 'metric',
+    weight: 'metric',
+    setDistanceUnit: jest.fn(),
+    setWeightUnit: jest.fn(),
     ...overrides,
   });
 }
@@ -53,6 +68,8 @@ describe('<Profile />', () => {
     mockedUseRouter.mockReturnValue({ back } as unknown as ReturnType<typeof useRouter>);
     mockedUseHealthConnectSettings.mockReset();
     mockedUseAuth.mockReset();
+    mockedUseUnitsPreference.mockReset();
+    mockUnitsPreference();
   });
 
   it('renders the title and back chevron', async () => {
@@ -183,5 +200,45 @@ describe('<Profile />', () => {
     });
 
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes the hook's live values through to UnitsSection", async () => {
+    mockHealthConnectSettings();
+    mockAuth();
+    mockUnitsPreference({ distance: 'imperial', weight: 'imperial' });
+
+    await render(<Profile />);
+
+    expect(screen.getByText('UNITS')).toBeOnTheScreen();
+    expect(screen.getByTestId('units-distance-toggle').props.accessibilityState.checked).toBe(true);
+    expect(screen.getByTestId('units-weight-toggle').props.accessibilityState.checked).toBe(true);
+  });
+
+  it("wires setDistanceUnit through to the section's distance toggle", async () => {
+    const setDistanceUnit = jest.fn();
+    mockHealthConnectSettings();
+    mockAuth();
+    mockUnitsPreference({ setDistanceUnit });
+
+    await render(<Profile />);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('units-distance-toggle'));
+    });
+
+    expect(setDistanceUnit).toHaveBeenCalledWith('imperial');
+  });
+
+  it("wires setWeightUnit through to the section's weight toggle", async () => {
+    const setWeightUnit = jest.fn();
+    mockHealthConnectSettings();
+    mockAuth();
+    mockUnitsPreference({ setWeightUnit });
+
+    await render(<Profile />);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('units-weight-toggle'));
+    });
+
+    expect(setWeightUnit).toHaveBeenCalledWith('imperial');
   });
 });
