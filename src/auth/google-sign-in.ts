@@ -1,10 +1,10 @@
+import { GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
 import {
   GoogleSignin,
   isCancelledResponse,
   isErrorWithCode,
   isSuccessResponse,
 } from '@react-native-google-signin/google-signin';
-import { GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
 
 import { getFirebaseAuth } from '@/auth/auth-client';
 import type { SignInResult } from '@/auth/auth-types';
@@ -100,8 +100,6 @@ export async function signInWithGoogle(): Promise<SignInResult> {
     // and translates into 'signedIn'.
     return { status: 'success' };
   } catch (error) {
-    console.error('signInWithGoogle failed', error);
-
     if (isErrorWithCode(error) && error.code === 'auth/network-request-failed') {
       return { status: 'error', reason: 'network' };
     }
