@@ -31,7 +31,7 @@ describe('<AccountSection />', () => {
     expect(screen.getByText('Workouts saved on this device')).toBeOnTheScreen();
     expect(
       screen.getByText(
-        'Sign in to carry your units and paired devices to another phone. Workouts stay on this device either way.',
+        'Sign in to carry your units to another phone. Workouts stay on this device either way.',
       ),
     ).toBeOnTheScreen();
 
