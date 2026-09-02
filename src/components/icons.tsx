@@ -74,3 +74,15 @@ export function ProfileIcon(props: IconProps) {
     </IconBase>
   );
 }
+
+// AccountSection's 'error' state marker (signInWithGoogle failed) — same
+// grid/weight/cap convention as every icon above, just not tab-bar chrome.
+export function AlertTriangleIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <Path d="M12 3.5 21.5 20h-19L12 3.5z" />
+      <Path d="M12 9.5v5" />
+      <Path d="M12 17.5h.01" />
+    </IconBase>
+  );
+}
