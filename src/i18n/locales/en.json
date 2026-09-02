@@ -205,7 +205,7 @@
   },
   "account": {
     "signedOut": {
-      "body": "Sign in to carry your units and paired devices to another phone. Workouts stay on this device either way.",
+      "body": "Sign in to carry your units to another phone. Workouts stay on this device either way.",
       "signInAction": "SIGN IN WITH GOOGLE"
     },
     "signingIn": "Signing in…",
