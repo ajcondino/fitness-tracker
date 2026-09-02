@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Firebase / Google Sign-In native config — see README.md's setup note
+google-services.json
+
 # typescript
 *.tsbuildinfo
 

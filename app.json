@@ -8,7 +8,8 @@
     "scheme": "fitnesstracker",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.a.condino.fitnesstracker"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,9 +20,13 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.a.condino.fitnesstracker",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.health.WRITE_EXERCISE",
-        "android.permission.health.WRITE_HEART_RATE"
+        "android.permission.health.WRITE_HEART_RATE",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
       ]
     },
     "web": {
@@ -66,6 +71,9 @@
         }
       ],
       "react-native-health-connect",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin",
       [
         "expo-build-properties",
         {
