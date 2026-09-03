@@ -246,5 +246,20 @@
       "body": "You've already responded to this request twice, so Pulse can't ask again here. Open the Health Connect app to grant access manually.",
       "action": "OPEN HEALTH CONNECT APP"
     }
+  },
+  "units": {
+    "sectionHeader": "UNITS",
+    "distance": {
+      "label": "Distance",
+      "toggleLabel": "Use imperial distance",
+      "metricCaption": "Kilometers (km)",
+      "imperialCaption": "Miles (mi)"
+    },
+    "weight": {
+      "label": "Weight",
+      "toggleLabel": "Use imperial weight",
+      "metricCaption": "Kilograms (kg)",
+      "imperialCaption": "Pounds (lb)"
+    }
   }
 }

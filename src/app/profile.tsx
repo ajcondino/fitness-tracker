@@ -5,18 +5,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AccountSection } from '@/components/account-section';
 import { HealthConnectSection } from '@/components/health-connect-section';
+import { UnitsSection } from '@/components/units-section';
 import { BackButton } from '@/components/ui/back-button';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
+import { useUnitsPreference } from '@/hooks/use-units-preference';
 
 // Header (back chevron, title), then whichever settings sections exist —
 // Account (unlabeled — its own identity row makes the section self-evident,
-// see account-section.tsx) and Health Connect. No other profile content —
-// per CLAUDE.md's "don't invent cross-cutting structure," a Units section
-// isn't built yet, so it isn't listed here.
+// see account-section.tsx), Health Connect, and Units.
 export default function Profile() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -33,6 +33,7 @@ export default function Profile() {
     openSecuritySettings,
     openPlayStore,
   } = useHealthConnectSettings();
+  const { distance, weight, setDistanceUnit, setWeightUnit } = useUnitsPreference();
 
   return (
     <ThemedView style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}>
@@ -62,6 +63,13 @@ export default function Profile() {
         onOpenHealthConnectApp={openHealthConnectApp}
         onOpenSecuritySettings={openSecuritySettings}
         onOpenPlayStore={openPlayStore}
+      />
+
+      <UnitsSection
+        distance={distance}
+        weight={weight}
+        onSetDistanceUnit={setDistanceUnit}
+        onSetWeightUnit={setWeightUnit}
       />
     </ThemedView>
   );
