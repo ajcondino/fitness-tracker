@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import Profile from '@/app/profile';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
+import { usePreferencesSync } from '@/hooks/use-preferences-sync';
 import { useUnitsPreference } from '@/hooks/use-units-preference';
 
 jest.mock('expo-router', () => ({
@@ -14,6 +15,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('@/hooks/use-health-connect-settings');
 jest.mock('@/hooks/use-auth');
+jest.mock('@/hooks/use-preferences-sync');
 jest.mock('@/hooks/use-units-preference');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
@@ -21,6 +23,9 @@ const mockedUseHealthConnectSettings = useHealthConnectSettings as jest.MockedFu
   typeof useHealthConnectSettings
 >;
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+const mockedUsePreferencesSync = usePreferencesSync as jest.MockedFunction<
+  typeof usePreferencesSync
+>;
 const mockedUseUnitsPreference = useUnitsPreference as jest.MockedFunction<
   typeof useUnitsPreference
 >;
@@ -68,6 +73,7 @@ describe('<Profile />', () => {
     mockedUseRouter.mockReturnValue({ back } as unknown as ReturnType<typeof useRouter>);
     mockedUseHealthConnectSettings.mockReset();
     mockedUseAuth.mockReset();
+    mockedUsePreferencesSync.mockReset();
     mockedUseUnitsPreference.mockReset();
     mockUnitsPreference();
   });
@@ -240,5 +246,43 @@ describe('<Profile />', () => {
     });
 
     expect(setWeightUnit).toHaveBeenCalledWith('imperial');
+  });
+
+  it('wires usePreferencesSync with the auth status/uid and units values/setters', async () => {
+    const setDistanceUnit = jest.fn();
+    const setWeightUnit = jest.fn();
+    mockHealthConnectSettings();
+    mockAuth({
+      status: 'signedIn',
+      user: { uid: 'uid-1', displayName: 'AJ', email: 'aj@pulse.app' },
+    });
+    mockUnitsPreference({
+      distance: 'imperial',
+      weight: 'metric',
+      setDistanceUnit,
+      setWeightUnit,
+    });
+
+    await render(<Profile />);
+
+    expect(mockedUsePreferencesSync).toHaveBeenCalledWith({
+      authStatus: 'signedIn',
+      uid: 'uid-1',
+      distance: 'imperial',
+      weight: 'metric',
+      setDistanceUnit,
+      setWeightUnit,
+    });
+  });
+
+  it('wires usePreferencesSync with a null uid when signed out', async () => {
+    mockHealthConnectSettings();
+    mockAuth({ status: 'signedOut', user: null });
+
+    await render(<Profile />);
+
+    expect(mockedUsePreferencesSync).toHaveBeenCalledWith(
+      expect.objectContaining({ authStatus: 'signedOut', uid: null }),
+    );
   });
 });

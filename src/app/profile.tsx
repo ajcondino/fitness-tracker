@@ -12,6 +12,7 @@ import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
+import { usePreferencesSync } from '@/hooks/use-preferences-sync';
 import { useUnitsPreference } from '@/hooks/use-units-preference';
 
 // Header (back chevron, title), then whichever settings sections exist —
@@ -34,6 +35,14 @@ export default function Profile() {
     openPlayStore,
   } = useHealthConnectSettings();
   const { distance, weight, setDistanceUnit, setWeightUnit } = useUnitsPreference();
+  usePreferencesSync({
+    authStatus,
+    uid: user?.uid ?? null,
+    distance,
+    weight,
+    setDistanceUnit,
+    setWeightUnit,
+  });
 
   return (
     <ThemedView style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}>

@@ -36,6 +36,8 @@ Sign-in (`src/auth/`) needs a native `google-services.json` at the project root 
 
 Without step 4, a CI-triggered build will build successfully but Google Sign-In/Firebase Auth will silently fail at runtime — it only works locally where `google-services.json` was placed by hand.
 
+A signed-in user's units preference is synced to Firestore (`src/sync/`) on the same project/`google-services.json` above — no additional console setup is needed; the security rules that scope each user to their own data are already deployed directly against the Firebase project and aren't tracked in this repo.
+
 ## Setup
 
 ```bash
