@@ -12,6 +12,7 @@ import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
+import { useNetworkStatus } from '@/hooks/use-network-status';
 import { usePreferencesSync } from '@/hooks/use-preferences-sync';
 import { useUnitsPreference } from '@/hooks/use-units-preference';
 
@@ -26,6 +27,7 @@ export default function Profile() {
   // safe-area inset — mirrors session/[id].tsx's own note.
   const insets = useSafeAreaInsets();
   const { status: authStatus, user, signInWithGoogle, signOut } = useAuth();
+  const { isOffline } = useNetworkStatus();
   const {
     status,
     grantAccess,
@@ -61,6 +63,7 @@ export default function Profile() {
       <AccountSection
         status={authStatus}
         user={user}
+        isOffline={isOffline}
         onSignIn={signInWithGoogle}
         onSignOut={signOut}
       />

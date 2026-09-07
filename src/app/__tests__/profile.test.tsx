@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import Profile from '@/app/profile';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
+import { useNetworkStatus } from '@/hooks/use-network-status';
 import { usePreferencesSync } from '@/hooks/use-preferences-sync';
 import { useUnitsPreference } from '@/hooks/use-units-preference';
 
@@ -15,6 +16,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('@/hooks/use-health-connect-settings');
 jest.mock('@/hooks/use-auth');
+jest.mock('@/hooks/use-network-status');
 jest.mock('@/hooks/use-preferences-sync');
 jest.mock('@/hooks/use-units-preference');
 
@@ -23,6 +25,7 @@ const mockedUseHealthConnectSettings = useHealthConnectSettings as jest.MockedFu
   typeof useHealthConnectSettings
 >;
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+const mockedUseNetworkStatus = useNetworkStatus as jest.MockedFunction<typeof useNetworkStatus>;
 const mockedUsePreferencesSync = usePreferencesSync as jest.MockedFunction<
   typeof usePreferencesSync
 >;
@@ -65,6 +68,10 @@ function mockAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
   });
 }
 
+function mockNetworkStatus(overrides: Partial<ReturnType<typeof useNetworkStatus>> = {}) {
+  mockedUseNetworkStatus.mockReturnValue({ isOffline: false, ...overrides });
+}
+
 describe('<Profile />', () => {
   const back = jest.fn();
 
@@ -73,9 +80,11 @@ describe('<Profile />', () => {
     mockedUseRouter.mockReturnValue({ back } as unknown as ReturnType<typeof useRouter>);
     mockedUseHealthConnectSettings.mockReset();
     mockedUseAuth.mockReset();
+    mockedUseNetworkStatus.mockReset();
     mockedUsePreferencesSync.mockReset();
     mockedUseUnitsPreference.mockReset();
     mockUnitsPreference();
+    mockNetworkStatus();
   });
 
   it('renders the title and back chevron', async () => {
@@ -149,6 +158,21 @@ describe('<Profile />', () => {
     await render(<Profile />);
 
     expect(screen.queryByText('Not signed in')).not.toBeOnTheScreen();
+  });
+
+  it('passes the mocked isOffline value through to AccountSection, disabling its sign-in action', async () => {
+    mockHealthConnectSettings();
+    mockAuth({ status: 'signedOut' });
+    mockNetworkStatus({ isOffline: true });
+
+    await render(<Profile />);
+
+    expect(
+      screen.getByText("Sign-in needs a connection. Try again once you're back online."),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId('account-sign-in-action').props.accessibilityState.disabled).toBe(
+      true,
+    );
   });
 
   it("wires signInWithGoogle through to AccountSection's sign-in action", async () => {

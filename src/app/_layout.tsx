@@ -6,6 +6,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import * as Sentry from '@sentry/react-native';
 
+import { ConnectivityBanner } from '@/components/connectivity-banner';
+import { useNetworkStatus } from '@/hooks/use-network-status';
 import { useTheme } from '@/hooks/use-theme';
 
 export { ErrorBoundary } from '@/components/error-boundary';
@@ -18,6 +20,7 @@ Sentry.init({
 
 function RootLayout() {
   const theme = useTheme();
+  const { isOffline } = useNetworkStatus();
 
   return (
     <SafeAreaProvider>
@@ -30,6 +33,7 @@ function RootLayout() {
       */}
       <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: theme.colors.background }}>
         <StatusBar style="light" />
+        <ConnectivityBanner isOffline={isOffline} />
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="live-workout" options={{ headerShown: false }} />
