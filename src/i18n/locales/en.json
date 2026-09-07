@@ -8,6 +8,9 @@
     "title": "Something went wrong",
     "retry": "Try again"
   },
+  "connectivity": {
+    "offline": "OFFLINE"
+  },
   "pairing": {
     "title": "Connect a heart rate monitor",
     "subtitle": "Wear your strap or start HR broadcast on your watch, then pick it from the list.",
@@ -209,6 +212,9 @@
       "signInAction": "SIGN IN WITH GOOGLE"
     },
     "signingIn": "Signing in…",
+    "offline": {
+      "body": "Sign-in needs a connection. Try again once you're back online."
+    },
     "error": {
       "title": "Couldn't sign in",
       "body": "Check your connection and try again. Nothing was lost — your workouts are still on this device.",

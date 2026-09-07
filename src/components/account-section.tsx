@@ -14,6 +14,7 @@ import { useTheme } from '@/hooks/use-theme';
 export type AccountSectionProps = {
   status: AccountSectionStatus;
   user: AuthUser | null;
+  isOffline: boolean;
   onSignIn: () => void;
   onSignOut: () => void;
 };
@@ -25,7 +26,13 @@ export type AccountSectionProps = {
 // inside the same card. Renders null for 'checking' — identical convention
 // to HealthConnectSection, so a cold-start auth restore never flashes a
 // signed-out state before settling.
-export function AccountSection({ status, user, onSignIn, onSignOut }: AccountSectionProps) {
+export function AccountSection({
+  status,
+  user,
+  isOffline,
+  onSignIn,
+  onSignOut,
+}: AccountSectionProps) {
   const { t } = useTranslation();
   const theme = useTheme();
 
@@ -39,6 +46,11 @@ export function AccountSection({ status, user, onSignIn, onSignOut }: AccountSec
   // the sign-out pill.
   const isSignedIn = status === 'signedIn';
 
+  // Gates only the sign-in entry point (signedOut/error) — an already-
+  // in-flight signingIn attempt and an already-signedIn session are
+  // unaffected. See account-section's SPEC.
+  const isOfflineGated = isOffline && (status === 'signedOut' || status === 'error');
+
   let stateContent: ReactNode = null;
 
   switch (status) {
@@ -46,9 +58,9 @@ export function AccountSection({ status, user, onSignIn, onSignOut }: AccountSec
       stateContent = (
         <>
           <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.bodyLineHeight}>
-            {t('account.signedOut.body')}
+            {isOfflineGated ? t('account.offline.body') : t('account.signedOut.body')}
           </ThemedText>
-          <GoogleSignInButton onPress={onSignIn} theme={theme} />
+          <GoogleSignInButton onPress={onSignIn} theme={theme} disabled={isOfflineGated} />
         </>
       );
       break;
@@ -63,7 +75,14 @@ export function AccountSection({ status, user, onSignIn, onSignOut }: AccountSec
       );
       break;
     case 'error':
-      stateContent = (
+      stateContent = isOfflineGated ? (
+        <>
+          <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.bodyLineHeight}>
+            {t('account.offline.body')}
+          </ThemedText>
+          <GoogleSignInButton onPress={onSignIn} theme={theme} disabled />
+        </>
+      ) : (
         <>
           <View style={styles.errorHeaderRow}>
             <AlertTriangleIcon color={theme.colors.danger} size={18} />
@@ -164,17 +183,24 @@ export function AccountSection({ status, user, onSignIn, onSignOut }: AccountSec
 function GoogleSignInButton({
   onPress,
   theme,
+  disabled = false,
 }: {
   onPress: () => void;
   theme: ReturnType<typeof useTheme>;
+  disabled?: boolean;
 }) {
   const { t } = useTranslation();
   return (
     <Pressable
       accessibilityRole="button"
+      disabled={disabled}
       onPress={onPress}
       testID="account-sign-in-action"
-      style={[styles.button, styles.googleButton, { borderRadius: theme.rounded.md }]}
+      style={[
+        styles.button,
+        styles.googleButton,
+        { borderRadius: theme.rounded.md, opacity: disabled ? 0.5 : 1 },
+      ]}
     >
       <GoogleLogo size={18} />
       <ThemedText variant="actionSm" style={styles.googleButtonLabel}>

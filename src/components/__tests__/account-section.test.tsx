@@ -8,6 +8,7 @@ async function renderSection(props: Partial<Parameters<typeof AccountSection>[0]
   const merged = {
     status: 'signedOut' as const,
     user: null,
+    isOffline: false,
     onSignIn: jest.fn(),
     onSignOut: jest.fn(),
     ...props,
@@ -111,5 +112,70 @@ describe('<AccountSection />', () => {
     // primary line's fallback is what makes this "email-only," not empty.
     expect(screen.getAllByText('aj@pulse.app')).toHaveLength(2);
     expect(screen.queryByText('null')).not.toBeOnTheScreen();
+  });
+
+  describe('offline gating', () => {
+    it('shows offline copy and a disabled, non-firing sign-in button for signedOut', async () => {
+      const { props } = await renderSection({ status: 'signedOut', isOffline: true });
+
+      expect(
+        screen.getByText("Sign-in needs a connection. Try again once you're back online."),
+      ).toBeOnTheScreen();
+      expect(
+        screen.queryByText(
+          'Sign in to carry your units to another phone. Workouts stay on this device either way.',
+        ),
+      ).not.toBeOnTheScreen();
+
+      const action = screen.getByTestId('account-sign-in-action');
+      expect(action.props.accessibilityState.disabled).toBe(true);
+
+      fireEvent.press(action);
+      expect(props.onSignIn).not.toHaveBeenCalled();
+    });
+
+    it('shows offline copy in place of the generic error copy, with a disabled, non-firing sign-in button, for error', async () => {
+      const { props } = await renderSection({ status: 'error', isOffline: true });
+
+      expect(
+        screen.getByText("Sign-in needs a connection. Try again once you're back online."),
+      ).toBeOnTheScreen();
+      expect(screen.queryByText("Couldn't sign in")).not.toBeOnTheScreen();
+      expect(
+        screen.queryByText(
+          'Check your connection and try again. Nothing was lost — your workouts are still on this device.',
+        ),
+      ).not.toBeOnTheScreen();
+      expect(screen.queryByTestId('account-dismiss-error-action')).not.toBeOnTheScreen();
+
+      const action = screen.getByTestId('account-sign-in-action');
+      expect(action.props.accessibilityState.disabled).toBe(true);
+
+      fireEvent.press(action);
+      expect(props.onSignIn).not.toHaveBeenCalled();
+    });
+
+    it('leaves signedOut unaffected when isOffline is false', async () => {
+      const { props } = await renderSection({ status: 'signedOut', isOffline: false });
+
+      expect(
+        screen.getByText(
+          'Sign in to carry your units to another phone. Workouts stay on this device either way.',
+        ),
+      ).toBeOnTheScreen();
+
+      const action = screen.getByTestId('account-sign-in-action');
+      expect(action.props.accessibilityState.disabled).toBeFalsy();
+
+      fireEvent.press(action);
+      expect(props.onSignIn).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves error unaffected when isOffline is false', async () => {
+      await renderSection({ status: 'error', isOffline: false });
+
+      expect(screen.getByText("Couldn't sign in")).toBeOnTheScreen();
+      expect(screen.getByTestId('account-dismiss-error-action')).toBeOnTheScreen();
+    });
   });
 });
