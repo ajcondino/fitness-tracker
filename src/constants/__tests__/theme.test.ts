@@ -39,12 +39,14 @@ describe('theme tokens', () => {
     expect(rounded).toEqual({ sm: 12, md: 16, lg: 18, xl: 22, full: 999 });
   });
 
-  it('has exactly the tab bar layout tokens defined in DESIGN.md', () => {
+  it('has exactly the tab bar and content-breakpoint layout tokens defined in DESIGN.md', () => {
     expect(layout).toEqual({
       tabBarHeight: 64,
       tabBarHorizontalInset: 24,
       tabBarBottomOffset: 16,
       tabBarClearance: 104,
+      contentMaxWidth: 720,
+      tabBarMaxWidth: 400,
     });
   });
 

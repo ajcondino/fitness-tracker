@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ComponentProps } from 'react';
 import type { Tabs } from 'expo-router';
@@ -28,15 +28,23 @@ const ICONS: Record<string, (props: IconProps) => React.JSX.Element> = {
 export function TabBar({ state, descriptors, navigation }: TabBarProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isWide = width > theme.layout.contentMaxWidth;
+  const barWidth = Math.min(
+    width - theme.layout.tabBarHorizontalInset * 2,
+    theme.layout.tabBarMaxWidth,
+  );
 
   return (
     <ThemedView
+      testID="tab-bar"
       background="surfaceMuted"
       style={[
         styles.bar,
+        isWide
+          ? { width: barWidth, alignSelf: 'center', left: undefined, right: undefined }
+          : { left: theme.layout.tabBarHorizontalInset, right: theme.layout.tabBarHorizontalInset },
         {
-          left: theme.layout.tabBarHorizontalInset,
-          right: theme.layout.tabBarHorizontalInset,
           bottom: insets.bottom + theme.layout.tabBarBottomOffset,
           height: theme.layout.tabBarHeight,
           borderRadius: theme.rounded.xl,

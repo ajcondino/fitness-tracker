@@ -238,8 +238,9 @@ components:
     typography: '{typography.tab-label}'
     rounded: '{rounded.xl}'
     height: 64px
-    horizontalInset: 24px # from each screen edge, matching the grid gutter
+    horizontalInset: 24px # from each screen edge, matching the grid gutter, below the content breakpoint
     bottomOffset: 16px # above the device's safe-area bottom inset — additive, not a replacement for it
+    maxWidth: 400px # at/above the content breakpoint, the bar centers at this width instead of stretching
     padding: 12px
   tab-bar-active:
     backgroundColor: '{colors.surface-muted}'
@@ -469,6 +470,16 @@ instead.
 the avatar are 34–42px, at the floor of what is acceptable; do not go
 below 34px.
 
+**Content width.** Below `720px` wide, every screen fills the viewport
+as described above. At or above `720px` (a tablet, or a phone rotated
+into a wide split-screen window), each screen's content constrains to
+a `720px` maximum width and centers itself, via the shared `<Screen>`
+wrapper — read from `useWindowDimensions()` at render time, never a
+platform or device-type check. Screen backgrounds stay full-bleed:
+only the content nested inside `<Screen>` constrains, not the
+`ThemedView` behind it. The floating tab bar has its own, narrower
+cap — see Components > Tab bar.
+
 ## Elevation & Depth
 
 **There are no shadows.** On a `#0F0F10` ground a drop shadow is
@@ -599,6 +610,10 @@ above the device's safe-area bottom inset. `surface-muted` on
 `tab-label` (mono, uppercase, `1px` tracking). Active is `primary`,
 inactive `on-surface-faint` — the icon takes the same color as its
 label, so state is carried by color alone and never by a filled shape.
+At or above the `720px` content breakpoint (see Layout > Content
+width), the bar stops stretching to the screen edges: it centers at a
+capped `400px` width instead, keeping its three items from
+over-spacing.
 
 The glyphs are outline icons drawn on a 24px grid at 1.9px stroke with
 round caps and joins, no fill: **HOME** a house, **HISTORY** a clock
@@ -691,8 +706,12 @@ Written for React Native / Expo, dark-only:
 - All styling is `StyleSheet` against these tokens — no UI kit, no
   Tailwind. A new component consumes `colors` / `fonts` / `space` /
   `radius` rather than declaring literals.
-- Portrait only, phone only (`supportsTablet: false`). There are no
-  breakpoints; layouts flex within a single 24px-guttered column.
+- `app.json` sets `orientation: "default"` (Android only — this project
+  doesn't build iOS): the OS/device rotates freely, respecting the
+  device's own rotation lock. There is one breakpoint, `720px` (see
+  Layout > Content width): below it, layouts flex within a single
+  24px-guttered column exactly as before; at or above it, screen
+  content constrains to `720px` and centers instead of stretching.
 
 ## Agent Prompt Guide
 

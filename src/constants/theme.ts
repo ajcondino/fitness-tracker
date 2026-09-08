@@ -248,15 +248,21 @@ export const rounded = {
 } as const;
 
 /**
- * Layout tokens for the floating tab bar (DESIGN.md > Components > Tab bar).
+ * Layout tokens for the floating tab bar (DESIGN.md > Components > Tab bar)
+ * and the tablet content breakpoint (DESIGN.md > Layout > Content width).
  * `tabBarClearance` is the bottom padding a scrollable tabbed screen reserves,
  * on top of its own safe-area bottom inset, so content clears the bar.
+ * `contentMaxWidth` is the single source of truth for the width past which
+ * screen content (via `<Screen>`) and the tab bar (via `tab-bar.tsx`) switch
+ * from stretching edge to edge to a centred, capped column/bar.
  */
 export const layout = {
   tabBarHeight: 64,
   tabBarHorizontalInset: spacing.xl,
   tabBarBottomOffset: spacing.lg,
   tabBarClearance: 104,
+  contentMaxWidth: 720,
+  tabBarMaxWidth: 400,
 } as const;
 
 export const theme = { colors, typography, spacing, rounded, layout } as const;
