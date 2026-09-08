@@ -7,6 +7,7 @@ import { AccountSection } from '@/components/account-section';
 import { HealthConnectSection } from '@/components/health-connect-section';
 import { UnitsSection } from '@/components/units-section';
 import { BackButton } from '@/components/ui/back-button';
+import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
@@ -48,41 +49,43 @@ export default function Profile() {
 
   return (
     <ThemedView style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}>
-      <View style={styles.header}>
-        <BackButton
-          accessibilityLabel={t('profile.back')}
-          onPress={() => router.back()}
-          testID="profile-back"
+      <Screen style={styles.screen}>
+        <View style={styles.header}>
+          <BackButton
+            accessibilityLabel={t('profile.back')}
+            onPress={() => router.back()}
+            testID="profile-back"
+          />
+
+          <ThemedText variant="h2" accessibilityRole="header">
+            {t('profile.title')}
+          </ThemedText>
+        </View>
+
+        <AccountSection
+          status={authStatus}
+          user={user}
+          isOffline={isOffline}
+          onSignIn={signInWithGoogle}
+          onSignOut={signOut}
         />
 
-        <ThemedText variant="h2" accessibilityRole="header">
-          {t('profile.title')}
-        </ThemedText>
-      </View>
+        <HealthConnectSection
+          status={status}
+          onGrantAccess={grantAccess}
+          onToggleWriteBack={setWriteBackEnabled}
+          onOpenHealthConnectApp={openHealthConnectApp}
+          onOpenSecuritySettings={openSecuritySettings}
+          onOpenPlayStore={openPlayStore}
+        />
 
-      <AccountSection
-        status={authStatus}
-        user={user}
-        isOffline={isOffline}
-        onSignIn={signInWithGoogle}
-        onSignOut={signOut}
-      />
-
-      <HealthConnectSection
-        status={status}
-        onGrantAccess={grantAccess}
-        onToggleWriteBack={setWriteBackEnabled}
-        onOpenHealthConnectApp={openHealthConnectApp}
-        onOpenSecuritySettings={openSecuritySettings}
-        onOpenPlayStore={openPlayStore}
-      />
-
-      <UnitsSection
-        distance={distance}
-        weight={weight}
-        onSetDistanceUnit={setDistanceUnit}
-        onSetWeightUnit={setWeightUnit}
-      />
+        <UnitsSection
+          distance={distance}
+          weight={weight}
+          onSetDistanceUnit={setDistanceUnit}
+          onSetWeightUnit={setWeightUnit}
+        />
+      </Screen>
     </ThemedView>
   );
 }
@@ -91,6 +94,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: spacing.xl,
+  },
+  // <Screen> is the new flex column ancestor of the header/sections (see
+  // docs/specs/tablet-layout/SPEC.md) — the `spacing.xl` rhythm between them
+  // moves here from `container`, which now has a single child.
+  screen: {
     gap: spacing.xl,
   },
   header: {

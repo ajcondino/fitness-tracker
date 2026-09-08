@@ -8,6 +8,7 @@ import { DeviceRow } from '@/components/device-row';
 import type { DeviceRowProps } from '@/components/device-row';
 import { ScanStatusBar } from '@/components/scan-status-bar';
 import { SavedDeviceRow } from '@/components/saved-device-row';
+import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { layout, spacing } from '@/constants/theme';
@@ -57,106 +58,108 @@ export default function Device() {
 
   return (
     <ThemedView style={styles.container}>
-      <View>
-        <ThemedText variant="labelCaps" color="onSurfaceDim" style={styles.eyebrow}>
-          {t('tabs.device')}
-        </ThemedText>
-        <ThemedText variant="h2" accessibilityRole="header" style={styles.title}>
-          {t('pairing.title')}
-        </ThemedText>
-        <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.subtitle}>
-          {t('pairing.subtitle')}
-        </ThemedText>
-      </View>
+      <Screen style={styles.screen}>
+        <View>
+          <ThemedText variant="labelCaps" color="onSurfaceDim" style={styles.eyebrow}>
+            {t('tabs.device')}
+          </ThemedText>
+          <ThemedText variant="h2" accessibilityRole="header" style={styles.title}>
+            {t('pairing.title')}
+          </ThemedText>
+          <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.subtitle}>
+            {t('pairing.subtitle')}
+          </ThemedText>
+        </View>
 
-      <ScanStatusBar
-        status={status}
-        onRequestAccess={requestAccess}
-        onOpenSettings={openSettings}
-        scanBarState={scanBarState}
-        onRetryScan={retryScan}
-        onOpenBluetoothSettings={openBluetoothSettings}
-      />
+        <ScanStatusBar
+          status={status}
+          onRequestAccess={requestAccess}
+          onOpenSettings={openSettings}
+          scanBarState={scanBarState}
+          onRetryScan={retryScan}
+          onOpenBluetoothSettings={openBluetoothSettings}
+        />
 
-      {status === 'granted' ? (
+        {status === 'granted' ? (
+          <View style={styles.section}>
+            <ThemedText variant="labelCaps" color="onSurfaceFaint">
+              {t('pairing.nearbyDevices.header')}
+            </ThemedText>
+            {devices.length > 0 ? (
+              devices.map((device) => {
+                const rowStatus = selectRowStatus(device, connection);
+                const { text, isFallback } = selectDeviceDisplayName(
+                  device,
+                  t('pairing.deviceRow.unknownDevice'),
+                );
+
+                return (
+                  <DeviceRow
+                    key={device.id}
+                    name={text}
+                    isNameFallback={isFallback}
+                    rssi={device.medianRssi}
+                    status={rowStatus}
+                    disabled={connection.kind === 'connecting' && connection.deviceId !== device.id}
+                    onPress={() => {
+                      if (rowStatus === 'connecting') {
+                        cancelConnect();
+                      } else if (rowStatus === 'available' || rowStatus === 'failed') {
+                        connect(device.id);
+                      }
+                    }}
+                  />
+                );
+              })
+            ) : (
+              <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.emptyState}>
+                {t('pairing.nearbyDevices.empty')}
+              </ThemedText>
+            )}
+          </View>
+        ) : null}
+
         <View style={styles.section}>
           <ThemedText variant="labelCaps" color="onSurfaceFaint">
-            {t('pairing.nearbyDevices.header')}
+            {t('pairing.previouslyPaired.header')}
           </ThemedText>
-          {devices.length > 0 ? (
-            devices.map((device) => {
-              const rowStatus = selectRowStatus(device, connection);
-              const { text, isFallback } = selectDeviceDisplayName(
-                device,
-                t('pairing.deviceRow.unknownDevice'),
-              );
-
-              return (
-                <DeviceRow
-                  key={device.id}
-                  name={text}
-                  isNameFallback={isFallback}
-                  rssi={device.medianRssi}
-                  status={rowStatus}
-                  disabled={connection.kind === 'connecting' && connection.deviceId !== device.id}
-                  onPress={() => {
-                    if (rowStatus === 'connecting') {
-                      cancelConnect();
-                    } else if (rowStatus === 'available' || rowStatus === 'failed') {
-                      connect(device.id);
-                    }
-                  }}
-                />
-              );
-            })
+          {status === 'granted' && savedDevice != null ? (
+            <SavedDeviceRow
+              name={savedDevice.name ?? t('pairing.deviceRow.unknownDevice')}
+              isNameFallback={savedDevice.name == null}
+              onForget={forgetDevice}
+            />
           ) : (
             <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.emptyState}>
-              {t('pairing.nearbyDevices.empty')}
+              {status === 'granted'
+                ? t('pairing.previouslyPaired.emptyGranted')
+                : t('pairing.previouslyPaired.emptyNoAccess')}
             </ThemedText>
           )}
         </View>
-      ) : null}
 
-      <View style={styles.section}>
-        <ThemedText variant="labelCaps" color="onSurfaceFaint">
-          {t('pairing.previouslyPaired.header')}
+        {/* No CONTINUE/proceed CTA here by design: connecting a device doesn't
+            navigate anywhere. Home's hero button is the single entry point
+            into a workout, and it already flips to "Start workout" once a
+            device is connected (see index.tsx). Don't reintroduce a second
+            CTA on this screen. */}
+        <ThemedText
+          variant="dataSm"
+          color="onSurfaceDim"
+          style={[
+            styles.footerNote,
+            {
+              paddingBottom:
+                insets.bottom +
+                layout.tabBarBottomOffset +
+                layout.tabBarHeight +
+                FOOTER_NOTE_BREATHING_ROOM,
+            },
+          ]}
+        >
+          {t('pairing.bleProfileNote')}
         </ThemedText>
-        {status === 'granted' && savedDevice != null ? (
-          <SavedDeviceRow
-            name={savedDevice.name ?? t('pairing.deviceRow.unknownDevice')}
-            isNameFallback={savedDevice.name == null}
-            onForget={forgetDevice}
-          />
-        ) : (
-          <ThemedText variant="bodySm" color="onSurfaceMuted" style={styles.emptyState}>
-            {status === 'granted'
-              ? t('pairing.previouslyPaired.emptyGranted')
-              : t('pairing.previouslyPaired.emptyNoAccess')}
-          </ThemedText>
-        )}
-      </View>
-
-      {/* No CONTINUE/proceed CTA here by design: connecting a device doesn't
-          navigate anywhere. Home's hero button is the single entry point
-          into a workout, and it already flips to "Start workout" once a
-          device is connected (see index.tsx). Don't reintroduce a second
-          CTA on this screen. */}
-      <ThemedText
-        variant="dataSm"
-        color="onSurfaceDim"
-        style={[
-          styles.footerNote,
-          {
-            paddingBottom:
-              insets.bottom +
-              layout.tabBarBottomOffset +
-              layout.tabBarHeight +
-              FOOTER_NOTE_BREATHING_ROOM,
-          },
-        ]}
-      >
-        {t('pairing.bleProfileNote')}
-      </ThemedText>
+      </Screen>
     </ThemedView>
   );
 }
@@ -167,6 +170,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingHorizontal: spacing.xl,
     paddingBottom: 0,
+  },
+  // <Screen> is the new flex column ancestor of the header/status-bar/section
+  // children (see docs/specs/tablet-layout/SPEC.md) — the 22px rhythm between
+  // them moves here from `container`, which now has a single child.
+  screen: {
     gap: 22,
   },
   eyebrow: {

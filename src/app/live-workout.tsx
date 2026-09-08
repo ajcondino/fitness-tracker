@@ -12,6 +12,7 @@ import { SessionSummary } from '@/components/session-summary';
 import { Glow } from '@/components/ui/glow';
 import { HeartRateTrace } from '@/components/ui/heart-rate-trace';
 import { PulseRing } from '@/components/ui/pulse-ring';
+import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import type { ColorToken } from '@/constants/theme';
@@ -189,29 +190,31 @@ export default function LiveWorkout() {
         testID="live-workout-container"
         style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}
       >
-        <View style={styles.guardContent}>
-          <ThemedText variant="h2">{t('liveWorkout.noDevice.title')}</ThemedText>
-          <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.guardSubtitle}>
-            {t('liveWorkout.noDevice.subtitle')}
-          </ThemedText>
-          <Pressable
-            accessibilityRole="button"
-            onPress={discard}
-            testID="live-workout-discard"
-            style={({ pressed }) => [
-              styles.ghostButton,
-              {
-                borderColor: theme.colors.outlineEmphasis,
-                borderRadius: theme.rounded.lg,
-                opacity: pressed ? 0.82 : 1,
-              },
-            ]}
-          >
-            <ThemedText variant="actionSm" color="onSurfaceMuted">
-              {t('liveWorkout.discard')}
+        <Screen>
+          <View style={styles.guardContent}>
+            <ThemedText variant="h2">{t('liveWorkout.noDevice.title')}</ThemedText>
+            <ThemedText variant="bodyMd" color="onSurfaceMuted" style={styles.guardSubtitle}>
+              {t('liveWorkout.noDevice.subtitle')}
             </ThemedText>
-          </Pressable>
-        </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={discard}
+              testID="live-workout-discard"
+              style={({ pressed }) => [
+                styles.ghostButton,
+                {
+                  borderColor: theme.colors.outlineEmphasis,
+                  borderRadius: theme.rounded.lg,
+                  opacity: pressed ? 0.82 : 1,
+                },
+              ]}
+            >
+              <ThemedText variant="actionSm" color="onSurfaceMuted">
+                {t('liveWorkout.discard')}
+              </ThemedText>
+            </Pressable>
+          </View>
+        </Screen>
       </ThemedView>
     );
   }
@@ -252,276 +255,278 @@ export default function LiveWorkout() {
     >
       <Glow height={320} top={-70} />
 
-      {/* Title row, status line, and BPM readout all hide once ended: the
-          summary below is meant to read as its own screen, not a panel
-          appended under the still-visible live session chrome — see
-          docs/specs/session-summary/SPEC.md. */}
-      {session.phase !== 'ended' && (
-        <>
-          <View style={styles.titleRow}>
-            <View style={styles.sessionHeading}>
-              <ThemedText variant="labelCaps" color="onSurfaceDim" style={styles.eyebrow}>
-                {t('liveWorkout.sessionLabel')}
+      <Screen style={styles.screen}>
+        {/* Title row, status line, and BPM readout all hide once ended: the
+            summary below is meant to read as its own screen, not a panel
+            appended under the still-visible live session chrome — see
+            docs/specs/session-summary/SPEC.md. */}
+        {session.phase !== 'ended' && (
+          <>
+            <View style={styles.titleRow}>
+              <View style={styles.sessionHeading}>
+                <ThemedText variant="labelCaps" color="onSurfaceDim" style={styles.eyebrow}>
+                  {t('liveWorkout.sessionLabel')}
+                </ThemedText>
+                <ThemedText variant="titleMd" color="onSurface">
+                  {t(`sessionSummary.title.${sessionTimeOfDay}`)}
+                </ThemedText>
+              </View>
+              <DeviceChip
+                deviceName={deviceName}
+                status={chipStatus}
+                onSimulateDropout={() => {
+                  bleManager.cancelDeviceConnection(deviceId).catch(() => {
+                    // Expected no-op if the connection already dropped or was
+                    // never fully established natively — not a bug to surface.
+                  });
+                }}
+              />
+            </View>
+
+            <ThemedText variant="dataSm" color={statusCopy.color} style={styles.status}>
+              {statusCopy.text}
+            </ThemedText>
+
+            <View style={styles.readoutContainer}>
+              <PulseRing active={session.phase === 'running'} />
+              {/* Never dimmed/re-colored when stale — the status line alone
+                  carries "this is frozen," per SPEC.md. */}
+              <ThemedText variant="displayXl" color="primary">
+                {bpm ?? '--'}
               </ThemedText>
-              <ThemedText variant="titleMd" color="onSurface">
-                {t(`sessionSummary.title.${sessionTimeOfDay}`)}
+              <ThemedText variant="dataSm" color="onSurfaceMuted">
+                {t('liveWorkout.bpmUnit')}
               </ThemedText>
             </View>
-            <DeviceChip
-              deviceName={deviceName}
-              status={chipStatus}
-              onSimulateDropout={() => {
-                bleManager.cancelDeviceConnection(deviceId).catch(() => {
-                  // Expected no-op if the connection already dropped or was
-                  // never fully established natively — not a bug to surface.
-                });
-              }}
-            />
-          </View>
+          </>
+        )}
 
-          <ThemedText variant="dataSm" color={statusCopy.color} style={styles.status}>
-            {statusCopy.text}
-          </ThemedText>
-
-          <View style={styles.readoutContainer}>
-            <PulseRing active={session.phase === 'running'} />
-            {/* Never dimmed/re-colored when stale — the status line alone
-                carries "this is frozen," per SPEC.md. */}
-            <ThemedText variant="displayXl" color="primary">
-              {bpm ?? '--'}
-            </ThemedText>
-            <ThemedText variant="dataSm" color="onSurfaceMuted">
-              {t('liveWorkout.bpmUnit')}
-            </ThemedText>
-          </View>
-        </>
-      )}
-
-      {/* Same gate as statsRow below: a recent-window trace visible from
-          idle through paused (an all-gap trace pre-start), replaced by
-          SessionSummary's own static, full-session trace once ended. Sits
-          above statsRow, mirroring Session Summary's own trace-above-stats
-          placement. See docs/specs/heart-rate-trace-graph/SPEC.md. */}
-      {session.phase !== 'ended' && (
-        <View
-          style={[
-            styles.traceContainer,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outline,
-              borderRadius: theme.rounded.lg,
-            },
-          ]}
-        >
-          <View style={styles.traceCardHeader}>
-            <ThemedText variant="labelCaps" color="onSurfaceDim">
-              {t('liveWorkout.trace.label')}
-            </ThemedText>
-            <ThemedText variant="labelCaps" color="onSurfaceDim">
-              {t('liveWorkout.trace.unit')}
-            </ThemedText>
-          </View>
-          <HeartRateTrace testID="live-workout-trace" values={liveTraceValues} height={64} />
-        </View>
-      )}
-
-      {/* Removed once ended: replaced below by <SessionSummary mode="review" />,
-          which shows its own title, hero duration, and avg/max stat cards —
-          see docs/specs/session-summary/SPEC.md. */}
-      {session.phase !== 'ended' && (
-        <View style={styles.statsRow}>
+        {/* Same gate as statsRow below: a recent-window trace visible from
+            idle through paused (an all-gap trace pre-start), replaced by
+            SessionSummary's own static, full-session trace once ended. Sits
+            above statsRow, mirroring Session Summary's own trace-above-stats
+            placement. See docs/specs/heart-rate-trace-graph/SPEC.md. */}
+        {session.phase !== 'ended' && (
           <View
             style={[
-              styles.statCard,
+              styles.traceContainer,
               {
                 backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.outline,
-                borderRadius: theme.rounded.md,
+                borderRadius: theme.rounded.lg,
               },
             ]}
           >
-            <ThemedText variant="labelMicro" color="onSurfaceDim">
-              {t('liveWorkout.stats.elapsed')}
-            </ThemedText>
-            <ThemedText variant="h3" color="onSurface">
-              {formatElapsed(session.elapsedMs)}
-            </ThemedText>
-          </View>
-          <View
-            style={[
-              styles.statCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outline,
-                borderRadius: theme.rounded.md,
-              },
-            ]}
-          >
-            <ThemedText variant="labelMicro" color="onSurfaceDim">
-              {t('liveWorkout.stats.avgBpm')}
-            </ThemedText>
-            <ThemedText variant="h3" color="onSurface">
-              {session.averageBpm == null ? '--' : Math.round(session.averageBpm)}
-            </ThemedText>
-          </View>
-          <View
-            style={[
-              styles.statCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outline,
-                borderRadius: theme.rounded.md,
-              },
-            ]}
-          >
-            <ThemedText variant="labelMicro" color="onSurfaceDim">
-              {t('liveWorkout.stats.maxBpm')}
-            </ThemedText>
-            <ThemedText variant="h3" color="onSurface">
-              {session.maxBpm ?? '--'}
-            </ThemedText>
-          </View>
-        </View>
-      )}
-
-      {/* The left slot is a fixed 64x64 square in every phase — only what's
-          inside it (and what it's wired to) changes. Pre-start there is no
-          session yet, so nothing there is destructive: it's a plain back
-          button to router.back() via the existing discard() (same one the
-          no-device guard above uses), not a variant of Stop. Once running or
-          paused, the same slot becomes the red Stop square. See the ticket's
-          "idle controls" decision. */}
-      {session.phase === 'idle' && (
-        <View style={styles.actionRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('liveWorkout.discard')}
-            onPress={discard}
-            testID="live-workout-discard"
-            style={({ pressed }) => [
-              styles.squareButton,
-              {
-                backgroundColor: theme.colors.surfaceRaised,
-                borderColor: theme.colors.outline,
-                borderRadius: theme.rounded.xl,
-                opacity: pressed ? 0.82 : 1,
-              },
-            ]}
-          >
-            <ThemedText variant="titleMd" color="onSurfaceMuted">
-              ‹
-            </ThemedText>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={session.start}
-            testID="live-workout-start"
-            style={({ pressed }) => [
-              styles.primaryButton,
-              {
-                backgroundColor: theme.colors.primary,
-                borderRadius: theme.rounded.xl,
-                opacity: pressed ? 0.82 : 1,
-              },
-            ]}
-          >
-            <View style={[styles.playTriangle, { borderLeftColor: theme.colors.onPrimary }]} />
-            <ThemedText variant="actionLg" color="onPrimary">
-              {t('liveWorkout.start')}
-            </ThemedText>
-          </Pressable>
-        </View>
-      )}
-
-      {session.phase === 'running' && (
-        <View style={styles.actionRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('liveWorkout.stop')}
-            onPress={session.stop}
-            testID="live-workout-stop"
-            style={({ pressed }) => [
-              styles.squareButton,
-              {
-                backgroundColor: theme.colors.surfaceRaised,
-                borderColor: pressed ? theme.colors.danger : theme.colors.outlineEmphasis,
-                borderRadius: theme.rounded.xl,
-              },
-            ]}
-          >
-            <View style={[styles.stopSquare, { backgroundColor: theme.colors.danger }]} />
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={session.pause}
-            testID="live-workout-pause"
-            style={({ pressed }) => [
-              styles.primaryButton,
-              {
-                backgroundColor: theme.colors.primary,
-                borderRadius: theme.rounded.xl,
-                opacity: pressed ? 0.82 : 1,
-              },
-            ]}
-          >
-            <View style={styles.pauseBars}>
-              <View style={[styles.pauseBar, { backgroundColor: theme.colors.onPrimary }]} />
-              <View style={[styles.pauseBar, { backgroundColor: theme.colors.onPrimary }]} />
+            <View style={styles.traceCardHeader}>
+              <ThemedText variant="labelCaps" color="onSurfaceDim">
+                {t('liveWorkout.trace.label')}
+              </ThemedText>
+              <ThemedText variant="labelCaps" color="onSurfaceDim">
+                {t('liveWorkout.trace.unit')}
+              </ThemedText>
             </View>
-            <ThemedText variant="actionLg" color="onPrimary">
-              {t('liveWorkout.pause')}
-            </ThemedText>
-          </Pressable>
-        </View>
-      )}
+            <HeartRateTrace testID="live-workout-trace" values={liveTraceValues} height={64} />
+          </View>
+        )}
 
-      {session.phase === 'paused' && (
-        <View style={styles.actionRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('liveWorkout.stop')}
-            onPress={session.stop}
-            testID="live-workout-stop"
-            style={({ pressed }) => [
-              styles.squareButton,
-              {
-                backgroundColor: theme.colors.surfaceRaised,
-                borderColor: pressed ? theme.colors.danger : theme.colors.outlineEmphasis,
-                borderRadius: theme.rounded.xl,
-              },
-            ]}
-          >
-            <View style={[styles.stopSquare, { backgroundColor: theme.colors.danger }]} />
-          </Pressable>
+        {/* Removed once ended: replaced below by <SessionSummary mode="review" />,
+            which shows its own title, hero duration, and avg/max stat cards —
+            see docs/specs/session-summary/SPEC.md. */}
+        {session.phase !== 'ended' && (
+          <View style={styles.statsRow}>
+            <View
+              style={[
+                styles.statCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.outline,
+                  borderRadius: theme.rounded.md,
+                },
+              ]}
+            >
+              <ThemedText variant="labelMicro" color="onSurfaceDim">
+                {t('liveWorkout.stats.elapsed')}
+              </ThemedText>
+              <ThemedText variant="h3" color="onSurface">
+                {formatElapsed(session.elapsedMs)}
+              </ThemedText>
+            </View>
+            <View
+              style={[
+                styles.statCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.outline,
+                  borderRadius: theme.rounded.md,
+                },
+              ]}
+            >
+              <ThemedText variant="labelMicro" color="onSurfaceDim">
+                {t('liveWorkout.stats.avgBpm')}
+              </ThemedText>
+              <ThemedText variant="h3" color="onSurface">
+                {session.averageBpm == null ? '--' : Math.round(session.averageBpm)}
+              </ThemedText>
+            </View>
+            <View
+              style={[
+                styles.statCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.outline,
+                  borderRadius: theme.rounded.md,
+                },
+              ]}
+            >
+              <ThemedText variant="labelMicro" color="onSurfaceDim">
+                {t('liveWorkout.stats.maxBpm')}
+              </ThemedText>
+              <ThemedText variant="h3" color="onSurface">
+                {session.maxBpm ?? '--'}
+              </ThemedText>
+            </View>
+          </View>
+        )}
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={session.resume}
-            testID="live-workout-resume"
-            style={({ pressed }) => [
-              styles.primaryButton,
-              {
-                backgroundColor: theme.colors.primary,
-                borderRadius: theme.rounded.xl,
-                opacity: pressed ? 0.82 : 1,
-              },
-            ]}
-          >
-            <View style={[styles.playTriangle, { borderLeftColor: theme.colors.onPrimary }]} />
-            <ThemedText variant="actionLg" color="onPrimary">
-              {t('liveWorkout.resume')}
-            </ThemedText>
-          </Pressable>
-        </View>
-      )}
+        {/* The left slot is a fixed 64x64 square in every phase — only what's
+            inside it (and what it's wired to) changes. Pre-start there is no
+            session yet, so nothing there is destructive: it's a plain back
+            button to router.back() via the existing discard() (same one the
+            no-device guard above uses), not a variant of Stop. Once running or
+            paused, the same slot becomes the red Stop square. See the ticket's
+            "idle controls" decision. */}
+        {session.phase === 'idle' && (
+          <View style={styles.actionRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('liveWorkout.discard')}
+              onPress={discard}
+              testID="live-workout-discard"
+              style={({ pressed }) => [
+                styles.squareButton,
+                {
+                  backgroundColor: theme.colors.surfaceRaised,
+                  borderColor: theme.colors.outline,
+                  borderRadius: theme.rounded.xl,
+                  opacity: pressed ? 0.82 : 1,
+                },
+              ]}
+            >
+              <ThemedText variant="titleMd" color="onSurfaceMuted">
+                ‹
+              </ThemedText>
+            </Pressable>
 
-      {session.phase === 'ended' && record != null && (
-        <View style={styles.summaryContainer}>
-          <SessionSummary mode="review" record={record} onSave={save} onDiscard={discard} />
-        </View>
-      )}
+            <Pressable
+              accessibilityRole="button"
+              onPress={session.start}
+              testID="live-workout-start"
+              style={({ pressed }) => [
+                styles.primaryButton,
+                {
+                  backgroundColor: theme.colors.primary,
+                  borderRadius: theme.rounded.xl,
+                  opacity: pressed ? 0.82 : 1,
+                },
+              ]}
+            >
+              <View style={[styles.playTriangle, { borderLeftColor: theme.colors.onPrimary }]} />
+              <ThemedText variant="actionLg" color="onPrimary">
+                {t('liveWorkout.start')}
+              </ThemedText>
+            </Pressable>
+          </View>
+        )}
+
+        {session.phase === 'running' && (
+          <View style={styles.actionRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('liveWorkout.stop')}
+              onPress={session.stop}
+              testID="live-workout-stop"
+              style={({ pressed }) => [
+                styles.squareButton,
+                {
+                  backgroundColor: theme.colors.surfaceRaised,
+                  borderColor: pressed ? theme.colors.danger : theme.colors.outlineEmphasis,
+                  borderRadius: theme.rounded.xl,
+                },
+              ]}
+            >
+              <View style={[styles.stopSquare, { backgroundColor: theme.colors.danger }]} />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={session.pause}
+              testID="live-workout-pause"
+              style={({ pressed }) => [
+                styles.primaryButton,
+                {
+                  backgroundColor: theme.colors.primary,
+                  borderRadius: theme.rounded.xl,
+                  opacity: pressed ? 0.82 : 1,
+                },
+              ]}
+            >
+              <View style={styles.pauseBars}>
+                <View style={[styles.pauseBar, { backgroundColor: theme.colors.onPrimary }]} />
+                <View style={[styles.pauseBar, { backgroundColor: theme.colors.onPrimary }]} />
+              </View>
+              <ThemedText variant="actionLg" color="onPrimary">
+                {t('liveWorkout.pause')}
+              </ThemedText>
+            </Pressable>
+          </View>
+        )}
+
+        {session.phase === 'paused' && (
+          <View style={styles.actionRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('liveWorkout.stop')}
+              onPress={session.stop}
+              testID="live-workout-stop"
+              style={({ pressed }) => [
+                styles.squareButton,
+                {
+                  backgroundColor: theme.colors.surfaceRaised,
+                  borderColor: pressed ? theme.colors.danger : theme.colors.outlineEmphasis,
+                  borderRadius: theme.rounded.xl,
+                },
+              ]}
+            >
+              <View style={[styles.stopSquare, { backgroundColor: theme.colors.danger }]} />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={session.resume}
+              testID="live-workout-resume"
+              style={({ pressed }) => [
+                styles.primaryButton,
+                {
+                  backgroundColor: theme.colors.primary,
+                  borderRadius: theme.rounded.xl,
+                  opacity: pressed ? 0.82 : 1,
+                },
+              ]}
+            >
+              <View style={[styles.playTriangle, { borderLeftColor: theme.colors.onPrimary }]} />
+              <ThemedText variant="actionLg" color="onPrimary">
+                {t('liveWorkout.resume')}
+              </ThemedText>
+            </Pressable>
+          </View>
+        )}
+
+        {session.phase === 'ended' && record != null && (
+          <View style={styles.summaryContainer}>
+            <SessionSummary mode="review" record={record} onSave={save} onDiscard={discard} />
+          </View>
+        )}
+      </Screen>
     </ThemedView>
   );
 }
@@ -530,6 +535,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: spacing.xl,
+  },
+  screen: {
+    zIndex: 1, // renders above <Glow /> — see glow.tsx's stacking note
   },
   guardContent: {
     flex: 1,
@@ -540,9 +548,10 @@ const styles = StyleSheet.create({
   guardSubtitle: {
     textAlign: 'center',
   },
-  // zIndex: 1 on this screen's direct children of `container` — renders
-  // above <Glow />, whose own absence of a zIndex is deliberate; see
-  // glow.tsx's stacking note.
+  // zIndex: 1 here is redundant with `screen`'s own zIndex (the <Screen>
+  // wrapper now wins the whole stacking tie against <Glow /> as one unit —
+  // see glow.tsx's stacking note) but is left in place per this ticket's
+  // "additive diffs on working screens."
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

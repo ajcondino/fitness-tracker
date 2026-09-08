@@ -9,6 +9,7 @@ import { DeviceCard } from '@/components/device-card';
 import { SessionRow } from '@/components/session-row';
 import { Avatar } from '@/components/ui/avatar';
 import { Glow } from '@/components/ui/glow';
+import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
@@ -94,113 +95,115 @@ export default function Index() {
     <ThemedView style={styles.container}>
       <Glow height={300} top={-40} />
 
-      <View style={styles.topBar}>
-        <ThemedText variant="wordmark" color="primary">
-          {t('home.wordmark')}
-        </ThemedText>
-        <Pressable
-          accessibilityLabel={t('home.profile.label')}
-          testID="home-profile-control"
-          onPress={() => router.navigate('/profile')}
-        >
-          {isSignedIn ? (
-            <Avatar size="sm" initial={(name ?? '?')[0]} />
-          ) : (
-            <Avatar size="sm" variant="placeholder" />
-          )}
-        </Pressable>
-      </View>
-
-      <View style={styles.greeting}>
-        <ThemedText variant="h1">{greetingText}</ThemedText>
-        <ThemedText variant="bodyMd" color="onSurfaceMuted">
-          {t('home.greeting.subtitle')}
-        </ThemedText>
-      </View>
-
-      <View style={styles.content}>
-        {isConnected ? (
-          <DeviceCard
-            status="connected"
-            title={connectedDeviceName}
-            subtitle={t('home.deviceCard.connectedSubtitle')}
-            onPress={goToDevice}
-          />
-        ) : (
-          <DeviceCard
-            status="disconnected"
-            title={t('home.deviceCard.title')}
-            subtitle={t('home.deviceCard.subtitle')}
-            onPress={goToDevice}
-          />
-        )}
-
-        <Pressable
-          accessibilityRole="button"
-          onPress={heroOnPress}
-          testID="home-hero-cta"
-          style={({ pressed }) => [
-            styles.heroButton,
-            {
-              backgroundColor: theme.colors.primary,
-              borderRadius: theme.rounded.xl,
-              opacity: pressed ? 0.82 : 1,
-            },
-          ]}
-        >
-          <View style={[styles.heroTriangle, { borderLeftColor: theme.colors.onPrimary }]} />
-          <ThemedText variant="actionLg" color="onPrimary">
-            {heroLabel}
+      <Screen style={styles.screen}>
+        <View style={styles.topBar}>
+          <ThemedText variant="wordmark" color="primary">
+            {t('home.wordmark')}
           </ThemedText>
-        </Pressable>
+          <Pressable
+            accessibilityLabel={t('home.profile.label')}
+            testID="home-profile-control"
+            onPress={() => router.navigate('/profile')}
+          >
+            {isSignedIn ? (
+              <Avatar size="sm" initial={(name ?? '?')[0]} />
+            ) : (
+              <Avatar size="sm" variant="placeholder" />
+            )}
+          </Pressable>
+        </View>
 
-        <View style={styles.recentSection}>
-          <View style={styles.sectionHeader}>
-            <ThemedText variant="labelCaps" color="onSurfaceFaint">
-              {t('home.recent.header')}
-            </ThemedText>
-            <Pressable
-              accessibilityRole="button"
-              onPress={goToHistory}
-              testID="home-recent-see-all"
-            >
-              <ThemedText variant="labelCaps" color="primary">
-                {t('home.recent.seeAll')}
-              </ThemedText>
-            </Pressable>
-          </View>
+        <View style={styles.greeting}>
+          <ThemedText variant="h1">{greetingText}</ThemedText>
+          <ThemedText variant="bodyMd" color="onSurfaceMuted">
+            {t('home.greeting.subtitle')}
+          </ThemedText>
+        </View>
 
-          {recentSessions?.length === 0 && (
-            <ThemedText variant="bodyMd" color="onSurfaceMuted">
-              {t('home.recent.empty')}
-            </ThemedText>
+        <View style={styles.content}>
+          {isConnected ? (
+            <DeviceCard
+              status="connected"
+              title={connectedDeviceName}
+              subtitle={t('home.deviceCard.connectedSubtitle')}
+              onPress={goToDevice}
+            />
+          ) : (
+            <DeviceCard
+              status="disconnected"
+              title={t('home.deviceCard.title')}
+              subtitle={t('home.deviceCard.subtitle')}
+              onPress={goToDevice}
+            />
           )}
 
-          {recentSessions != null &&
-            recentSessions.length > 0 &&
-            recentSessions.map((record) => {
-              const summary = deriveWorkoutSummary(record);
-              const startedAtDate = new Date(record.startedAt);
-              return (
-                <SessionRow
-                  key={record.id}
-                  monthLabel={formatMonth(startedAtDate, i18n.language)}
-                  dayLabel={String(startedAtDate.getDate())}
-                  titleLabel={t(`sessionSummary.title.${describeSessionTime(startedAtDate)}`)}
-                  timeLabel={formatTime(startedAtDate, i18n.language)}
-                  durationLabel={formatDuration(summary.durationMs)}
-                  averageBpmLabel={
-                    summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
-                  }
-                  writeStatus={record.healthConnect.status}
-                  onPress={() =>
-                    router.push({ pathname: '/session/[id]', params: { id: record.id } })
-                  }
-                />
-              );
-            })}
+          <Pressable
+            accessibilityRole="button"
+            onPress={heroOnPress}
+            testID="home-hero-cta"
+            style={({ pressed }) => [
+              styles.heroButton,
+              {
+                backgroundColor: theme.colors.primary,
+                borderRadius: theme.rounded.xl,
+                opacity: pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            <View style={[styles.heroTriangle, { borderLeftColor: theme.colors.onPrimary }]} />
+            <ThemedText variant="actionLg" color="onPrimary">
+              {heroLabel}
+            </ThemedText>
+          </Pressable>
+
+          <View style={styles.recentSection}>
+            <View style={styles.sectionHeader}>
+              <ThemedText variant="labelCaps" color="onSurfaceFaint">
+                {t('home.recent.header')}
+              </ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                onPress={goToHistory}
+                testID="home-recent-see-all"
+              >
+                <ThemedText variant="labelCaps" color="primary">
+                  {t('home.recent.seeAll')}
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            {recentSessions?.length === 0 && (
+              <ThemedText variant="bodyMd" color="onSurfaceMuted">
+                {t('home.recent.empty')}
+              </ThemedText>
+            )}
+
+            {recentSessions != null &&
+              recentSessions.length > 0 &&
+              recentSessions.map((record) => {
+                const summary = deriveWorkoutSummary(record);
+                const startedAtDate = new Date(record.startedAt);
+                return (
+                  <SessionRow
+                    key={record.id}
+                    monthLabel={formatMonth(startedAtDate, i18n.language)}
+                    dayLabel={String(startedAtDate.getDate())}
+                    titleLabel={t(`sessionSummary.title.${describeSessionTime(startedAtDate)}`)}
+                    timeLabel={formatTime(startedAtDate, i18n.language)}
+                    durationLabel={formatDuration(summary.durationMs)}
+                    averageBpmLabel={
+                      summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
+                    }
+                    writeStatus={record.healthConnect.status}
+                    onPress={() =>
+                      router.push({ pathname: '/session/[id]', params: { id: record.id } })
+                    }
+                  />
+                );
+              })}
+          </View>
         </View>
-      </View>
+      </Screen>
     </ThemedView>
   );
 }
@@ -209,6 +212,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: spacing.xl,
+  },
+  screen: {
+    zIndex: 1, // renders above <Glow /> — see glow.tsx's stacking note
   },
   topBar: {
     flexDirection: 'row',

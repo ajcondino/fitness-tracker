@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { SessionSummary } from '@/components/session-summary';
+import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { spacing } from '@/constants/theme';
@@ -70,19 +71,21 @@ export default function SessionDetail() {
         testID="session-detail-container"
         style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}
       >
-        <Pressable
-          accessibilityRole="button"
-          onPress={goBack}
-          testID="session-detail-back"
-          style={styles.backButton}
-        >
-          <ThemedText variant="titleMd" color="onSurfaceDim">
-            ‹
+        <Screen style={styles.screen}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={goBack}
+            testID="session-detail-back"
+            style={styles.backButton}
+          >
+            <ThemedText variant="titleMd" color="onSurfaceDim">
+              ‹
+            </ThemedText>
+          </Pressable>
+          <ThemedText variant="bodyMd" color="onSurfaceMuted">
+            {t('sessionSummary.notFound')}
           </ThemedText>
-        </Pressable>
-        <ThemedText variant="bodyMd" color="onSurfaceMuted">
-          {t('sessionSummary.notFound')}
-        </ThemedText>
+        </Screen>
       </ThemedView>
     );
   }
@@ -92,14 +95,16 @@ export default function SessionDetail() {
       testID="session-detail-container"
       style={[styles.container, { paddingBottom: spacing.xl + insets.bottom }]}
     >
-      <SessionSummary
-        mode="detail"
-        record={record}
-        onBack={goBack}
-        onDone={goHome}
-        onSync={handleSync}
-        isSyncing={isSyncing}
-      />
+      <Screen>
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={goBack}
+          onDone={goHome}
+          onSync={handleSync}
+          isSyncing={isSyncing}
+        />
+      </Screen>
     </ThemedView>
   );
 }
@@ -108,6 +113,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: spacing.xl,
+  },
+  // <Screen> is the new flex column ancestor of the not-found body's two
+  // children (see docs/specs/tablet-layout/SPEC.md) — the `spacing.md`
+  // rhythm between them moves here from `container`, which now has a single
+  // child.
+  screen: {
     gap: spacing.md,
   },
   backButton: {

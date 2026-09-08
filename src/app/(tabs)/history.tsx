@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePairingStore } from '@/ble/pairing-store';
 import { selectConnectedDeviceName } from '@/ble/pairing-types';
 import { SessionRow } from '@/components/session-row';
+import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { layout, spacing } from '@/constants/theme';
@@ -81,118 +82,122 @@ export default function History() {
 
   return (
     <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText variant="h1">{t('tabs.history')}</ThemedText>
-        <View
-          style={[
-            styles.pill,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outline,
-              borderRadius: theme.rounded.full,
-            },
-          ]}
-        >
+      <Screen style={styles.screen}>
+        <View style={styles.header}>
+          <ThemedText variant="h1">{t('tabs.history')}</ThemedText>
           <View
-            testID="history-pill-dot"
             style={[
-              styles.pillDot,
+              styles.pill,
               {
-                backgroundColor: isConnected ? theme.colors.success : theme.colors.danger,
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outline,
                 borderRadius: theme.rounded.full,
               },
             ]}
-          />
-          <ThemedText variant="dataSm" color="onSurfaceMuted">
-            {deviceName}
-          </ThemedText>
-        </View>
-      </View>
-
-      {weeklyTotals != null && (
-        <View
-          style={[
-            styles.statsCard,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outline,
-              borderRadius: theme.rounded.lg,
-            },
-          ]}
-        >
-          <View style={styles.statColumn}>
-            <ThemedText variant="labelMicro" color="onSurfaceDim">
-              {t('history.stats.sevenDayLabel')}
-            </ThemedText>
-            <ThemedText variant="statMd" color="onSurface" style={styles.statValue}>
-              {formatHoursMinutes(weeklyTotals.totalDurationMs)}
-            </ThemedText>
-          </View>
-          <View style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
-          <View style={styles.statColumn}>
-            <ThemedText variant="labelMicro" color="onSurfaceDim">
-              {t('history.stats.sessionsLabel')}
-            </ThemedText>
-            <ThemedText variant="statMd" color="onSurface" style={styles.statValue}>
-              {String(weeklyTotals.sessionCount)}
-            </ThemedText>
-          </View>
-          <View style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
-          <View style={styles.statColumn}>
-            <ThemedText variant="labelMicro" color="onSurfaceDim">
-              {t('history.stats.avgHrLabel')}
-            </ThemedText>
-            <ThemedText variant="statMd" color="primary" style={styles.statValue}>
-              {weeklyTotals.averageBpm == null ? '--' : String(Math.round(weeklyTotals.averageBpm))}
+          >
+            <View
+              testID="history-pill-dot"
+              style={[
+                styles.pillDot,
+                {
+                  backgroundColor: isConnected ? theme.colors.success : theme.colors.danger,
+                  borderRadius: theme.rounded.full,
+                },
+              ]}
+            />
+            <ThemedText variant="dataSm" color="onSurfaceMuted">
+              {deviceName}
             </ThemedText>
           </View>
         </View>
-      )}
 
-      {sessions?.length === 0 && (
-        <ThemedText variant="bodyMd" color="onSurfaceMuted">
-          {t('history.sessions.empty')}
-        </ThemedText>
-      )}
-
-      {sessions != null && sessions.length > 0 && (
-        <View style={styles.listWrapper}>
-          <FlatList
-            data={sessions}
-            keyExtractor={(record) => record.id}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: layout.tabBarClearance + insets.bottom },
+        {weeklyTotals != null && (
+          <View
+            style={[
+              styles.statsCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outline,
+                borderRadius: theme.rounded.lg,
+              },
             ]}
-            ListHeaderComponent={
-              <ThemedText variant="labelCaps" color="onSurfaceDim">
-                {t('history.sessions.header')}
+          >
+            <View style={styles.statColumn}>
+              <ThemedText variant="labelMicro" color="onSurfaceDim">
+                {t('history.stats.sevenDayLabel')}
               </ThemedText>
-            }
-            renderItem={({ item: record }) => {
-              const summary = deriveWorkoutSummary(record);
-              const startedAtDate = new Date(record.startedAt);
-              return (
-                <SessionRow
-                  monthLabel={formatMonth(startedAtDate, i18n.language)}
-                  dayLabel={String(startedAtDate.getDate())}
-                  titleLabel={t(`sessionSummary.title.${describeSessionTime(startedAtDate)}`)}
-                  timeLabel={formatTime(startedAtDate, i18n.language)}
-                  durationLabel={formatDuration(summary.durationMs)}
-                  averageBpmLabel={
-                    summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
-                  }
-                  writeStatus={record.healthConnect.status}
-                  onPress={() =>
-                    router.push({ pathname: '/session/[id]', params: { id: record.id } })
-                  }
-                />
-              );
-            }}
-          />
-        </View>
-      )}
+              <ThemedText variant="statMd" color="onSurface" style={styles.statValue}>
+                {formatHoursMinutes(weeklyTotals.totalDurationMs)}
+              </ThemedText>
+            </View>
+            <View style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
+            <View style={styles.statColumn}>
+              <ThemedText variant="labelMicro" color="onSurfaceDim">
+                {t('history.stats.sessionsLabel')}
+              </ThemedText>
+              <ThemedText variant="statMd" color="onSurface" style={styles.statValue}>
+                {String(weeklyTotals.sessionCount)}
+              </ThemedText>
+            </View>
+            <View style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
+            <View style={styles.statColumn}>
+              <ThemedText variant="labelMicro" color="onSurfaceDim">
+                {t('history.stats.avgHrLabel')}
+              </ThemedText>
+              <ThemedText variant="statMd" color="primary" style={styles.statValue}>
+                {weeklyTotals.averageBpm == null
+                  ? '--'
+                  : String(Math.round(weeklyTotals.averageBpm))}
+              </ThemedText>
+            </View>
+          </View>
+        )}
+
+        {sessions?.length === 0 && (
+          <ThemedText variant="bodyMd" color="onSurfaceMuted">
+            {t('history.sessions.empty')}
+          </ThemedText>
+        )}
+
+        {sessions != null && sessions.length > 0 && (
+          <View style={styles.listWrapper}>
+            <FlatList
+              data={sessions}
+              keyExtractor={(record) => record.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.listContent,
+                { paddingBottom: layout.tabBarClearance + insets.bottom },
+              ]}
+              ListHeaderComponent={
+                <ThemedText variant="labelCaps" color="onSurfaceDim">
+                  {t('history.sessions.header')}
+                </ThemedText>
+              }
+              renderItem={({ item: record }) => {
+                const summary = deriveWorkoutSummary(record);
+                const startedAtDate = new Date(record.startedAt);
+                return (
+                  <SessionRow
+                    monthLabel={formatMonth(startedAtDate, i18n.language)}
+                    dayLabel={String(startedAtDate.getDate())}
+                    titleLabel={t(`sessionSummary.title.${describeSessionTime(startedAtDate)}`)}
+                    timeLabel={formatTime(startedAtDate, i18n.language)}
+                    durationLabel={formatDuration(summary.durationMs)}
+                    averageBpmLabel={
+                      summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
+                    }
+                    writeStatus={record.healthConnect.status}
+                    onPress={() =>
+                      router.push({ pathname: '/session/[id]', params: { id: record.id } })
+                    }
+                  />
+                );
+              }}
+            />
+          </View>
+        )}
+      </Screen>
     </ThemedView>
   );
 }
@@ -203,6 +208,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingHorizontal: spacing.xl,
     paddingBottom: 0,
+  },
+  // <Screen> is the new flex column ancestor of the header/stats/list
+  // children (see docs/specs/tablet-layout/SPEC.md) — the 18px rhythm
+  // between them moves here from `container`, which now has a single child.
+  screen: {
     gap: 18,
   },
   header: {
