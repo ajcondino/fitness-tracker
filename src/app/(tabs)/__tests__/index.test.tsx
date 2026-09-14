@@ -48,7 +48,7 @@ function makeDevice(overrides: Partial<DiscoveredDevice> = {}): DiscoveredDevice
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: 'workout-1',
     startedAt: new Date('2026-08-17T18:42:00').getTime(),
     samples: [
@@ -58,6 +58,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     device: { id: 'device-1', name: 'Pulse HRM' },
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
+    source: 'recorded',
     ...overrides,
   };
 }

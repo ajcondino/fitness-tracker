@@ -148,6 +148,7 @@ export default function LiveWorkout() {
         device: { id: deviceId, name: device?.name ?? device?.lastKnownName ?? null },
         pauses,
         healthConnect: { status: 'notWritten', recordIds: [] },
+        source: 'recorded',
       };
     });
   }, [deviceId, device, session.phase, session.startedAt, session.samples, session.pauses]);

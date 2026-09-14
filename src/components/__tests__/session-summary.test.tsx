@@ -8,7 +8,7 @@ const TRACE_BUCKET_COUNT = 48; // mirrors session-summary.tsx's own private cons
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: 'workout-1',
     // 6:42 PM — within the 17:00–21:59 "evening" bucket.
     startedAt: new Date('2026-08-19T18:42:00').getTime(),
@@ -19,6 +19,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     device: { id: 'device-1', name: 'Pulse HRM' },
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
+    source: 'recorded',
     ...overrides,
   };
 }
