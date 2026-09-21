@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { HealthConnectWriteInfo, WorkoutRecord } from '@/workout/workout-record';
+import { migrateWorkoutRecord } from '@/workout/workout-migrations';
+import type { LegacyWorkoutRecord } from '@/workout/workout-migrations';
+import type {
+  HealthConnectWriteInfo,
+  WorkoutRecord,
+  WorkoutSource,
+} from '@/workout/workout-record';
 
 /**
  * Framework-free storage module: no BLE, Zustand, or React import — mirrors
@@ -49,6 +55,14 @@ function parseHealthConnectWriteInfo(raw: unknown): HealthConnectWriteInfo {
   return { status: validStatus, recordIds: validRecordIds };
 }
 
+// Lenient in the same way as parseHealthConnectWriteInfo above — a missing
+// or malformed source never invalidates the whole record. Every record that
+// predates this field was, definitionally, locally recorded, so
+// 'recorded' is the correct default, not just a safe one.
+function parseWorkoutSource(raw: unknown): WorkoutSource {
+  return raw === 'recorded' || raw === 'imported' ? raw : 'recorded';
+}
+
 function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
   if (raw == null) {
     return null;
@@ -58,8 +72,10 @@ function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
     if (typeof parsed !== 'object' || parsed === null) {
       return null;
     }
-    const { schemaVersion, id, startedAt, samples, device, pauses, healthConnect } =
-      parsed as Record<string, unknown>;
+    const { schemaVersion, id, startedAt, samples, device, pauses } = parsed as Record<
+      string,
+      unknown
+    >;
     if (
       typeof schemaVersion !== 'number' ||
       typeof id !== 'string' ||
@@ -72,9 +88,11 @@ function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
     ) {
       return null;
     }
+    const migrated = migrateWorkoutRecord(parsed as LegacyWorkoutRecord);
     return {
-      ...parsed,
-      healthConnect: parseHealthConnectWriteInfo(healthConnect),
+      ...migrated,
+      healthConnect: parseHealthConnectWriteInfo(migrated.healthConnect),
+      source: parseWorkoutSource(migrated.source),
     } as WorkoutRecord;
   } catch {
     return null;

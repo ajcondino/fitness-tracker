@@ -17,13 +17,14 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     device: { id: 'device-1', name: 'Pulse HRM' },
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
+    source: 'recorded',
     ...overrides,
   };
 }
 
 describe('WORKOUT_RECORD_SCHEMA_VERSION', () => {
-  it('is 2', () => {
-    expect(WORKOUT_RECORD_SCHEMA_VERSION).toBe(2);
+  it('is 3', () => {
+    expect(WORKOUT_RECORD_SCHEMA_VERSION).toBe(3);
   });
 });
 

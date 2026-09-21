@@ -6,7 +6,7 @@ import type { HeartRateSample, WorkoutPause } from '@/hooks/use-workout-session'
  * derivations" layer.
  */
 
-export const WORKOUT_RECORD_SCHEMA_VERSION = 2;
+export const WORKOUT_RECORD_SCHEMA_VERSION = 3;
 
 export type HealthConnectWriteStatus = 'notWritten' | 'written' | 'failed';
 
@@ -34,6 +34,11 @@ export type WorkoutDevice = {
 // import, mirroring how HeartRateSample already lives there.
 export type { WorkoutPause };
 
+// 'imported' is not produced anywhere in this codebase yet — reserved for
+// the (deferred) import epic so a future importer doesn't need a second
+// migration. Every session this app records itself is 'recorded'.
+export type WorkoutSource = 'recorded' | 'imported';
+
 /**
  * The full persisted record — enough to reconstruct the session, not just
  * its summary. Deliberately has NO averageBpm/maxBpm/durationMs field: per
@@ -50,6 +55,7 @@ export type WorkoutRecord = {
   device: WorkoutDevice;
   pauses: WorkoutPause[];
   healthConnect: HealthConnectWriteInfo;
+  source: WorkoutSource;
 };
 
 export type WorkoutSummary = {

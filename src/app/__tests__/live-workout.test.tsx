@@ -318,6 +318,7 @@ describe('<LiveWorkout />', () => {
             device: { id: 'device-1', name: 'Pulse HRM' },
             pauses,
             healthConnect: { status: 'notWritten', recordIds: [] },
+            source: 'recorded',
           }),
         );
         expect(back).toHaveBeenCalledTimes(1);

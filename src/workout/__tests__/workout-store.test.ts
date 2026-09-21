@@ -9,13 +9,14 @@ import type { WorkoutRecord } from '@/workout/workout-record';
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: 'workout-1',
     startedAt: 1_000,
     samples: [{ bpm: 120, timestamp: 1_000 }],
     device: { id: 'device-1', name: 'Pulse HRM' },
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
+    source: 'recorded',
     ...overrides,
   };
 }
@@ -165,6 +166,76 @@ describe('workout-store', () => {
       await saveWorkoutSession(record);
 
       expect(await loadWorkoutSession('workout-1')).toEqual(record);
+    });
+  });
+
+  describe('schema migration on read', () => {
+    it('migrates a raw M1-shaped record (no healthConnect, no source key at all) to schemaVersion 3', async () => {
+      const legacy = {
+        schemaVersion: 1,
+        id: 'workout-1',
+        startedAt: 1_000,
+        samples: [{ bpm: 120, timestamp: 1_000 }],
+        device: { id: 'device-1', name: 'Pulse HRM' },
+        pauses: [],
+      };
+      await AsyncStorage.setItem('workout.session.workout-1', JSON.stringify(legacy));
+      await AsyncStorage.setItem('workout.sessionIndex', JSON.stringify(['workout-1']));
+
+      const loaded = await loadWorkoutSession('workout-1');
+
+      expect(loaded).toEqual({
+        ...legacy,
+        schemaVersion: 3,
+        healthConnect: { status: 'notWritten', recordIds: [] },
+        source: 'recorded',
+      });
+    });
+
+    it('migrates a raw M2-shaped record (healthConnect present, no source key at all) to schemaVersion 3, preserving the original healthConnect', async () => {
+      const legacy = {
+        schemaVersion: 2,
+        id: 'workout-1',
+        startedAt: 1_000,
+        samples: [{ bpm: 120, timestamp: 1_000 }],
+        device: { id: 'device-1', name: 'Pulse HRM' },
+        pauses: [],
+        healthConnect: { status: 'written', recordIds: ['exercise-1'] },
+      };
+      await AsyncStorage.setItem('workout.session.workout-1', JSON.stringify(legacy));
+      await AsyncStorage.setItem('workout.sessionIndex', JSON.stringify(['workout-1']));
+
+      const loaded = await loadWorkoutSession('workout-1');
+
+      expect(loaded).toEqual({
+        ...legacy,
+        schemaVersion: 3,
+        source: 'recorded',
+      });
+    });
+
+    it('migrates a raw M1-shaped record the same way via loadWorkoutSessions', async () => {
+      const legacy = {
+        schemaVersion: 1,
+        id: 'workout-1',
+        startedAt: 1_000,
+        samples: [{ bpm: 120, timestamp: 1_000 }],
+        device: { id: 'device-1', name: 'Pulse HRM' },
+        pauses: [],
+      };
+      await AsyncStorage.setItem('workout.session.workout-1', JSON.stringify(legacy));
+      await AsyncStorage.setItem('workout.sessionIndex', JSON.stringify(['workout-1']));
+
+      const loaded = await loadWorkoutSessions();
+
+      expect(loaded).toEqual([
+        {
+          ...legacy,
+          schemaVersion: 3,
+          healthConnect: { status: 'notWritten', recordIds: [] },
+          source: 'recorded',
+        },
+      ]);
     });
   });
 });
