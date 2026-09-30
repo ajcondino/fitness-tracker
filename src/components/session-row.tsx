@@ -24,6 +24,8 @@ export type SessionRowProps = {
   timeLabel: string; // e.g. "6:42 PM" — now a meta-line detail alongside
   // duration/avg, not the title
   durationLabel: string; // e.g. "42:10" — mm:ss, same convention as Live Workout
+  activityTypeLabel: string; // e.g. "Run", or the notRecorded string — caller
+  // resolves record.activityType through t() before this component ever sees it
   averageBpmLabel: string; // e.g. "134", or "--" for a null average
   writeStatus: HealthConnectWriteStatus; // required — every real WorkoutRecord
   // always has a healthConnect field, so there's no meaningful omitted state
@@ -36,6 +38,7 @@ export function SessionRow({
   titleLabel,
   timeLabel,
   durationLabel,
+  activityTypeLabel,
   averageBpmLabel,
   writeStatus,
   onPress,
@@ -84,6 +87,10 @@ export function SessionRow({
           <View style={[styles.dot, { backgroundColor: theme.colors.outline }]} />
           <ThemedText variant="dataMd" color="onSurfaceMuted">
             {durationLabel}
+          </ThemedText>
+          <View style={[styles.dot, { backgroundColor: theme.colors.outline }]} />
+          <ThemedText variant="dataMd" color="onSurfaceMuted">
+            {activityTypeLabel}
           </ThemedText>
           <View style={[styles.dot, { backgroundColor: theme.colors.outline }]} />
           <ThemedText variant="dataMd" color="primary">

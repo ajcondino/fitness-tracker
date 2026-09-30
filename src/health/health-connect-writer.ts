@@ -1,7 +1,7 @@
 import { ExerciseType, insertRecords } from 'react-native-health-connect';
 import type { ExerciseSessionRecord, HeartRateRecord } from 'react-native-health-connect';
 
-import type { WorkoutRecord } from '@/workout/workout-record';
+import type { ActivityType, WorkoutRecord } from '@/workout/workout-record';
 
 /**
  * Framework-free (no React import) — mirrors `health-connect-client.ts`'s
@@ -36,6 +36,26 @@ function chunk<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
+// Exported for direct unit testing per the ticket's own acceptance
+// criterion — no hook, no store, pure mapping. `null` (a pre-ticket legacy
+// record) falls back to the same OTHER_WORKOUT this file hardcoded before
+// this ticket, same as the deliberately-uncategorized 'other' member.
+export function mapActivityTypeToExerciseType(activityType: ActivityType | null): number {
+  switch (activityType) {
+    case 'run':
+      return ExerciseType.RUNNING;
+    case 'walk':
+      return ExerciseType.WALKING;
+    case 'cycle':
+      return ExerciseType.BIKING;
+    case 'strength':
+      return ExerciseType.STRENGTH_TRAINING;
+    case 'other':
+    case null:
+      return ExerciseType.OTHER_WORKOUT;
+  }
+}
+
 /**
  * Maps `record` to exactly one `ExerciseSessionRecord` and one or more
  * `HeartRateRecord`s, then calls `insertRecords` and returns the combined
@@ -66,7 +86,7 @@ export async function writeWorkoutSessionToHealthConnect(record: WorkoutRecord):
 
   const exerciseRecord: ExerciseSessionRecord = {
     recordType: 'ExerciseSession',
-    exerciseType: ExerciseType.OTHER_WORKOUT,
+    exerciseType: mapActivityTypeToExerciseType(record.activityType),
     ...nonZeroInterval(record.startedAt, lastSampleAt),
   };
 

@@ -38,7 +38,7 @@ function makeDevice(overrides: Partial<DiscoveredDevice> = {}): DiscoveredDevice
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: 'workout-1',
     startedAt: new Date('2026-08-17T18:42:00').getTime(),
     samples: [
@@ -49,6 +49,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
     source: 'recorded',
+    activityType: 'run',
     ...overrides,
   };
 }
@@ -113,11 +114,12 @@ describe('<History />', () => {
   });
 
   it('renders one SessionRow per returned record, in the returned order, plus the ALL SESSIONS header', async () => {
-    const first = makeRecord({ id: 'workout-1' });
+    const first = makeRecord({ id: 'workout-1', activityType: 'cycle' });
     const second = makeRecord({
       id: 'workout-2',
       startedAt: new Date('2026-08-16T07:00:00').getTime(),
       samples: [{ bpm: 100, timestamp: new Date('2026-08-16T07:00:00').getTime() }],
+      activityType: null,
     });
     mockedLoadWorkoutSessions.mockResolvedValue([first, second]);
 
@@ -130,9 +132,11 @@ describe('<History />', () => {
     // first record's duration is 42:10 and average is (120+140)/2 = 130
     expect(screen.getByText('42:10')).toBeOnTheScreen();
     expect(screen.getByText('130 avg')).toBeOnTheScreen();
-    // second record is a single-sample, zero-duration session
+    expect(screen.getByText('Cycle')).toBeOnTheScreen();
+    // second record is a single-sample, zero-duration session, activityType null
     expect(screen.getByText('00:00')).toBeOnTheScreen();
     expect(screen.getByText('100 avg')).toBeOnTheScreen();
+    expect(screen.getByText('Not recorded')).toBeOnTheScreen();
   });
 
   it("passes each record's healthConnect.status into its SessionRow's writeStatus marker", async () => {

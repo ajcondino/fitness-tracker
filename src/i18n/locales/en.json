@@ -128,7 +128,18 @@
     "trace": {
       "label": "LIVE TRACE",
       "unit": "bpm"
+    },
+    "activityPicker": {
+      "header": "Activity"
     }
+  },
+  "activityType": {
+    "run": "Run",
+    "walk": "Walk",
+    "cycle": "Cycle",
+    "strength": "Strength",
+    "other": "Other",
+    "notRecorded": "Not recorded"
   },
   "sessionSummary": {
     "flag": {

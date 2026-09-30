@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { migrateWorkoutRecord } from '@/workout/workout-migrations';
 import type { LegacyWorkoutRecord } from '@/workout/workout-migrations';
 import type {
+  ActivityType,
   HealthConnectWriteInfo,
   WorkoutRecord,
   WorkoutSource,
@@ -63,6 +64,15 @@ function parseWorkoutSource(raw: unknown): WorkoutSource {
   return raw === 'recorded' || raw === 'imported' ? raw : 'recorded';
 }
 
+// Same shape as parseWorkoutSource, but falls back to null, not a real
+// member — a missing or corrupt activityType means "not recorded," never a
+// guessed activity. See SPEC.md's Style & Conventions.
+function parseActivityType(raw: unknown): ActivityType | null {
+  return raw === 'run' || raw === 'walk' || raw === 'cycle' || raw === 'strength' || raw === 'other'
+    ? raw
+    : null;
+}
+
 function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
   if (raw == null) {
     return null;
@@ -93,6 +103,7 @@ function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
       ...migrated,
       healthConnect: parseHealthConnectWriteInfo(migrated.healthConnect),
       source: parseWorkoutSource(migrated.source),
+      activityType: parseActivityType(migrated.activityType),
     } as WorkoutRecord;
   } catch {
     return null;

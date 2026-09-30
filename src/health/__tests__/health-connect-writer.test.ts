@@ -1,7 +1,10 @@
 import { ExerciseType, insertRecords } from 'react-native-health-connect';
 
-import { writeWorkoutSessionToHealthConnect } from '@/health/health-connect-writer';
-import type { WorkoutRecord } from '@/workout/workout-record';
+import {
+  mapActivityTypeToExerciseType,
+  writeWorkoutSessionToHealthConnect,
+} from '@/health/health-connect-writer';
+import type { ActivityType, WorkoutRecord } from '@/workout/workout-record';
 
 jest.mock('react-native-health-connect');
 
@@ -9,7 +12,7 @@ const mockedInsertRecords = insertRecords as jest.MockedFunction<typeof insertRe
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: 'workout-1',
     startedAt: 1_000,
     samples: [
@@ -21,9 +24,23 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
     source: 'recorded',
+    activityType: 'run',
     ...overrides,
   };
 }
+
+describe('mapActivityTypeToExerciseType', () => {
+  it.each<[ActivityType | null, number]>([
+    ['run', ExerciseType.RUNNING],
+    ['walk', ExerciseType.WALKING],
+    ['cycle', ExerciseType.BIKING],
+    ['strength', ExerciseType.STRENGTH_TRAINING],
+    ['other', ExerciseType.OTHER_WORKOUT],
+    [null, ExerciseType.OTHER_WORKOUT],
+  ])('maps %s to %i', (activityType, expected) => {
+    expect(mapActivityTypeToExerciseType(activityType)).toBe(expected);
+  });
+});
 
 describe('writeWorkoutSessionToHealthConnect', () => {
   beforeEach(() => {
@@ -51,7 +68,7 @@ describe('writeWorkoutSessionToHealthConnect', () => {
       { recordType: string; exerciseType: number; startTime: string; endTime: string },
     ];
     expect(exerciseRecord.recordType).toBe('ExerciseSession');
-    expect(exerciseRecord.exerciseType).toBe(ExerciseType.OTHER_WORKOUT);
+    expect(exerciseRecord.exerciseType).toBe(ExerciseType.RUNNING);
     expect(exerciseRecord.startTime).toBe(new Date(1_000).toISOString());
     expect(exerciseRecord.endTime).toBe(new Date(3_000).toISOString());
 
@@ -127,6 +144,19 @@ describe('writeWorkoutSessionToHealthConnect', () => {
 
     await expect(writeWorkoutSessionToHealthConnect(record)).rejects.toThrow('write failed');
     expect(mockedInsertRecords).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the record's own activityType to set exerciseType, not a hardcoded value", async () => {
+    mockedInsertRecords
+      .mockResolvedValueOnce(['exercise-1'])
+      .mockResolvedValueOnce(['heartrate-1']);
+    const record = makeRecord({ activityType: null });
+
+    await writeWorkoutSessionToHealthConnect(record);
+
+    const [exerciseCallRecords] = mockedInsertRecords.mock.calls[0];
+    const [exerciseRecord] = exerciseCallRecords as unknown as [{ exerciseType: number }];
+    expect(exerciseRecord.exerciseType).toBe(ExerciseType.OTHER_WORKOUT);
   });
 
   it('propagates a rejection from the heart-rate insertRecords call after the exercise-session call already succeeded', async () => {

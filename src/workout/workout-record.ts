@@ -6,7 +6,7 @@ import type { HeartRateSample, WorkoutPause } from '@/hooks/use-workout-session'
  * derivations" layer.
  */
 
-export const WORKOUT_RECORD_SCHEMA_VERSION = 3;
+export const WORKOUT_RECORD_SCHEMA_VERSION = 4;
 
 export type HealthConnectWriteStatus = 'notWritten' | 'written' | 'failed';
 
@@ -39,6 +39,13 @@ export type { WorkoutPause };
 // migration. Every session this app records itself is 'recorded'.
 export type WorkoutSource = 'recorded' | 'imported';
 
+export type ActivityType = 'run' | 'walk' | 'cycle' | 'strength' | 'other';
+
+// Canonical display/iteration order — shared by the picker (button order)
+// and any future screen that needs to enumerate the five values, so the
+// order is defined once rather than re-declared per consumer.
+export const ACTIVITY_TYPES: ActivityType[] = ['run', 'walk', 'cycle', 'strength', 'other'];
+
 /**
  * The full persisted record — enough to reconstruct the session, not just
  * its summary. Deliberately has NO averageBpm/maxBpm/durationMs field: per
@@ -56,6 +63,11 @@ export type WorkoutRecord = {
   pauses: WorkoutPause[];
   healthConnect: HealthConnectWriteInfo;
   source: WorkoutSource;
+  // null exclusively means "recorded before this field existed" — never
+  // produced by any code path this ticket adds. Every session Live Workout
+  // constructs from here on has a concrete ActivityType, because the picker
+  // always has a selection (defaulted, never empty).
+  activityType: ActivityType | null;
 };
 
 export type WorkoutSummary = {

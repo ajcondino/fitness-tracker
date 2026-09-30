@@ -91,6 +91,14 @@ export function SessionSummary(props: SessionSummaryProps) {
         </ThemedText>
       </View>
 
+      <ThemedText variant="labelCaps" color="onSurfaceDim" testID="session-summary-activity-type">
+        {t(
+          record.activityType != null
+            ? `activityType.${record.activityType}`
+            : 'activityType.notRecorded',
+        )}
+      </ThemedText>
+
       <View style={styles.heroBlock}>
         <ThemedText variant="h3" color="onSurface">
           {t(`sessionSummary.title.${timeOfDay}`)}

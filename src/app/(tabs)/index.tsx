@@ -191,6 +191,11 @@ export default function Index() {
                     titleLabel={t(`sessionSummary.title.${describeSessionTime(startedAtDate)}`)}
                     timeLabel={formatTime(startedAtDate, i18n.language)}
                     durationLabel={formatDuration(summary.durationMs)}
+                    activityTypeLabel={t(
+                      record.activityType != null
+                        ? `activityType.${record.activityType}`
+                        : 'activityType.notRecorded',
+                    )}
                     averageBpmLabel={
                       summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
                     }
