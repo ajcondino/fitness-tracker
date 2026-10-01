@@ -18,9 +18,9 @@ import type { HealthConnectWriteStatus } from '@/workout/workout-record';
 export type SessionRowProps = {
   monthLabel: string; // e.g. "AUG" — caller-formatted, already uppercase
   dayLabel: string; // e.g. "17"
-  titleLabel: string; // e.g. "Morning Workout" — this row's title line, the
-  // same describeSessionTime-derived name Live Workout's header and
-  // session-summary.tsx's hero title use
+  titleLabel: string; // e.g. "Morning Run" — this row's title line, the same
+  // describeSessionTime + activityType-derived name Live Workout's header
+  // and session-summary.tsx's hero title use
   timeLabel: string; // e.g. "6:42 PM" — now a meta-line detail alongside
   // duration/avg, not the title
   durationLabel: string; // e.g. "42:10" — mm:ss, same convention as Live Workout

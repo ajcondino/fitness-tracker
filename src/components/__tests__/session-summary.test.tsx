@@ -8,7 +8,7 @@ const TRACE_BUCKET_COUNT = 48; // mirrors session-summary.tsx's own private cons
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: 'workout-1',
     // 6:42 PM — within the 17:00–21:59 "evening" bucket.
     startedAt: new Date('2026-08-19T18:42:00').getTime(),
@@ -20,6 +20,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
     source: 'recorded',
+    activityType: 'run',
     ...overrides,
   };
 }
@@ -41,7 +42,7 @@ describe('<SessionSummary />', () => {
       );
 
       expect(screen.getByText('AUG 19 · 6:42 PM')).toBeOnTheScreen();
-      expect(screen.getByText('Evening Workout')).toBeOnTheScreen();
+      expect(screen.getByText('Evening Run')).toBeOnTheScreen();
       expect(screen.getByText('TOTAL TIME')).toBeOnTheScreen();
       // The trace card's own axis row shows the same span whenever a
       // fixture has no pauses (see the Design decision on why the two
@@ -50,6 +51,57 @@ describe('<SessionSummary />', () => {
       expect(screen.getByTestId('session-summary-hero-duration')).toHaveTextContent('10:10');
       expect(screen.getByText('130')).toBeOnTheScreen();
       expect(screen.getByText('140')).toBeOnTheScreen();
+    });
+
+    it('folds the activityType into the hero title (e.g. "Evening Cycle")', async () => {
+      const record = makeRecord({ activityType: 'cycle' });
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+
+      expect(screen.getByText('Evening Cycle')).toBeOnTheScreen();
+    });
+
+    it('titles a null activityType (a pre-ticket legacy session) as "Evening session", never a guessed activity', async () => {
+      const record = makeRecord({ activityType: null });
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+
+      expect(screen.getByText('Evening session')).toBeOnTheScreen();
+    });
+
+    it('titles an \'other\' activityType as "Evening Workout", not "Evening Other" or "Evening session"', async () => {
+      const record = makeRecord({ activityType: 'other' });
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+
+      expect(screen.getByText('Evening Workout')).toBeOnTheScreen();
     });
 
     it('renders "--" for a null average/max BPM on a zero-sample record, with 0:00 duration', async () => {

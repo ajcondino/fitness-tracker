@@ -35,6 +35,17 @@ const MIGRATIONS: Record<number, MigrationStep> = {
     source: record.source ?? 'recorded',
     schemaVersion: 3,
   }),
+  // 3 -> 4: this ticket adds `activityType`. A record that predates this
+  // field could have been any activity — unlike `source`, there is no
+  // single value that's "definitionally" correct for every prior session,
+  // so it's left `null` ("not recorded") rather than guessed as any of the
+  // five, per the issue's explicit "do not silently label old sessions as
+  // runs."
+  3: (record) => ({
+    ...record,
+    activityType: record.activityType ?? null,
+    schemaVersion: 4,
+  }),
 };
 
 export function migrateWorkoutRecord(record: LegacyWorkoutRecord): Record<string, unknown> {

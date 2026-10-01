@@ -9,7 +9,7 @@ import type { WorkoutRecord } from '@/workout/workout-record';
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: 'workout-1',
     startedAt: 1_000,
     samples: [{ bpm: 120, timestamp: 1_000 }],
@@ -17,6 +17,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
     source: 'recorded',
+    activityType: 'run',
     ...overrides,
   };
 }
@@ -169,8 +170,41 @@ describe('workout-store', () => {
     });
   });
 
+  describe('activityType field defaulting', () => {
+    it('defaults to null for a schema-version-3 record with no activityType field', async () => {
+      const legacy = { ...makeRecord(), schemaVersion: 3 } as Record<string, unknown>;
+      delete legacy.activityType;
+      await AsyncStorage.setItem('workout.session.workout-1', JSON.stringify(legacy));
+      await AsyncStorage.setItem('workout.sessionIndex', JSON.stringify(['workout-1']));
+
+      const loaded = await loadWorkoutSession('workout-1');
+
+      expect(loaded?.activityType).toBeNull();
+      expect(loaded?.id).toBe('workout-1');
+    });
+
+    it('defaults a corrupt activityType value to null without dropping the record', async () => {
+      const malformed = { ...makeRecord(), activityType: 'jogging' };
+      await AsyncStorage.setItem('workout.session.workout-1', JSON.stringify(malformed));
+      await AsyncStorage.setItem('workout.sessionIndex', JSON.stringify(['workout-1']));
+
+      const loaded = await loadWorkoutSession('workout-1');
+
+      expect(loaded).not.toBeNull();
+      expect(loaded?.activityType).toBeNull();
+    });
+
+    it('round-trips a non-default activityType value as-is', async () => {
+      const record = makeRecord({ activityType: 'cycle' });
+
+      await saveWorkoutSession(record);
+
+      expect(await loadWorkoutSession('workout-1')).toEqual(record);
+    });
+  });
+
   describe('schema migration on read', () => {
-    it('migrates a raw M1-shaped record (no healthConnect, no source key at all) to schemaVersion 3', async () => {
+    it('migrates a raw M1-shaped record (no healthConnect, no source, no activityType key at all) to schemaVersion 4', async () => {
       const legacy = {
         schemaVersion: 1,
         id: 'workout-1',
@@ -186,13 +220,14 @@ describe('workout-store', () => {
 
       expect(loaded).toEqual({
         ...legacy,
-        schemaVersion: 3,
+        schemaVersion: 4,
         healthConnect: { status: 'notWritten', recordIds: [] },
         source: 'recorded',
+        activityType: null,
       });
     });
 
-    it('migrates a raw M2-shaped record (healthConnect present, no source key at all) to schemaVersion 3, preserving the original healthConnect', async () => {
+    it('migrates a raw M2-shaped record (healthConnect present, no source or activityType key at all) to schemaVersion 4, preserving the original healthConnect', async () => {
       const legacy = {
         schemaVersion: 2,
         id: 'workout-1',
@@ -209,8 +244,32 @@ describe('workout-store', () => {
 
       expect(loaded).toEqual({
         ...legacy,
-        schemaVersion: 3,
+        schemaVersion: 4,
         source: 'recorded',
+        activityType: null,
+      });
+    });
+
+    it('migrates a raw M3-shaped record (source present, no activityType key at all) to schemaVersion 4 with activityType null', async () => {
+      const legacy = {
+        schemaVersion: 3,
+        id: 'workout-1',
+        startedAt: 1_000,
+        samples: [{ bpm: 120, timestamp: 1_000 }],
+        device: { id: 'device-1', name: 'Pulse HRM' },
+        pauses: [],
+        healthConnect: { status: 'notWritten', recordIds: [] },
+        source: 'recorded',
+      };
+      await AsyncStorage.setItem('workout.session.workout-1', JSON.stringify(legacy));
+      await AsyncStorage.setItem('workout.sessionIndex', JSON.stringify(['workout-1']));
+
+      const loaded = await loadWorkoutSession('workout-1');
+
+      expect(loaded).toEqual({
+        ...legacy,
+        schemaVersion: 4,
+        activityType: null,
       });
     });
 
@@ -231,9 +290,10 @@ describe('workout-store', () => {
       expect(loaded).toEqual([
         {
           ...legacy,
-          schemaVersion: 3,
+          schemaVersion: 4,
           healthConnect: { status: 'notWritten', recordIds: [] },
           source: 'recorded',
+          activityType: null,
         },
       ]);
     });

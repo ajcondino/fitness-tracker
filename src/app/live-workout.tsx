@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { bleManager } from '@/ble/manager';
 import { usePairingStore } from '@/ble/pairing-store';
 import { selectDeviceDisplayName } from '@/ble/pairing-types';
+import { ActivityTypePicker } from '@/components/activity-type-picker';
 import { DeviceChip, type DeviceChipStatus } from '@/components/device-chip';
 import { SessionSummary } from '@/components/session-summary';
 import { Glow } from '@/components/ui/glow';
@@ -19,9 +20,11 @@ import type { ColorToken } from '@/constants/theme';
 import { spacing } from '@/constants/theme';
 import { autoSyncWorkoutSessionToHealthConnect } from '@/health/health-connect-sync';
 import { useTheme } from '@/hooks/use-theme';
+import { useLastActivityType } from '@/hooks/use-last-activity-type';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import type { LiveHeartRateStatus } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
+import { deriveSessionTitle } from '@/workout/session-title';
 import {
   WORKOUT_RECORD_SCHEMA_VERSION,
   bucketHeartRateSamples,
@@ -94,6 +97,8 @@ export default function LiveWorkout() {
   const { bpm, status, lastReadingAt } = useLiveHeartRate(deviceId, isConnected);
   const session = useWorkoutSession(bpm, lastReadingAt);
 
+  const { activityType: selectedActivityType, setActivityType } = useLastActivityType();
+
   // The session header's derived name (e.g. "Morning Workout"), memoized on
   // `startedAt` so it's computed once for the life of the session rather
   // than on every render — a session that crosses a time-of-day boundary
@@ -149,9 +154,18 @@ export default function LiveWorkout() {
         pauses,
         healthConnect: { status: 'notWritten', recordIds: [] },
         source: 'recorded',
+        activityType: selectedActivityType,
       };
     });
-  }, [deviceId, device, session.phase, session.startedAt, session.samples, session.pauses]);
+  }, [
+    deviceId,
+    device,
+    session.phase,
+    session.startedAt,
+    session.samples,
+    session.pauses,
+    selectedActivityType,
+  ]);
 
   const discard = () => {
     setDecided(true);
@@ -269,7 +283,7 @@ export default function LiveWorkout() {
                   {t('liveWorkout.sessionLabel')}
                 </ThemedText>
                 <ThemedText variant="titleMd" color="onSurface">
-                  {t(`sessionSummary.title.${sessionTimeOfDay}`)}
+                  {deriveSessionTitle(sessionTimeOfDay, selectedActivityType, t)}
                 </ThemedText>
               </View>
               <DeviceChip
@@ -396,6 +410,12 @@ export default function LiveWorkout() {
             no-device guard above uses), not a variant of Stop. Once running or
             paused, the same slot becomes the red Stop square. See the ticket's
             "idle controls" decision. */}
+        {session.phase === 'idle' && (
+          <View style={styles.activityPickerContainer}>
+            <ActivityTypePicker value={selectedActivityType} onChange={setActivityType} />
+          </View>
+        )}
+
         {session.phase === 'idle' && (
           <View style={styles.actionRow}>
             <Pressable
@@ -605,6 +625,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     gap: spacing.xs,
+  },
+  activityPickerContainer: {
+    marginBottom: spacing.lg,
+    zIndex: 1,
   },
   actionRow: {
     flexDirection: 'row',

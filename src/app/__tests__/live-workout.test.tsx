@@ -8,6 +8,7 @@ import { usePairingStore } from '@/ble/pairing-store';
 import type { DiscoveredDevice } from '@/ble/pairing-types';
 import { spacing } from '@/constants/theme';
 import { autoSyncWorkoutSessionToHealthConnect } from '@/health/health-connect-sync';
+import { useLastActivityType } from '@/hooks/use-last-activity-type';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
 import type { WorkoutSessionSnapshot } from '@/hooks/use-workout-session';
@@ -27,6 +28,7 @@ jest.mock('expo-router', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 34, left: 0 }),
 }));
+jest.mock('@/hooks/use-last-activity-type');
 jest.mock('@/hooks/use-live-heart-rate');
 jest.mock('@/hooks/use-workout-session');
 jest.mock('@/workout/workout-store');
@@ -34,6 +36,9 @@ jest.mock('@/health/health-connect-sync');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedUseNavigation = useNavigation as jest.MockedFunction<typeof useNavigation>;
+const mockedUseLastActivityType = useLastActivityType as jest.MockedFunction<
+  typeof useLastActivityType
+>;
 const mockedUseLiveHeartRate = useLiveHeartRate as jest.MockedFunction<typeof useLiveHeartRate>;
 const mockedUseWorkoutSession = useWorkoutSession as jest.MockedFunction<typeof useWorkoutSession>;
 const mockedCancelDeviceConnection = jest.mocked(bleManager.cancelDeviceConnection);
@@ -65,9 +70,15 @@ function makeDevice(overrides: Partial<DiscoveredDevice> = {}): DiscoveredDevice
 
 describe('<LiveWorkout />', () => {
   const back = jest.fn();
+  const setActivityType = jest.fn();
 
   beforeEach(() => {
     back.mockClear();
+    setActivityType.mockClear();
+    mockedUseLastActivityType.mockReset().mockReturnValue({
+      activityType: 'run',
+      setActivityType,
+    });
     mockedUseRouter.mockReturnValue({ back } as unknown as ReturnType<typeof useRouter>);
     beforeRemoveListener = undefined;
     mockedUseNavigation.mockReset().mockReturnValue({
@@ -152,6 +163,27 @@ describe('<LiveWorkout />', () => {
     });
 
     it("derives the session heading's name from startedAt's time of day, matching session-summary.tsx's own titles", async () => {
+      mockedUseWorkoutSession.mockReturnValue({
+        phase: 'running',
+        startedAt: new Date('2026-08-19T07:30:00').getTime(), // morning
+        samples: [],
+        pauses: [],
+        elapsedMs: 0,
+        averageBpm: null,
+        maxBpm: null,
+        start: jest.fn(),
+        pause: jest.fn(),
+        resume: jest.fn(),
+        stop: jest.fn(),
+      });
+
+      await render(<LiveWorkout />);
+
+      expect(screen.getByText('Morning Run')).toBeOnTheScreen();
+    });
+
+    it('titles an \'other\' selection as "Morning Workout", not "Morning Other"', async () => {
+      mockedUseLastActivityType.mockReturnValue({ activityType: 'other', setActivityType });
       mockedUseWorkoutSession.mockReturnValue({
         phase: 'running',
         startedAt: new Date('2026-08-19T07:30:00').getTime(), // morning
@@ -319,9 +351,34 @@ describe('<LiveWorkout />', () => {
             pauses,
             healthConnect: { status: 'notWritten', recordIds: [] },
             source: 'recorded',
+            activityType: 'run',
           }),
         );
         expect(back).toHaveBeenCalledTimes(1);
+      });
+
+      it('carries whichever activityType was selected at the moment the record was constructed', async () => {
+        mockedUseLastActivityType.mockReturnValue({ activityType: 'cycle', setActivityType });
+        mockedUseWorkoutSession.mockReturnValue({
+          phase: 'ended',
+          startedAt: 500,
+          samples: [{ bpm: 120, timestamp: 1_000 }],
+          pauses: [],
+          elapsedMs: 500,
+          averageBpm: 120,
+          maxBpm: 120,
+          start: jest.fn(),
+          pause: jest.fn(),
+          resume: jest.fn(),
+          stop: jest.fn(),
+        });
+
+        await render(<LiveWorkout />);
+        fireEvent.press(screen.getByTestId('live-workout-save'));
+
+        expect(mockedSaveWorkoutSession).toHaveBeenCalledWith(
+          expect.objectContaining({ activityType: 'cycle' }),
+        );
       });
 
       it('calls autoSyncWorkoutSessionToHealthConnect with the same record only after saveWorkoutSession resolves, with router.back() already fired before either settles', async () => {
@@ -514,6 +571,41 @@ describe('<LiveWorkout />', () => {
         fireEvent.press(screen.getByTestId('live-workout-start'));
 
         expect(session.start).toHaveBeenCalledTimes(1);
+      });
+
+      it('idle: shows all five activity pills, with the last-persisted choice selected', async () => {
+        mockedUseLastActivityType.mockReturnValue({ activityType: 'strength', setActivityType });
+        mockedUseWorkoutSession.mockReturnValue(sessionMock('idle'));
+
+        await render(<LiveWorkout />);
+
+        for (const type of ['run', 'walk', 'cycle', 'strength', 'other']) {
+          expect(screen.getByTestId(`activity-type-picker-${type}`)).toBeOnTheScreen();
+        }
+        expect(
+          screen.getByTestId('activity-type-picker-strength').props.accessibilityState,
+        ).toEqual({ selected: true });
+        expect(screen.getByTestId('activity-type-picker-run').props.accessibilityState).toEqual({
+          selected: false,
+        });
+      });
+
+      it('idle: tapping a different pill calls setActivityType with that type', async () => {
+        mockedUseWorkoutSession.mockReturnValue(sessionMock('idle'));
+
+        await render(<LiveWorkout />);
+
+        fireEvent.press(screen.getByTestId('activity-type-picker-walk'));
+
+        expect(setActivityType).toHaveBeenCalledWith('walk');
+      });
+
+      it('idle: the picker is absent once running/paused/ended', async () => {
+        mockedUseWorkoutSession.mockReturnValue(sessionMock('running'));
+
+        await render(<LiveWorkout />);
+
+        expect(screen.queryByTestId('activity-type-picker-run')).not.toBeOnTheScreen();
       });
 
       it('running: shows Pause + Stop; tapping each calls session.pause/session.stop exactly once', async () => {

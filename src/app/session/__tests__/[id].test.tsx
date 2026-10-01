@@ -29,7 +29,7 @@ const mockedSyncWorkoutSession = syncWorkoutSessionToHealthConnect as jest.Mocke
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: 'workout-1',
     startedAt: new Date('2026-08-19T18:42:00').getTime(),
     samples: [
@@ -40,6 +40,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
     source: 'recorded',
+    activityType: 'run',
     ...overrides,
   };
 }

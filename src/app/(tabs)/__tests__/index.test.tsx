@@ -48,7 +48,7 @@ function makeDevice(overrides: Partial<DiscoveredDevice> = {}): DiscoveredDevice
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: 'workout-1',
     startedAt: new Date('2026-08-17T18:42:00').getTime(),
     samples: [
@@ -59,6 +59,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
     source: 'recorded',
+    activityType: 'run',
     ...overrides,
   };
 }
@@ -239,5 +240,18 @@ describe('<Index /> (Home)', () => {
       fireEvent.press(screen.getByTestId('home-recent-see-all'));
     });
     expect(navigate).toHaveBeenCalledWith('/history');
+  });
+
+  it("folds each recent row's activity type into its title, including the null case for a legacy session", async () => {
+    mockedLoadWorkoutSessions.mockResolvedValue([
+      makeRecord({ id: 'workout-1', activityType: 'walk' }),
+      makeRecord({ id: 'workout-2', activityType: null }),
+    ]);
+
+    await render(<Index />);
+    await act(async () => {});
+
+    expect(screen.getByText('Evening Walk')).toBeOnTheScreen();
+    expect(screen.getByText('Evening session')).toBeOnTheScreen();
   });
 });

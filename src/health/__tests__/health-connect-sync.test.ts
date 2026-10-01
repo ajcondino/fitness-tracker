@@ -28,7 +28,7 @@ const mockedSaveWorkoutSession = saveWorkoutSession as jest.MockedFunction<
 
 function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: 'workout-1',
     startedAt: 1_000,
     samples: [{ bpm: 120, timestamp: 1_000 }],
@@ -36,6 +36,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     pauses: [],
     healthConnect: { status: 'notWritten', recordIds: [] },
     source: 'recorded',
+    activityType: 'run',
     ...overrides,
   };
 }
