@@ -13,7 +13,6 @@ describe('<SessionRow />', () => {
         titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="42:10"
-        activityTypeLabel="Run"
         averageBpmLabel="134"
         writeStatus="notWritten"
       />,
@@ -24,25 +23,7 @@ describe('<SessionRow />', () => {
     expect(screen.getByText('Morning Workout')).toBeOnTheScreen();
     expect(screen.getByText('6:42 PM')).toBeOnTheScreen();
     expect(screen.getByText('42:10')).toBeOnTheScreen();
-    expect(screen.getByText('Run')).toBeOnTheScreen();
     expect(screen.getByText('134 avg')).toBeOnTheScreen();
-  });
-
-  it('renders the caller-provided activityTypeLabel verbatim, including the notRecorded case', async () => {
-    await render(
-      <SessionRow
-        monthLabel="AUG"
-        dayLabel="17"
-        titleLabel="Morning Workout"
-        timeLabel="6:42 PM"
-        durationLabel="42:10"
-        activityTypeLabel="Not recorded"
-        averageBpmLabel="134"
-        writeStatus="notWritten"
-      />,
-    );
-
-    expect(screen.getByText('Not recorded')).toBeOnTheScreen();
   });
 
   it('renders the average BPM in the primary color', async () => {
@@ -53,7 +34,6 @@ describe('<SessionRow />', () => {
         titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="42:10"
-        activityTypeLabel="Run"
         averageBpmLabel="134"
         writeStatus="notWritten"
       />,
@@ -71,7 +51,6 @@ describe('<SessionRow />', () => {
         titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="00:00"
-        activityTypeLabel="Run"
         averageBpmLabel="--"
         writeStatus="notWritten"
       />,
@@ -88,7 +67,6 @@ describe('<SessionRow />', () => {
         titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="42:10"
-        activityTypeLabel="Run"
         averageBpmLabel="134"
         writeStatus="notWritten"
       />,
@@ -107,7 +85,6 @@ describe('<SessionRow />', () => {
         titleLabel="Morning Workout"
         timeLabel="6:42 PM"
         durationLabel="42:10"
-        activityTypeLabel="Run"
         averageBpmLabel="134"
         writeStatus="notWritten"
         onPress={onPress}
@@ -134,7 +111,6 @@ describe('<SessionRow />', () => {
           titleLabel="Morning Workout"
           timeLabel="6:42 PM"
           durationLabel="42:10"
-          activityTypeLabel="Run"
           averageBpmLabel="134"
           writeStatus={status}
         />,
@@ -152,7 +128,6 @@ describe('<SessionRow />', () => {
           titleLabel="Morning Workout"
           timeLabel="6:42 PM"
           durationLabel="42:10"
-          activityTypeLabel="Run"
           averageBpmLabel="134"
           writeStatus="written"
         />,
@@ -169,7 +144,6 @@ describe('<SessionRow />', () => {
           titleLabel="Morning Workout"
           timeLabel="6:42 PM"
           durationLabel="42:10"
-          activityTypeLabel="Run"
           averageBpmLabel="134"
           writeStatus="notWritten"
         />,
@@ -186,7 +160,6 @@ describe('<SessionRow />', () => {
           titleLabel="Morning Workout"
           timeLabel="6:42 PM"
           durationLabel="42:10"
-          activityTypeLabel="Run"
           averageBpmLabel="134"
           writeStatus="failed"
         />,

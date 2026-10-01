@@ -12,6 +12,7 @@ import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { layout, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { deriveSessionTitle } from '@/workout/session-title';
 import type { WorkoutRecord } from '@/workout/workout-record';
 import {
   deriveWeeklyTotals,
@@ -181,14 +182,13 @@ export default function History() {
                   <SessionRow
                     monthLabel={formatMonth(startedAtDate, i18n.language)}
                     dayLabel={String(startedAtDate.getDate())}
-                    titleLabel={t(`sessionSummary.title.${describeSessionTime(startedAtDate)}`)}
+                    titleLabel={deriveSessionTitle(
+                      describeSessionTime(startedAtDate),
+                      record.activityType,
+                      t,
+                    )}
                     timeLabel={formatTime(startedAtDate, i18n.language)}
                     durationLabel={formatDuration(summary.durationMs)}
-                    activityTypeLabel={t(
-                      record.activityType != null
-                        ? `activityType.${record.activityType}`
-                        : 'activityType.notRecorded',
-                    )}
                     averageBpmLabel={
                       summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
                     }

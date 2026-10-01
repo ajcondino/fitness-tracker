@@ -132,11 +132,11 @@ describe('<History />', () => {
     // first record's duration is 42:10 and average is (120+140)/2 = 130
     expect(screen.getByText('42:10')).toBeOnTheScreen();
     expect(screen.getByText('130 avg')).toBeOnTheScreen();
-    expect(screen.getByText('Cycle')).toBeOnTheScreen();
+    expect(screen.getByText('Evening Cycle')).toBeOnTheScreen();
     // second record is a single-sample, zero-duration session, activityType null
     expect(screen.getByText('00:00')).toBeOnTheScreen();
     expect(screen.getByText('100 avg')).toBeOnTheScreen();
-    expect(screen.getByText('Not recorded')).toBeOnTheScreen();
+    expect(screen.getByText('Morning session')).toBeOnTheScreen();
   });
 
   it("passes each record's healthConnect.status into its SessionRow's writeStatus marker", async () => {

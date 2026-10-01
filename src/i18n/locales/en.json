@@ -138,8 +138,7 @@
     "walk": "Walk",
     "cycle": "Cycle",
     "strength": "Strength",
-    "other": "Other",
-    "notRecorded": "Not recorded"
+    "other": "Other"
   },
   "sessionSummary": {
     "flag": {
@@ -147,10 +146,12 @@
       "saved": "SAVED SESSION"
     },
     "title": {
-      "morning": "Morning Workout",
-      "afternoon": "Afternoon Workout",
-      "evening": "Evening Workout",
-      "night": "Night Workout"
+      "morning": "Morning {{activity}}",
+      "afternoon": "Afternoon {{activity}}",
+      "evening": "Evening {{activity}}",
+      "night": "Night {{activity}}",
+      "activityFallback": "session",
+      "otherActivity": "Workout"
     },
     "stats": {
       "totalTime": "TOTAL TIME",

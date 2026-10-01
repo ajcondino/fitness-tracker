@@ -24,6 +24,7 @@ import { useLastActivityType } from '@/hooks/use-last-activity-type';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
 import type { LiveHeartRateStatus } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
+import { deriveSessionTitle } from '@/workout/session-title';
 import {
   WORKOUT_RECORD_SCHEMA_VERSION,
   bucketHeartRateSamples,
@@ -282,13 +283,8 @@ export default function LiveWorkout() {
                   {t('liveWorkout.sessionLabel')}
                 </ThemedText>
                 <ThemedText variant="titleMd" color="onSurface">
-                  {t(`sessionSummary.title.${sessionTimeOfDay}`)}
+                  {deriveSessionTitle(sessionTimeOfDay, selectedActivityType, t)}
                 </ThemedText>
-                {(session.phase === 'running' || session.phase === 'paused') && (
-                  <ThemedText variant="dataSm" color="primary" testID="live-workout-activity-type">
-                    {t(`activityType.${selectedActivityType}`)}
-                  </ThemedText>
-                )}
               </View>
               <DeviceChip
                 deviceName={deviceName}

@@ -179,6 +179,27 @@ describe('<LiveWorkout />', () => {
 
       await render(<LiveWorkout />);
 
+      expect(screen.getByText('Morning Run')).toBeOnTheScreen();
+    });
+
+    it('titles an \'other\' selection as "Morning Workout", not "Morning Other"', async () => {
+      mockedUseLastActivityType.mockReturnValue({ activityType: 'other', setActivityType });
+      mockedUseWorkoutSession.mockReturnValue({
+        phase: 'running',
+        startedAt: new Date('2026-08-19T07:30:00').getTime(), // morning
+        samples: [],
+        pauses: [],
+        elapsedMs: 0,
+        averageBpm: null,
+        maxBpm: null,
+        start: jest.fn(),
+        pause: jest.fn(),
+        resume: jest.fn(),
+        stop: jest.fn(),
+      });
+
+      await render(<LiveWorkout />);
+
       expect(screen.getByText('Morning Workout')).toBeOnTheScreen();
     });
 
@@ -633,22 +654,6 @@ describe('<LiveWorkout />', () => {
 
         expect(session.stop).toHaveBeenCalledTimes(1);
         expect(session.resume).toHaveBeenCalledTimes(1);
-      });
-
-      it('shows the selected activity type badge while running or paused, but not while idle', async () => {
-        mockedUseLastActivityType.mockReturnValue({ activityType: 'cycle', setActivityType });
-
-        mockedUseWorkoutSession.mockReturnValue(sessionMock('idle'));
-        const { rerender } = await render(<LiveWorkout />);
-        expect(screen.queryByTestId('live-workout-activity-type')).not.toBeOnTheScreen();
-
-        mockedUseWorkoutSession.mockReturnValue(sessionMock('running'));
-        await rerender(<LiveWorkout />);
-        expect(screen.getByTestId('live-workout-activity-type')).toHaveTextContent('Cycle');
-
-        mockedUseWorkoutSession.mockReturnValue(sessionMock('paused'));
-        await rerender(<LiveWorkout />);
-        expect(screen.getByTestId('live-workout-activity-type')).toHaveTextContent('Cycle');
       });
     });
 

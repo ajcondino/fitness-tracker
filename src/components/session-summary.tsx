@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/ui/themed-text';
 import { WriteStatusMarker } from '@/components/ui/write-status-marker';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { deriveSessionTitle } from '@/workout/session-title';
 import {
   bucketHeartRateSamples,
   deriveWorkoutSummary,
@@ -91,17 +92,9 @@ export function SessionSummary(props: SessionSummaryProps) {
         </ThemedText>
       </View>
 
-      <ThemedText variant="labelCaps" color="onSurfaceDim" testID="session-summary-activity-type">
-        {t(
-          record.activityType != null
-            ? `activityType.${record.activityType}`
-            : 'activityType.notRecorded',
-        )}
-      </ThemedText>
-
       <View style={styles.heroBlock}>
         <ThemedText variant="h3" color="onSurface">
-          {t(`sessionSummary.title.${timeOfDay}`)}
+          {deriveSessionTitle(timeOfDay, record.activityType, t)}
         </ThemedText>
         <View style={styles.heroDurationRow}>
           <ThemedText

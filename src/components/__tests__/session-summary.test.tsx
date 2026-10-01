@@ -42,7 +42,7 @@ describe('<SessionSummary />', () => {
       );
 
       expect(screen.getByText('AUG 19 · 6:42 PM')).toBeOnTheScreen();
-      expect(screen.getByText('Evening Workout')).toBeOnTheScreen();
+      expect(screen.getByText('Evening Run')).toBeOnTheScreen();
       expect(screen.getByText('TOTAL TIME')).toBeOnTheScreen();
       // The trace card's own axis row shows the same span whenever a
       // fixture has no pauses (see the Design decision on why the two
@@ -53,7 +53,7 @@ describe('<SessionSummary />', () => {
       expect(screen.getByText('140')).toBeOnTheScreen();
     });
 
-    it('renders the activity type label for a recorded activityType', async () => {
+    it('folds the activityType into the hero title (e.g. "Evening Cycle")', async () => {
       const record = makeRecord({ activityType: 'cycle' });
 
       await render(
@@ -67,10 +67,10 @@ describe('<SessionSummary />', () => {
         />,
       );
 
-      expect(screen.getByTestId('session-summary-activity-type')).toHaveTextContent('Cycle');
+      expect(screen.getByText('Evening Cycle')).toBeOnTheScreen();
     });
 
-    it('renders "Not recorded" for a null activityType (a pre-ticket legacy session)', async () => {
+    it('titles a null activityType (a pre-ticket legacy session) as "Evening session", never a guessed activity', async () => {
       const record = makeRecord({ activityType: null });
 
       await render(
@@ -84,7 +84,24 @@ describe('<SessionSummary />', () => {
         />,
       );
 
-      expect(screen.getByTestId('session-summary-activity-type')).toHaveTextContent('Not recorded');
+      expect(screen.getByText('Evening session')).toBeOnTheScreen();
+    });
+
+    it('titles an \'other\' activityType as "Evening Workout", not "Evening Other" or "Evening session"', async () => {
+      const record = makeRecord({ activityType: 'other' });
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+
+      expect(screen.getByText('Evening Workout')).toBeOnTheScreen();
     });
 
     it('renders "--" for a null average/max BPM on a zero-sample record, with 0:00 duration', async () => {

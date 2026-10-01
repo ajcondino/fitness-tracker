@@ -242,7 +242,7 @@ describe('<Index /> (Home)', () => {
     expect(navigate).toHaveBeenCalledWith('/history');
   });
 
-  it("renders each recent row's activity type, including the notRecorded case for a legacy session", async () => {
+  it("folds each recent row's activity type into its title, including the null case for a legacy session", async () => {
     mockedLoadWorkoutSessions.mockResolvedValue([
       makeRecord({ id: 'workout-1', activityType: 'walk' }),
       makeRecord({ id: 'workout-2', activityType: null }),
@@ -251,7 +251,7 @@ describe('<Index /> (Home)', () => {
     await render(<Index />);
     await act(async () => {});
 
-    expect(screen.getByText('Walk')).toBeOnTheScreen();
-    expect(screen.getByText('Not recorded')).toBeOnTheScreen();
+    expect(screen.getByText('Evening Walk')).toBeOnTheScreen();
+    expect(screen.getByText('Evening session')).toBeOnTheScreen();
   });
 });
