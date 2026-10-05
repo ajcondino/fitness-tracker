@@ -1,8 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 
 import { SessionSummary } from '@/components/session-summary';
 import { bucketHeartRateSamples } from '@/workout/workout-record';
 import type { HealthConnectWriteStatus, WorkoutRecord } from '@/workout/workout-record';
+
+type TestInstance = ReturnType<typeof screen.getByTestId>;
 
 const TRACE_BUCKET_COUNT = 48; // mirrors session-summary.tsx's own private constant
 
@@ -436,6 +438,81 @@ describe('<SessionSummary />', () => {
 
       fireEvent.press(sync);
       expect(onSync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('information architecture', () => {
+    it('renders a scroll container and a pinned footer outside it in review mode', async () => {
+      await render(
+        <SessionSummary
+          mode="review"
+          record={makeRecord()}
+          onSave={jest.fn()}
+          onDiscard={jest.fn()}
+        />,
+      );
+
+      const scroll = screen.getByTestId('session-summary-scroll');
+      const footer = screen.getByTestId('session-summary-footer');
+      expect(within(footer).getByTestId('live-workout-save')).toBeOnTheScreen();
+      expect(within(footer).getByTestId('live-workout-discard')).toBeOnTheScreen();
+      expect(within(scroll).queryByTestId('live-workout-save')).not.toBeOnTheScreen();
+      expect(within(scroll).queryByTestId('live-workout-discard')).not.toBeOnTheScreen();
+      expect(within(scroll).queryByTestId('session-summary-footer')).not.toBeOnTheScreen();
+    });
+
+    it('renders a scroll container and a pinned footer outside it in detail mode', async () => {
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={makeRecord()}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+
+      const scroll = screen.getByTestId('session-summary-scroll');
+      const footer = screen.getByTestId('session-summary-footer');
+      expect(within(footer).getByTestId('session-summary-back')).toBeOnTheScreen();
+      expect(within(footer).getByTestId('session-summary-done')).toBeOnTheScreen();
+      expect(within(scroll).queryByTestId('session-summary-back')).not.toBeOnTheScreen();
+      expect(within(scroll).queryByTestId('session-summary-done')).not.toBeOnTheScreen();
+    });
+
+    it('renders a pre-M3 record (null activityType) complete, with exactly two stat cards and no other optional section', async () => {
+      const record = makeRecord({
+        activityType: null,
+        healthConnect: { status: 'written', recordIds: ['a'] },
+      });
+
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+
+      const scroll = screen.getByTestId('session-summary-scroll');
+      expect(within(scroll).getByText('SAVED SESSION')).toBeOnTheScreen();
+      expect(within(scroll).getByText('Evening session')).toBeOnTheScreen();
+      expect(within(scroll).getByTestId('session-summary-trace', { hidden: true })).toBeTruthy();
+      expect(within(scroll).getByText('AVG BPM')).toBeOnTheScreen();
+      expect(within(scroll).getByText('MAX BPM')).toBeOnTheScreen();
+      expect(within(scroll).getByText('Saved to Health Connect')).toBeOnTheScreen();
+
+      // Header, hero, trace card, stat row, sync card — nothing else, and
+      // no section is an empty container.
+      const sections = (scroll.children[0] as TestInstance).children as TestInstance[];
+      expect(sections).toHaveLength(5);
+      const statRow = sections[3];
+      expect(statRow.children).toHaveLength(2);
+      sections.forEach((section) => expect(section.children.length).toBeGreaterThan(0));
     });
   });
 });

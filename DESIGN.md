@@ -216,6 +216,12 @@ components:
     typography: '{typography.h3}'
     rounded: '{rounded.md}'
     padding: 14px
+  card-summary: # section card on the session summary
+    backgroundColor: '{colors.surface}'
+    textColor: '{colors.on-surface}'
+    typography: '{typography.label-caps}'
+    rounded: '{rounded.lg}'
+    padding: 16px
   row-session:
     backgroundColor: '{colors.surface}'
     textColor: '{colors.on-surface}'
@@ -466,6 +472,14 @@ instead.
 7. Tab bar — floating, inset from the gutters and the safe area (see
    Components > Tab bar)
 
+**Session summary.** One vertical scroll, with the footer (Save/Discard
+or Back/Done) pinned below it. Sections run in a fixed order: `header`,
+`hero`, `effort` (HR trace, then one row of two or three stat cards),
+`course` (route map, then altitude profile and ascent/descent), `sync`
+(detail only). A section with no data renders nothing — no empty card, no
+placeholder — and the column gap closes over it. See
+`docs/specs/session-summary-information-architecture/SPEC.md`.
+
 **Touch targets.** Buttons are 56–66px. Rows are ~64px tall. Chips and
 the avatar are 34–42px, at the floor of what is acceptable; do not go
 below 34px.
@@ -564,6 +578,12 @@ dot. Trailing chevron.
 `label-micro` uppercase caption above an `h3` value. The emphasis
 variant steps to `surface-raised` / `outline-strong`. Cards live in
 rows of two or three with a 10px gap.
+
+**Summary card** — `surface` on `outline`, `lg` radius, 16px padding, 8px
+gap. An optional `label-caps` header row in `on-surface-dim` (title left,
+optional trailing unit right) sits above the content. The shared chrome
+for every section on the session summary (trace, write status, and later
+route and altitude); a section never re-declares it.
 
 **BPM readout** — `display-xl` in `primary`, centered, with a `data-sm`
 `BPM` unit at `4.4px` tracking below it and a zone line under that
