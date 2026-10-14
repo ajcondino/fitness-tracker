@@ -44,8 +44,13 @@ export function WeightInput({
     initialKg == null ? '' : convertUnit(initialKg, 'weight', unit).toFixed(1),
   );
   const [hasError, setHasError] = useState(false);
+  // The value last saved (or initially shown); submit stays disabled until
+  // the field differs from it, so the same weight can't be saved repeatedly.
+  const [savedText, setSavedText] = useState(text);
+  const isUnchanged = text === savedText;
 
   function handleSubmit() {
+    if (isUnchanged) return;
     const typed = parseDecimal(text);
     // Validate after conversion so the bounds mean the same in both units.
     const kg = typed == null ? null : toCanonicalUnit(typed, 'weight', unit);
@@ -54,6 +59,7 @@ export function WeightInput({
       return;
     }
     setHasError(false);
+    setSavedText(text);
     onSubmit(kg);
   }
 
@@ -100,6 +106,8 @@ export function WeightInput({
       <Pressable
         accessibilityRole="button"
         onPress={handleSubmit}
+        disabled={isUnchanged}
+        accessibilityState={{ disabled: isUnchanged }}
         testID={`${testIDPrefix}-submit`}
         style={({ pressed }) => [
           styles.submit,
@@ -108,6 +116,7 @@ export function WeightInput({
             borderRadius: theme.rounded.xl,
             opacity: pressed ? 0.82 : 1,
           },
+          isUnchanged && styles.submitDisabled,
         ]}
       >
         <ThemedText variant="actionMd" color="onPrimary">
@@ -137,5 +146,8 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  submitDisabled: {
+    opacity: 0.4,
   },
 });

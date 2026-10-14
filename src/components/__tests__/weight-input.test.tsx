@@ -57,12 +57,36 @@ describe('<WeightInput />', () => {
     expect(screen.getByText('lb')).toBeOnTheScreen();
   });
 
-  it.each(['', 'abc', '12abc', '7', '700'])('rejects %p with an inline error', async (text) => {
+  it.each(['abc', '12abc', '7', '700'])('rejects %p with an inline error', async (text) => {
     const { onSubmit } = await setup();
     await type(text);
     await submit();
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId('w-error')).toBeOnTheScreen();
+  });
+
+  it('disables submit until the value differs from the initial one', async () => {
+    const { onSubmit } = await setup({ initialKg: 70 });
+    expect(screen.getByTestId('w-submit').props.accessibilityState.disabled).toBe(true);
+    await submit();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await type('71');
+    expect(screen.getByTestId('w-submit').props.accessibilityState.disabled).toBe(false);
+  });
+
+  it('disables submit again after saving until the value is edited', async () => {
+    const { onSubmit } = await setup();
+    expect(screen.getByTestId('w-submit').props.accessibilityState.disabled).toBe(true);
+
+    await type('70');
+    await submit();
+    await submit();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('w-submit').props.accessibilityState.disabled).toBe(true);
+
+    await type('71');
+    expect(screen.getByTestId('w-submit').props.accessibilityState.disabled).toBe(false);
   });
 
   it('validates after conversion: 40 lb (~18.1 kg) fails, 50 lb (~22.7 kg) passes', async () => {
