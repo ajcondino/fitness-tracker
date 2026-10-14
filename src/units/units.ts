@@ -40,6 +40,15 @@ export function convertUnit(value: number, quantity: UnitQuantity, system: UnitS
   return value * IMPERIAL_FACTOR[quantity];
 }
 
+// Inverse of `convertUnit`: display value -> canonical base unit. Same
+// no-validation contract — callers validate.
+export function toCanonicalUnit(value: number, quantity: UnitQuantity, system: UnitSystem): number {
+  if (system === 'metric') {
+    return value;
+  }
+  return value / IMPERIAL_FACTOR[quantity];
+}
+
 export function formatUnit(value: number, quantity: UnitQuantity, system: UnitSystem): string {
   const converted = convertUnit(value, quantity, system);
   return `${converted.toFixed(DECIMALS[quantity])} ${UNIT_SUFFIX[quantity][system]}`;

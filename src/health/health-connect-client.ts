@@ -22,9 +22,14 @@ export const REQUIRED_PERMISSIONS: Permission[] = [
   { accessType: 'write', recordType: 'ExerciseSession' },
   { accessType: 'write', recordType: 'HeartRate' },
 ];
+// Workout-only on purpose: body weight is tracked separately below so
+// that adding it never flips an existing exercise+HR grant to "not
+// granted". See docs/specs/weight-capture-health-connect/SPEC.md.
 // Write-only, matching this ticket's explicit scope: it establishes
 // capability and consent only, and writes nothing. No 'read' permission is
 // requested anywhere — this app never reads from Health Connect.
+
+export const BODY_WEIGHT_PERMISSION: Permission = { accessType: 'write', recordType: 'Weight' };
 
 /**
  * Read-only, no dialog. Resolves `'unavailable'` immediately (no native
@@ -76,16 +81,17 @@ function ensureInitialized(): Promise<boolean> {
 // `WriteExerciseRoutePermission`) — this app only ever requests the two
 // `REQUIRED_PERMISSIONS` above, so the exact shape of anything else in the
 // granted list is irrelevant here.
-function hasAllRequiredPermissions(
-  granted: readonly { accessType: string; recordType: string }[],
-): boolean {
-  return REQUIRED_PERMISSIONS.every((required) =>
-    granted.some(
-      (permission) =>
-        permission.accessType === required.accessType &&
-        permission.recordType === required.recordType,
-    ),
+type GrantedPermission = { accessType: string; recordType: string };
+
+function hasPermission(granted: readonly GrantedPermission[], wanted: Permission): boolean {
+  return granted.some(
+    (permission) =>
+      permission.accessType === wanted.accessType && permission.recordType === wanted.recordType,
   );
+}
+
+function hasAllRequiredPermissions(granted: readonly GrantedPermission[]): boolean {
+  return REQUIRED_PERMISSIONS.every((required) => hasPermission(granted, required));
 }
 
 /**
@@ -108,8 +114,34 @@ export async function checkHealthConnectPermission(): Promise<boolean> {
  */
 export async function requestHealthConnectPermission(): Promise<boolean> {
   await ensureInitialized();
-  const granted = await requestPermission(REQUIRED_PERMISSIONS);
+  // Asks for body weight in the same dialog so new grants cover everything,
+  // but success is still judged on the workout permissions only — a
+  // weight-only decline is not a workout-permission decline.
+  const granted = await requestPermission([...REQUIRED_PERMISSIONS, BODY_WEIGHT_PERMISSION]);
   return hasAllRequiredPermissions(granted);
+}
+
+/**
+ * Read-only, no dialog. `true` iff the body-weight write permission is
+ * granted.
+ */
+export async function checkBodyWeightPermission(): Promise<boolean> {
+  await ensureInitialized();
+  const granted = await getGrantedPermissions();
+  return hasPermission(granted, BODY_WEIGHT_PERMISSION);
+}
+
+/**
+ * May show the OS permission dialog; same preconditions as
+ * `requestHealthConnectPermission` (screen lock set, availability
+ * `'available'`). Re-requests the workout pair alongside weight so Health
+ * Connect only prompts for what's missing. Returns `true` iff
+ * `BODY_WEIGHT_PERMISSION` ends up granted.
+ */
+export async function requestBodyWeightPermission(): Promise<boolean> {
+  await ensureInitialized();
+  const granted = await requestPermission([...REQUIRED_PERMISSIONS, BODY_WEIGHT_PERMISSION]);
+  return hasPermission(granted, BODY_WEIGHT_PERMISSION);
 }
 
 /**

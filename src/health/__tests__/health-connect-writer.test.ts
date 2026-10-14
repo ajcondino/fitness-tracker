@@ -2,6 +2,7 @@ import { ExerciseType, insertRecords } from 'react-native-health-connect';
 
 import {
   mapActivityTypeToExerciseType,
+  writeWeightToHealthConnect,
   writeWorkoutSessionToHealthConnect,
 } from '@/health/health-connect-writer';
 import type { ActivityType, WorkoutRecord } from '@/workout/workout-record';
@@ -169,5 +170,42 @@ describe('writeWorkoutSessionToHealthConnect', () => {
       'heart rate write failed',
     );
     expect(mockedInsertRecords).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('writeWeightToHealthConnect', () => {
+  beforeEach(() => {
+    mockedInsertRecords.mockReset().mockResolvedValue(['hc-weight-1']);
+  });
+
+  it('inserts one Weight record in kilograms at the entry recordedAt', async () => {
+    const id = await writeWeightToHealthConnect({
+      id: 'w1',
+      recordedAt: 1_700_000_000_000,
+      kg: 69.99,
+      healthConnect: { status: 'notWritten', recordId: null },
+    });
+
+    expect(id).toBe('hc-weight-1');
+    expect(mockedInsertRecords).toHaveBeenCalledTimes(1);
+    expect(mockedInsertRecords).toHaveBeenCalledWith([
+      {
+        recordType: 'Weight',
+        time: new Date(1_700_000_000_000).toISOString(),
+        weight: { value: 69.99, unit: 'kilograms' },
+      },
+    ]);
+  });
+
+  it('propagates insert failures', async () => {
+    mockedInsertRecords.mockRejectedValue(new Error('boom'));
+    await expect(
+      writeWeightToHealthConnect({
+        id: 'w1',
+        recordedAt: 1,
+        kg: 70,
+        healthConnect: { status: 'notWritten', recordId: null },
+      }),
+    ).rejects.toThrow('boom');
   });
 });

@@ -1,6 +1,7 @@
 import { ExerciseType, insertRecords } from 'react-native-health-connect';
 import type { ExerciseSessionRecord, HeartRateRecord } from 'react-native-health-connect';
 
+import type { WeightEntry } from '@/weight/weight-store';
 import type { ActivityType, WorkoutRecord } from '@/workout/workout-record';
 
 /**
@@ -109,4 +110,20 @@ export async function writeWorkoutSessionToHealthConnect(record: WorkoutRecord):
   const exerciseIds = await insertRecords([exerciseRecord]);
   const heartRateIds = await insertRecords(heartRateRecords);
   return [...exerciseIds, ...heartRateIds];
+}
+
+/**
+ * One `Weight` record at the entry's own `recordedAt` (never `Date.now()`).
+ * Throws on failure — the caller (`saveWeightAndSync`) owns translating that
+ * into a status, same contract as `writeWorkoutSessionToHealthConnect`.
+ */
+export async function writeWeightToHealthConnect(entry: WeightEntry): Promise<string> {
+  const [id] = await insertRecords([
+    {
+      recordType: 'Weight',
+      time: new Date(entry.recordedAt).toISOString(),
+      weight: { value: entry.kg, unit: 'kilograms' },
+    },
+  ]);
+  return id;
 }

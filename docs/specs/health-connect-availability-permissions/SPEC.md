@@ -186,6 +186,8 @@ export const REQUIRED_PERMISSIONS = [
   { accessType: 'write', recordType: 'ExerciseSession' },
   { accessType: 'write', recordType: 'HeartRate' },
 ] as const;
+// Note: stays workout-only — body weight is tracked as a separate permission
+// (see docs/specs/weight-capture-health-connect/SPEC.md).
 // Write-only, matching the ticket's explicit scope ("This ticket writes
 // nothing... Writing sessions is the follow-up ticket" — requesting
 // write access now, using it later, is standard Health Connect practice

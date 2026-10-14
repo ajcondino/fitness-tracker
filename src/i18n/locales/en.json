@@ -279,5 +279,28 @@
       "metricCaption": "Kilograms (kg)",
       "imperialCaption": "Pounds (lb)"
     }
+  },
+  "weight": {
+    "sectionHeader": "WEIGHT",
+    "current": "Current weight",
+    "none": "Not set",
+    "save": "SAVE",
+    "input": {
+      "label": "Body weight",
+      "placeholder": "0.0",
+      "error": "Enter a weight between {{min}} and {{max}} {{unit}}."
+    },
+    "prompt": {
+      "title": "What's your weight?",
+      "body": "Used to estimate calories burned. You can change it any time in Profile.",
+      "dismiss": "Not now"
+    },
+    "notice": {
+      "unavailable": "Saved on this device. Health Connect isn't available.",
+      "noScreenLock": "Saved on this device. Set a screen lock to sync with Health Connect.",
+      "permissionExhausted": "Saved on this device. Allow weight access in Health Connect to sync.",
+      "denied": "Saved on this device. Health Connect weight access wasn't allowed.",
+      "error": "Saved on this device. Syncing to Health Connect failed."
+    }
   }
 }

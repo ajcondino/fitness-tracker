@@ -9,10 +9,13 @@ import {
 } from 'react-native-health-connect';
 
 import {
+  BODY_WEIGHT_PERMISSION,
+  checkBodyWeightPermission,
   checkHealthConnectPermission,
   getHealthConnectAvailability,
   hasScreenLock,
   openHealthConnectApp,
+  requestBodyWeightPermission,
   requestHealthConnectPermission,
 } from '@/health/health-connect-client';
 
@@ -155,6 +158,49 @@ describe('health-connect-client', () => {
       await openHealthConnectApp();
 
       expect(mockedOpenHealthConnectSettings).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('body weight permission', () => {
+    const exercise = { accessType: 'write', recordType: 'ExerciseSession' } as const;
+    const heartRate = { accessType: 'write', recordType: 'HeartRate' } as const;
+
+    beforeEach(() => {
+      Platform.OS = 'android';
+    });
+
+    it('checkHealthConnectPermission ignores weight: exercise+HR-only still reads as granted', async () => {
+      mockedGetGrantedPermissions.mockResolvedValue([exercise, heartRate]);
+      await expect(checkHealthConnectPermission()).resolves.toBe(true);
+    });
+
+    it('checkBodyWeightPermission is false for an exercise+HR-only grant', async () => {
+      mockedGetGrantedPermissions.mockResolvedValue([exercise, heartRate]);
+      await expect(checkBodyWeightPermission()).resolves.toBe(false);
+    });
+
+    it('checkBodyWeightPermission is true when weight is granted', async () => {
+      mockedGetGrantedPermissions.mockResolvedValue([BODY_WEIGHT_PERMISSION]);
+      await expect(checkBodyWeightPermission()).resolves.toBe(true);
+    });
+
+    it('requestHealthConnectPermission asks for weight too but resolves true on a weight-only decline', async () => {
+      mockedRequestPermission.mockResolvedValue([exercise, heartRate]);
+
+      await expect(requestHealthConnectPermission()).resolves.toBe(true);
+      expect(mockedRequestPermission).toHaveBeenCalledWith([
+        exercise,
+        heartRate,
+        BODY_WEIGHT_PERMISSION,
+      ]);
+    });
+
+    it('requestBodyWeightPermission resolves true iff weight is granted', async () => {
+      mockedRequestPermission.mockResolvedValueOnce([exercise, heartRate, BODY_WEIGHT_PERMISSION]);
+      await expect(requestBodyWeightPermission()).resolves.toBe(true);
+
+      mockedRequestPermission.mockResolvedValueOnce([exercise, heartRate]);
+      await expect(requestBodyWeightPermission()).resolves.toBe(false);
     });
   });
 });
