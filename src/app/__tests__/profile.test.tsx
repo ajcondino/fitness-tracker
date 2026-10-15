@@ -91,7 +91,7 @@ describe('<Profile />', () => {
     mockUnitsPreference();
     mockNetworkStatus();
     saveWeight.mockReset().mockResolvedValue({ status: 'written' });
-    mockedUseWeight.mockReset().mockReturnValue({ latestKg: 70, save: saveWeight });
+    mockedUseWeight.mockReset().mockReturnValue({ latestKg: 70, entries: [], save: saveWeight });
   });
 
   it('renders the title and back chevron', async () => {
@@ -119,6 +119,27 @@ describe('<Profile />', () => {
     });
 
     expect(saveWeight).toHaveBeenCalledWith(72);
+  });
+
+  it('renders the weight history card below the Weight section', async () => {
+    mockHealthConnectSettings();
+    mockAuth();
+
+    await render(<Profile />);
+
+    expect(screen.getByTestId('weight-history-card')).toBeOnTheScreen();
+    expect(screen.getByText('WEIGHT HISTORY')).toBeOnTheScreen();
+    expect(screen.getByText('No weight entries yet.')).toBeOnTheScreen();
+  });
+
+  it('wraps the sections in a scroll view', async () => {
+    mockHealthConnectSettings();
+    mockAuth();
+
+    await render(<Profile />);
+
+    expect(screen.getByTestId('profile-scroll')).toBeOnTheScreen();
+    expect(screen.getByTestId('weight-history-card')).toBeOnTheScreen();
   });
 
   it('calls router.back() when the back chevron is pressed', async () => {

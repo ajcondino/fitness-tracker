@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,8 +9,10 @@ import { UnitsSection } from '@/components/units-section';
 import { WeightSection } from '@/components/weight-section';
 import { BackButton } from '@/components/ui/back-button';
 import { Screen } from '@/components/ui/screen';
+import { SummaryCard } from '@/components/ui/summary-card';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
+import { WeightHistoryChart } from '@/components/ui/weight-history-chart';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
@@ -40,7 +42,7 @@ export default function Profile() {
     openPlayStore,
   } = useHealthConnectSettings();
   const { distance, weight, setDistanceUnit, setWeightUnit } = useUnitsPreference();
-  const { latestKg, save: saveWeight } = useWeight();
+  const { latestKg, entries, save: saveWeight } = useWeight();
   usePreferencesSync({
     authStatus,
     uid: user?.uid ?? null,
@@ -65,31 +67,49 @@ export default function Profile() {
           </ThemedText>
         </View>
 
-        <AccountSection
-          status={authStatus}
-          user={user}
-          isOffline={isOffline}
-          onSignIn={signInWithGoogle}
-          onSignOut={signOut}
-        />
+        <ScrollView
+          testID="profile-scroll"
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <AccountSection
+            status={authStatus}
+            user={user}
+            isOffline={isOffline}
+            onSignIn={signInWithGoogle}
+            onSignOut={signOut}
+          />
 
-        <HealthConnectSection
-          status={status}
-          onGrantAccess={grantAccess}
-          onToggleWriteBack={setWriteBackEnabled}
-          onOpenHealthConnectApp={openHealthConnectApp}
-          onOpenSecuritySettings={openSecuritySettings}
-          onOpenPlayStore={openPlayStore}
-        />
+          <HealthConnectSection
+            status={status}
+            onGrantAccess={grantAccess}
+            onToggleWriteBack={setWriteBackEnabled}
+            onOpenHealthConnectApp={openHealthConnectApp}
+            onOpenSecuritySettings={openSecuritySettings}
+            onOpenPlayStore={openPlayStore}
+          />
 
-        <UnitsSection
-          distance={distance}
-          weight={weight}
-          onSetDistanceUnit={setDistanceUnit}
-          onSetWeightUnit={setWeightUnit}
-        />
+          <UnitsSection
+            distance={distance}
+            weight={weight}
+            onSetDistanceUnit={setDistanceUnit}
+            onSetWeightUnit={setWeightUnit}
+          />
 
-        <WeightSection latestKg={latestKg} unit={weight} onSave={saveWeight} />
+          <WeightSection latestKg={latestKg} unit={weight} onSave={saveWeight} />
+
+          {entries !== undefined && (
+            <SummaryCard
+              label={t('weight.history.title')}
+              trailing={t(`weight.history.unit.${weight}`)}
+              testID="weight-history-card"
+            >
+              <WeightHistoryChart entries={entries} unit={weight} testID="weight-history-chart" />
+            </SummaryCard>
+          )}
+        </ScrollView>
       </Screen>
     </ThemedView>
   );
@@ -104,6 +124,14 @@ const styles = StyleSheet.create({
   // docs/specs/tablet-layout/SPEC.md) — the `spacing.xl` rhythm between them
   // moves here from `container`, which now has a single child.
   screen: {
+    gap: spacing.xl,
+  },
+  // Header stays pinned; the sections scroll beneath it, keeping the same
+  // `spacing.xl` rhythm between them.
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
     gap: spacing.xl,
   },
   header: {
