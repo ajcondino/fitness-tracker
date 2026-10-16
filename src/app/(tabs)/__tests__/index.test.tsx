@@ -97,7 +97,9 @@ describe('<Index /> (Home)', () => {
       setWeightUnit: jest.fn(),
     });
     // Default: a weight exists, so the prompt stays out of every other test.
-    mockedUseWeight.mockReset().mockReturnValue({ latestKg: 70, save: jest.fn() });
+    mockedUseWeight
+      .mockReset()
+      .mockReturnValue({ latestKg: 70, entries: undefined, save: jest.fn() });
     mockedLoadPromptDismissed.mockReset().mockResolvedValue(false);
     mockedSavePromptDismissed.mockReset().mockResolvedValue();
     usePairingStore.getState().reset();
@@ -283,14 +285,14 @@ describe('<Index /> (Home)', () => {
 
   describe('weight prompt', () => {
     it('shows when no weight exists and the prompt was not dismissed', async () => {
-      mockedUseWeight.mockReturnValue({ latestKg: null, save: jest.fn() });
+      mockedUseWeight.mockReturnValue({ latestKg: null, entries: undefined, save: jest.fn() });
       await render(<Index />);
       await act(async () => {});
       expect(screen.getByTestId('weight-prompt-field')).toBeOnTheScreen();
     });
 
     it('does not show while the weight is still loading', async () => {
-      mockedUseWeight.mockReturnValue({ latestKg: undefined, save: jest.fn() });
+      mockedUseWeight.mockReturnValue({ latestKg: undefined, entries: undefined, save: jest.fn() });
       await render(<Index />);
       await act(async () => {});
       expect(screen.queryByTestId('weight-prompt-field')).toBeNull();
@@ -303,7 +305,7 @@ describe('<Index /> (Home)', () => {
     });
 
     it('does not show once dismissed', async () => {
-      mockedUseWeight.mockReturnValue({ latestKg: null, save: jest.fn() });
+      mockedUseWeight.mockReturnValue({ latestKg: null, entries: undefined, save: jest.fn() });
       mockedLoadPromptDismissed.mockResolvedValue(true);
       await render(<Index />);
       await act(async () => {});
@@ -311,7 +313,7 @@ describe('<Index /> (Home)', () => {
     });
 
     it('"Not now" hides it and persists the dismissal', async () => {
-      mockedUseWeight.mockReturnValue({ latestKg: null, save: jest.fn() });
+      mockedUseWeight.mockReturnValue({ latestKg: null, entries: undefined, save: jest.fn() });
       await render(<Index />);
       await act(async () => {});
 

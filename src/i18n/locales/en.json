@@ -301,6 +301,16 @@
       "permissionExhausted": "Saved on this device. Allow weight access in Health Connect to sync.",
       "denied": "Saved on this device. Health Connect weight access wasn't allowed.",
       "error": "Saved on this device. Syncing to Health Connect failed."
+    },
+    "history": {
+      "title": "WEIGHT HISTORY",
+      "empty": "No weight entries yet.",
+      "single": "{{value}} {{unit}} · {{date}}",
+      "a11y": "Weight history, {{count}} entries. {{first}} to {{latest}} {{unit}}, from {{start}} to {{end}}.",
+      "unit": {
+        "metric": "kg",
+        "imperial": "lb"
+      }
     }
   }
 }
