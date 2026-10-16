@@ -5,6 +5,9 @@ import Index from '@/app/(tabs)/index';
 import { usePairingStore } from '@/ble/pairing-store';
 import type { DiscoveredDevice } from '@/ble/pairing-types';
 import { useAuth } from '@/hooks/use-auth';
+import { useUnitsPreference } from '@/hooks/use-units-preference';
+import { useWeight } from '@/hooks/use-weight';
+import { loadWeightPromptDismissed, saveWeightPromptDismissed } from '@/weight/weight-store';
 import { loadWorkoutSessions } from '@/workout/workout-store';
 import type { WorkoutRecord } from '@/workout/workout-record';
 
@@ -14,6 +17,9 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@/workout/workout-store');
 jest.mock('@/hooks/use-auth');
+jest.mock('@/hooks/use-units-preference');
+jest.mock('@/hooks/use-weight');
+jest.mock('@/weight/weight-store');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedUseIsFocused = useIsFocused as jest.MockedFunction<typeof useIsFocused>;
@@ -21,6 +27,16 @@ const mockedLoadWorkoutSessions = loadWorkoutSessions as jest.MockedFunction<
   typeof loadWorkoutSessions
 >;
 const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+const mockedUseUnitsPreference = useUnitsPreference as jest.MockedFunction<
+  typeof useUnitsPreference
+>;
+const mockedUseWeight = useWeight as jest.MockedFunction<typeof useWeight>;
+const mockedLoadPromptDismissed = loadWeightPromptDismissed as jest.MockedFunction<
+  typeof loadWeightPromptDismissed
+>;
+const mockedSavePromptDismissed = saveWeightPromptDismissed as jest.MockedFunction<
+  typeof saveWeightPromptDismissed
+>;
 
 function mockAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
   mockedUseAuth.mockReturnValue({
@@ -74,6 +90,16 @@ describe('<Index /> (Home)', () => {
     mockedLoadWorkoutSessions.mockReset().mockResolvedValue([]);
     mockedUseAuth.mockReset();
     mockAuth();
+    mockedUseUnitsPreference.mockReset().mockReturnValue({
+      distance: 'metric',
+      weight: 'metric',
+      setDistanceUnit: jest.fn(),
+      setWeightUnit: jest.fn(),
+    });
+    // Default: a weight exists, so the prompt stays out of every other test.
+    mockedUseWeight.mockReset().mockReturnValue({ latestKg: 70, save: jest.fn() });
+    mockedLoadPromptDismissed.mockReset().mockResolvedValue(false);
+    mockedSavePromptDismissed.mockReset().mockResolvedValue();
     usePairingStore.getState().reset();
   });
 
@@ -253,5 +279,48 @@ describe('<Index /> (Home)', () => {
 
     expect(screen.getByText('Evening Walk')).toBeOnTheScreen();
     expect(screen.getByText('Evening session')).toBeOnTheScreen();
+  });
+
+  describe('weight prompt', () => {
+    it('shows when no weight exists and the prompt was not dismissed', async () => {
+      mockedUseWeight.mockReturnValue({ latestKg: null, save: jest.fn() });
+      await render(<Index />);
+      await act(async () => {});
+      expect(screen.getByTestId('weight-prompt-field')).toBeOnTheScreen();
+    });
+
+    it('does not show while the weight is still loading', async () => {
+      mockedUseWeight.mockReturnValue({ latestKg: undefined, save: jest.fn() });
+      await render(<Index />);
+      await act(async () => {});
+      expect(screen.queryByTestId('weight-prompt-field')).toBeNull();
+    });
+
+    it('does not show when a weight exists', async () => {
+      await render(<Index />);
+      await act(async () => {});
+      expect(screen.queryByTestId('weight-prompt-field')).toBeNull();
+    });
+
+    it('does not show once dismissed', async () => {
+      mockedUseWeight.mockReturnValue({ latestKg: null, save: jest.fn() });
+      mockedLoadPromptDismissed.mockResolvedValue(true);
+      await render(<Index />);
+      await act(async () => {});
+      expect(screen.queryByTestId('weight-prompt-field')).toBeNull();
+    });
+
+    it('"Not now" hides it and persists the dismissal', async () => {
+      mockedUseWeight.mockReturnValue({ latestKg: null, save: jest.fn() });
+      await render(<Index />);
+      await act(async () => {});
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('weight-prompt-dismiss'));
+      });
+
+      expect(mockedSavePromptDismissed).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId('weight-prompt-field')).toBeNull();
+    });
   });
 });

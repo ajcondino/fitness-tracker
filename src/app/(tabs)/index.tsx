@@ -12,9 +12,13 @@ import { Glow } from '@/components/ui/glow';
 import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
+import { WeightPrompt } from '@/components/weight-prompt';
 import { spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
+import { useUnitsPreference } from '@/hooks/use-units-preference';
+import { useWeight } from '@/hooks/use-weight';
+import { loadWeightPromptDismissed, saveWeightPromptDismissed } from '@/weight/weight-store';
 import { deriveSessionTitle } from '@/workout/session-title';
 import { deriveWorkoutSummary, describeSessionTime } from '@/workout/workout-record';
 import type { WorkoutRecord } from '@/workout/workout-record';
@@ -73,6 +77,27 @@ export default function Index() {
       cancelled = true;
     };
   }, [isFocused]);
+
+  const { weight: weightUnit } = useUnitsPreference();
+  const { latestKg, save: saveWeight } = useWeight();
+  // undefined = not yet loaded, so the prompt never flashes for someone who
+  // already dismissed it.
+  const [promptDismissed, setPromptDismissed] = useState<boolean | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadWeightPromptDismissed().then((dismissed) => {
+      if (!cancelled) setPromptDismissed(dismissed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const dismissWeightPrompt = () => {
+    setPromptDismissed(true);
+    saveWeightPromptDismissed();
+  };
 
   const { isConnected, deviceName: connectedDeviceName } = selectConnectedDeviceName(
     { connection, devices },
@@ -209,6 +234,13 @@ export default function Index() {
           </View>
         </View>
       </Screen>
+
+      <WeightPrompt
+        visible={latestKg === null && promptDismissed === false}
+        unit={weightUnit}
+        onSave={saveWeight}
+        onDismiss={dismissWeightPrompt}
+      />
     </ThemedView>
   );
 }

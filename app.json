@@ -24,6 +24,7 @@
       "permissions": [
         "android.permission.health.WRITE_EXERCISE",
         "android.permission.health.WRITE_HEART_RATE",
+        "android.permission.health.WRITE_WEIGHT",
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_ADMIN",
         "android.permission.BLUETOOTH_CONNECT"

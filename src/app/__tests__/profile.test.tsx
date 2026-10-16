@@ -7,6 +7,7 @@ import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { usePreferencesSync } from '@/hooks/use-preferences-sync';
 import { useUnitsPreference } from '@/hooks/use-units-preference';
+import { useWeight } from '@/hooks/use-weight';
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
@@ -19,6 +20,7 @@ jest.mock('@/hooks/use-auth');
 jest.mock('@/hooks/use-network-status');
 jest.mock('@/hooks/use-preferences-sync');
 jest.mock('@/hooks/use-units-preference');
+jest.mock('@/hooks/use-weight');
 
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockedUseHealthConnectSettings = useHealthConnectSettings as jest.MockedFunction<
@@ -46,6 +48,9 @@ function mockHealthConnectSettings(
     ...overrides,
   });
 }
+
+const mockedUseWeight = useWeight as jest.MockedFunction<typeof useWeight>;
+const saveWeight = jest.fn();
 
 function mockUnitsPreference(overrides: Partial<ReturnType<typeof useUnitsPreference>> = {}) {
   mockedUseUnitsPreference.mockReturnValue({
@@ -85,6 +90,8 @@ describe('<Profile />', () => {
     mockedUseUnitsPreference.mockReset();
     mockUnitsPreference();
     mockNetworkStatus();
+    saveWeight.mockReset().mockResolvedValue({ status: 'written' });
+    mockedUseWeight.mockReset().mockReturnValue({ latestKg: 70, save: saveWeight });
   });
 
   it('renders the title and back chevron', async () => {
@@ -95,6 +102,23 @@ describe('<Profile />', () => {
 
     expect(screen.getByText('Profile')).toBeOnTheScreen();
     expect(screen.getByTestId('profile-back')).toBeOnTheScreen();
+  });
+
+  it('renders the Weight section with the latest weight and saves a new one', async () => {
+    mockHealthConnectSettings();
+    mockAuth();
+
+    await render(<Profile />);
+    expect(screen.getByTestId('weight-current')).toHaveTextContent('70.0 kg');
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId('weight-section-field'), '72');
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('weight-section-submit'));
+    });
+
+    expect(saveWeight).toHaveBeenCalledWith(72);
   });
 
   it('calls router.back() when the back chevron is pressed', async () => {

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AccountSection } from '@/components/account-section';
 import { HealthConnectSection } from '@/components/health-connect-section';
 import { UnitsSection } from '@/components/units-section';
+import { WeightSection } from '@/components/weight-section';
 import { BackButton } from '@/components/ui/back-button';
 import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/ui/themed-text';
@@ -16,6 +17,7 @@ import { useHealthConnectSettings } from '@/hooks/use-health-connect-settings';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { usePreferencesSync } from '@/hooks/use-preferences-sync';
 import { useUnitsPreference } from '@/hooks/use-units-preference';
+import { useWeight } from '@/hooks/use-weight';
 
 // Header (back chevron, title), then whichever settings sections exist —
 // Account (unlabeled — its own identity row makes the section self-evident,
@@ -38,6 +40,7 @@ export default function Profile() {
     openPlayStore,
   } = useHealthConnectSettings();
   const { distance, weight, setDistanceUnit, setWeightUnit } = useUnitsPreference();
+  const { latestKg, save: saveWeight } = useWeight();
   usePreferencesSync({
     authStatus,
     uid: user?.uid ?? null,
@@ -85,6 +88,8 @@ export default function Profile() {
           onSetDistanceUnit={setDistanceUnit}
           onSetWeightUnit={setWeightUnit}
         />
+
+        <WeightSection latestKg={latestKg} unit={weight} onSave={saveWeight} />
       </Screen>
     </ThemedView>
   );
