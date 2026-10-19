@@ -12,6 +12,8 @@ import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { layout, spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useWeight } from '@/hooks/use-weight';
+import { deriveSessionCalories } from '@/workout/calories';
 import { deriveSessionTitle } from '@/workout/session-title';
 import type { WorkoutRecord } from '@/workout/workout-record';
 import {
@@ -59,6 +61,8 @@ export default function History() {
   // undefined = not yet loaded this focus; WorkoutRecord[] (possibly []) =
   // loaded — mirrors use-device-pairing.ts's savedDevice undefined/null/value
   // three-state pattern, applied to a list instead of a single value.
+
+  const { entries: weightEntries } = useWeight();
 
   const connection = usePairingStore((state) => state.connection);
   const devices = usePairingStore((state) => state.devices);
@@ -178,6 +182,7 @@ export default function History() {
               renderItem={({ item: record }) => {
                 const summary = deriveWorkoutSummary(record);
                 const startedAtDate = new Date(record.startedAt);
+                const calories = deriveSessionCalories(record, weightEntries);
                 return (
                   <SessionRow
                     monthLabel={formatMonth(startedAtDate, i18n.language)}
@@ -191,6 +196,11 @@ export default function History() {
                     durationLabel={formatDuration(summary.durationMs)}
                     averageBpmLabel={
                       summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
+                    }
+                    caloriesLabel={
+                      calories == null
+                        ? undefined
+                        : t('history.sessionRow.caloriesValue', { kcal: calories })
                     }
                     writeStatus={record.healthConnect.status}
                     onPress={() =>

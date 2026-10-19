@@ -5,6 +5,7 @@ import History from '@/app/(tabs)/history';
 import { usePairingStore } from '@/ble/pairing-store';
 import type { DiscoveredDevice } from '@/ble/pairing-types';
 import { colors } from '@/constants/theme';
+import { useWeight } from '@/hooks/use-weight';
 import { loadWorkoutSessions } from '@/workout/workout-store';
 import type { WorkoutRecord } from '@/workout/workout-record';
 
@@ -16,9 +17,11 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('expo-router', () => ({ useIsFocused: jest.fn(), useRouter: jest.fn() }));
 jest.mock('@/workout/workout-store');
+jest.mock('@/hooks/use-weight');
 
 const mockedUseIsFocused = useIsFocused as jest.MockedFunction<typeof useIsFocused>;
 const mockedUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
+const mockedUseWeight = useWeight as jest.MockedFunction<typeof useWeight>;
 const mockedLoadWorkoutSessions = loadWorkoutSessions as jest.MockedFunction<
   typeof loadWorkoutSessions
 >;
@@ -62,6 +65,7 @@ describe('<History />', () => {
     push.mockClear();
     mockedUseRouter.mockReturnValue({ push } as unknown as ReturnType<typeof useRouter>);
     mockedLoadWorkoutSessions.mockReset().mockResolvedValue([]);
+    mockedUseWeight.mockReset().mockReturnValue({ latestKg: null, entries: [], save: jest.fn() });
     usePairingStore.getState().reset();
   });
 
@@ -225,5 +229,35 @@ describe('<History />', () => {
     });
 
     expect(mockedLoadWorkoutSessions).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows an estimated kcal figure on a row when a weight predates the session, and none without one', async () => {
+    mockedLoadWorkoutSessions.mockResolvedValue([makeRecord()]);
+    mockedUseWeight.mockReturnValue({
+      latestKg: 70,
+      entries: [
+        {
+          id: 'w1',
+          recordedAt: new Date('2026-08-01T08:00:00').getTime(),
+          kg: 70,
+          healthConnect: { status: 'notWritten', recordId: null },
+        },
+      ],
+      save: jest.fn(),
+    });
+
+    const { unmount } = await render(<History />);
+    await act(async () => {});
+
+    // 9.8 × 70 × (2530 s / 3600) = 482.1
+    expect(screen.getByText('~482 kcal')).toBeOnTheScreen();
+
+    await unmount();
+    mockedUseWeight.mockReturnValue({ latestKg: null, entries: [], save: jest.fn() });
+
+    await render(<History />);
+    await act(async () => {});
+
+    expect(screen.queryByText(/kcal/)).not.toBeOnTheScreen();
   });
 });

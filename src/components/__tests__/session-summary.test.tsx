@@ -1,8 +1,31 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 
 import { SessionSummary } from '@/components/session-summary';
+import { useWeight } from '@/hooks/use-weight';
+import type { WeightEntry } from '@/weight/weight-store';
 import { bucketHeartRateSamples } from '@/workout/workout-record';
 import type { HealthConnectWriteStatus, WorkoutRecord } from '@/workout/workout-record';
+
+jest.mock('@/hooks/use-weight');
+
+const mockedUseWeight = useWeight as jest.MockedFunction<typeof useWeight>;
+
+function mockWeightEntries(entries: WeightEntry[] | undefined) {
+  mockedUseWeight.mockReturnValue({
+    latestKg: entries === undefined ? undefined : (entries.at(-1)?.kg ?? null),
+    entries,
+    save: jest.fn(),
+  });
+}
+
+function makeWeightEntry(recordedAt: number, kg: number): WeightEntry {
+  return {
+    id: `entry-${recordedAt}`,
+    recordedAt,
+    kg,
+    healthConnect: { status: 'notWritten', recordId: null },
+  };
+}
 
 type TestInstance = ReturnType<typeof screen.getByTestId>;
 
@@ -28,6 +51,11 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
 }
 
 describe('<SessionSummary />', () => {
+  beforeEach(() => {
+    mockedUseWeight.mockReset();
+    mockWeightEntries(undefined);
+  });
+
   describe('shared rendering (both modes)', () => {
     it('renders the date/time, derived title, hero duration, and avg/max BPM stat cards', async () => {
       const record = makeRecord();
@@ -514,5 +542,66 @@ describe('<SessionSummary />', () => {
       expect(statRow.children).toHaveLength(2);
       sections.forEach((section) => expect(section.children.length).toBeGreaterThan(0));
     });
+  });
+
+  describe('calories', () => {
+    const weightBeforeSession = [makeWeightEntry(0, 70)];
+
+    async function renderSummary(record: WorkoutRecord) {
+      await render(
+        <SessionSummary
+          mode="detail"
+          record={record}
+          onBack={jest.fn()}
+          onDone={jest.fn()}
+          onSync={jest.fn()}
+          isSyncing={false}
+        />,
+      );
+    }
+
+    function statRowChildCount() {
+      const scroll = screen.getByTestId('session-summary-scroll');
+      const sections = (scroll.children[0] as TestInstance).children as TestInstance[];
+      // header, hero, trace card, stat row, sync card
+      return sections[3].children.length;
+    }
+
+    it('shows a third stat card with an EST. label for a known type, weight and duration', async () => {
+      mockWeightEntries(weightBeforeSession);
+
+      await renderSummary(makeRecord());
+
+      // 9.8 × 70 × (610 s / 3600) = 116.2
+      const card = screen.getByTestId('session-summary-calories');
+      expect(within(card).getByText('KCAL')).toBeOnTheScreen();
+      expect(within(card).getByText('116')).toBeOnTheScreen();
+      expect(within(card).getByText('EST.')).toBeOnTheScreen();
+      expect(statRowChildCount()).toBe(3);
+    });
+
+    it.each([
+      ['no weight on file', makeRecord(), [] as WeightEntry[]],
+      ['weight still loading', makeRecord(), undefined],
+      ['a null activityType', makeRecord({ activityType: null }), weightBeforeSession],
+      ['an other activityType', makeRecord({ activityType: 'other' }), weightBeforeSession],
+      ['zero active duration', makeRecord({ samples: [] }), weightBeforeSession],
+      [
+        'a weight recorded after the session started',
+        makeRecord(),
+        [makeWeightEntry(new Date('2026-09-01T00:00:00').getTime(), 70)],
+      ],
+    ])(
+      'renders exactly two stat cards and no placeholder with %s',
+      async (_name, record, entries) => {
+        mockWeightEntries(entries);
+
+        await renderSummary(record);
+
+        expect(screen.queryByTestId('session-summary-calories')).not.toBeOnTheScreen();
+        expect(screen.queryByText('KCAL')).not.toBeOnTheScreen();
+        expect(statRowChildCount()).toBe(2);
+      },
+    );
   });
 });

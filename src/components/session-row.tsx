@@ -25,6 +25,8 @@ export type SessionRowProps = {
   // duration/avg, not the title
   durationLabel: string; // e.g. "42:10" — mm:ss, same convention as Live Workout
   averageBpmLabel: string; // e.g. "134", or "--" for a null average
+  caloriesLabel?: string; // e.g. "~686 kcal" — caller omits it when there's no
+  // estimate, and the row is then identical to one without the prop
   writeStatus: HealthConnectWriteStatus; // required — every real WorkoutRecord
   // always has a healthConnect field, so there's no meaningful omitted state
   onPress?: () => void; // omitted keeps the row exactly as non-interactive as before
@@ -37,6 +39,7 @@ export function SessionRow({
   timeLabel,
   durationLabel,
   averageBpmLabel,
+  caloriesLabel,
   writeStatus,
   onPress,
 }: SessionRowProps) {
@@ -89,6 +92,14 @@ export function SessionRow({
           <ThemedText variant="dataMd" color="primary">
             {`${averageBpmLabel} ${t('history.sessionRow.avgSuffix')}`}
           </ThemedText>
+          {caloriesLabel != null && (
+            <>
+              <View style={[styles.dot, { backgroundColor: theme.colors.outline }]} />
+              <ThemedText variant="dataMd" color="onSurfaceMuted">
+                {caloriesLabel}
+              </ThemedText>
+            </>
+          )}
         </View>
       </View>
 

@@ -283,6 +283,36 @@ describe('<Index /> (Home)', () => {
     expect(screen.getByText('Evening session')).toBeOnTheScreen();
   });
 
+  it('shows an estimated kcal figure on a recent row only when a weight predates the session', async () => {
+    mockedLoadWorkoutSessions.mockResolvedValue([makeRecord()]);
+    mockedUseWeight.mockReturnValue({
+      latestKg: 70,
+      entries: [
+        {
+          id: 'w1',
+          recordedAt: new Date('2026-08-01T08:00:00').getTime(),
+          kg: 70,
+          healthConnect: { status: 'notWritten', recordId: null },
+        },
+      ],
+      save: jest.fn(),
+    });
+
+    const { unmount } = await render(<Index />);
+    await act(async () => {});
+
+    // 9.8 × 70 × (2530 s / 3600) = 482.1
+    expect(screen.getByText('~482 kcal')).toBeOnTheScreen();
+
+    await unmount();
+    mockedUseWeight.mockReturnValue({ latestKg: 70, entries: [], save: jest.fn() });
+
+    await render(<Index />);
+    await act(async () => {});
+
+    expect(screen.queryByText(/kcal/)).not.toBeOnTheScreen();
+  });
+
   describe('weight prompt', () => {
     it('shows when no weight exists and the prompt was not dismissed', async () => {
       mockedUseWeight.mockReturnValue({ latestKg: null, entries: undefined, save: jest.fn() });
