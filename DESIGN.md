@@ -608,6 +608,18 @@ Wrapped in a `surface` card on `outline`, `lg` radius, 16px padding,
 with a `label-caps` header row (left-aligned title, right-aligned
 `bpm` unit) above the bars.
 
+**Weight history chart** — `react-native-svg` line chart inside the same
+`surface` card chrome as the trace chart (`label-caps` title left, unit
+suffix right). Points are plotted by real timestamp (proportional x, not
+evenly spaced) against an axis auto-scaled to the person's own data with
+10% padding (±1 unit when flat). A `primary` polyline with round joins and
+a `primary` dot per entry; hairline `outline` gridlines at the axis
+min/mid/max; y tick labels and first/last date labels in `data-sm` /
+`on-surface-dim`. Zero entries show a centred `body-sm` /
+`on-surface-muted` line in a box of the chart's height; one entry shows a
+single centred dot with its value and date. Unlike the trace chart it
+exposes a single summary accessibility label.
+
 **Signal bars** — four 3px columns at rising heights; filled bars use
 `primary`, empty use `outline-emphasis`.
 
