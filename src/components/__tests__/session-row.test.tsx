@@ -168,4 +168,37 @@ describe('<SessionRow />', () => {
       expect(screen.getByLabelText('Health Connect sync failed')).toBeOnTheScreen();
     });
   });
+
+  it('renders the caloriesLabel when given', async () => {
+    await render(
+      <SessionRow
+        monthLabel="AUG"
+        dayLabel="17"
+        titleLabel="Morning Workout"
+        timeLabel="6:42 PM"
+        durationLabel="42:10"
+        averageBpmLabel="134"
+        caloriesLabel="~482 kcal"
+        writeStatus="notWritten"
+      />,
+    );
+
+    expect(screen.getByText('~482 kcal')).toBeOnTheScreen();
+  });
+
+  it('renders no extra meta item when caloriesLabel is omitted', async () => {
+    await render(
+      <SessionRow
+        monthLabel="AUG"
+        dayLabel="17"
+        titleLabel="Morning Workout"
+        timeLabel="6:42 PM"
+        durationLabel="42:10"
+        averageBpmLabel="134"
+        writeStatus="notWritten"
+      />,
+    );
+
+    expect(screen.queryByText(/kcal/)).not.toBeOnTheScreen();
+  });
 });

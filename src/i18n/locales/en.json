@@ -156,7 +156,9 @@
     "stats": {
       "totalTime": "TOTAL TIME",
       "avgBpm": "AVG BPM",
-      "maxBpm": "MAX BPM"
+      "maxBpm": "MAX BPM",
+      "calories": "KCAL",
+      "caloriesEst": "EST."
     },
     "trace": {
       "label": "HEART RATE",
@@ -202,7 +204,8 @@
       "empty": "No workouts saved yet."
     },
     "sessionRow": {
-      "avgSuffix": "avg"
+      "avgSuffix": "avg",
+      "caloriesValue": "~{{kcal}} kcal"
     },
     "writeStatus": {
       "written": "Written to Health Connect",

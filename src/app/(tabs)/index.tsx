@@ -19,6 +19,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useUnitsPreference } from '@/hooks/use-units-preference';
 import { useWeight } from '@/hooks/use-weight';
 import { loadWeightPromptDismissed, saveWeightPromptDismissed } from '@/weight/weight-store';
+import { deriveSessionCalories } from '@/workout/calories';
 import { deriveSessionTitle } from '@/workout/session-title';
 import { deriveWorkoutSummary, describeSessionTime } from '@/workout/workout-record';
 import type { WorkoutRecord } from '@/workout/workout-record';
@@ -79,7 +80,7 @@ export default function Index() {
   }, [isFocused]);
 
   const { weight: weightUnit } = useUnitsPreference();
-  const { latestKg, save: saveWeight } = useWeight();
+  const { latestKg, entries: weightEntries, save: saveWeight } = useWeight();
   // undefined = not yet loaded, so the prompt never flashes for someone who
   // already dismissed it.
   const [promptDismissed, setPromptDismissed] = useState<boolean | undefined>(undefined);
@@ -209,6 +210,7 @@ export default function Index() {
               recentSessions.map((record) => {
                 const summary = deriveWorkoutSummary(record);
                 const startedAtDate = new Date(record.startedAt);
+                const calories = deriveSessionCalories(record, weightEntries);
                 return (
                   <SessionRow
                     key={record.id}
@@ -223,6 +225,11 @@ export default function Index() {
                     durationLabel={formatDuration(summary.durationMs)}
                     averageBpmLabel={
                       summary.averageBpm == null ? '--' : String(Math.round(summary.averageBpm))
+                    }
+                    caloriesLabel={
+                      calories == null
+                        ? undefined
+                        : t('history.sessionRow.caloriesValue', { kcal: calories })
                     }
                     writeStatus={record.healthConnect.status}
                     onPress={() =>

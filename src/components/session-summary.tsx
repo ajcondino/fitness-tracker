@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/ui/themed-text';
 import { WriteStatusMarker } from '@/components/ui/write-status-marker';
 import { spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useWeight } from '@/hooks/use-weight';
+import { deriveSessionCalories } from '@/workout/calories';
 import { deriveSessionTitle } from '@/workout/session-title';
 import {
   bucketHeartRateSamples,
@@ -63,7 +65,10 @@ export function SessionSummary(props: SessionSummaryProps) {
   const theme = useTheme();
   const { t, i18n } = useTranslation();
 
+  const { entries: weightEntries } = useWeight();
+
   const summary = deriveWorkoutSummary(record);
+  const calories = deriveSessionCalories(record, weightEntries);
   const canSave = record.samples.length > 0;
   const timeOfDay = describeSessionTime(new Date(record.startedAt));
 
@@ -187,6 +192,33 @@ export function SessionSummary(props: SessionSummaryProps) {
               {summary.maxBpm ?? '--'}
             </ThemedText>
           </View>
+          {calories != null && (
+            <View
+              testID="session-summary-calories"
+              style={[
+                styles.statCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.outline,
+                  borderRadius: theme.rounded.md,
+                },
+              ]}
+            >
+              <ThemedText variant="labelMicro" color="onSurfaceDim">
+                {t('sessionSummary.stats.calories')}
+              </ThemedText>
+              <ThemedText
+                variant="h3"
+                color="onSurface"
+                style={[styles.statValue, { fontVariant: ['tabular-nums'] }]}
+              >
+                {String(calories)}
+              </ThemedText>
+              <ThemedText variant="labelMicro" color="onSurfaceMuted">
+                {t('sessionSummary.stats.caloriesEst')}
+              </ThemedText>
+            </View>
+          )}
         </View>
 
         {/* course — route + altitude tickets insert here */}
