@@ -14,9 +14,10 @@ A React Native fitness-tracking app built with [Expo](https://expo.dev) and Expo
 
 Copy [.env.example](.env.example) to `.env.local` (already git-ignored) and fill in real values:
 
-| Variable                 | Description                                                                                                            |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `EXPO_PUBLIC_SENTRY_DSN` | Sentry DSN used by `Sentry.init` in [src/app/_layout.tsx](src/app/_layout.tsx). Leave unset to disable Sentry locally. |
+| Variable                 | Description                                                                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EXPO_PUBLIC_SENTRY_DSN` | Sentry DSN used by `Sentry.init` in [src/app/_layout.tsx](src/app/_layout.tsx). Leave unset to disable Sentry locally.                                                         |
+| `GOOGLE_MAPS_API_KEY`    | Google Maps API key read by [app.config.ts](app.config.ts) at build time. Not `EXPO_PUBLIC_` — it never enters the JS bundle. See [Google Maps API key](#google-maps-api-key). |
 
 `EXPO_PUBLIC_`-prefixed variables are inlined into the JS bundle at build time and are client-visible — see [Expo's environment variables guide](https://docs.expo.dev/guides/environment-variables/). Don't put secrets that must stay server-only behind this prefix.
 
@@ -37,6 +38,17 @@ Sign-in (`src/auth/`) needs a native `google-services.json` at the project root 
 Without step 4, a CI-triggered build will build successfully but Google Sign-In/Firebase Auth will silently fail at runtime — it only works locally where `google-services.json` was placed by hand.
 
 A signed-in user's units preference is synced to Firestore (`src/sync/`) on the same project/`google-services.json` above — no additional console setup is needed; the security rules that scope each user to their own data are already deployed directly against the Firebase project and aren't tracked in this repo.
+
+## Google Maps API key
+
+`react-native-maps` renders Google Maps on Android and needs an API key baked into the native build. [app.config.ts](app.config.ts) wraps `app.json` and passes `process.env.GOOGLE_MAPS_API_KEY` to the plugin's `androidGoogleMapsApiKey` option, so the key never enters source control. If it's unset the config still resolves (lint/typecheck/test/CI work); the build just shows a blank or watermarked map.
+
+- **Key source (current):** a Google Maps Demo Key — no billing account. It's Google-managed, so it can't be restricted to a package or SHA-1 by the owner, and it has daily caps (the map may stop working until they reset). Treat it as prototype-only and keep it out of git, logs and PR text.
+- **Upgrade path (not done):** a billing-enabled key from a Google Cloud project with **Maps SDK for Android** enabled, restricted to package `com.a.condino.fitnesstracker` plus both signing SHA-1s — the debug one listed in the [Firebase section](#firebase--google-sign-in-setup), and the EAS `preview` keystore SHA-1 from `eas credentials`. Swapping keys is a value change plus a rebuild.
+- **Local:** put the key in `.env.local` as `GOOGLE_MAPS_API_KEY=...`, then run `pnpm exec expo prebuild --clean` — `android/` is generated, so a changed key only takes effect after regenerating it.
+- **EAS:** a gitignored `.env.local` never reaches EAS. Create the variable in the `preview` Environment: `eas env:create --environment preview --name GOOGLE_MAPS_API_KEY` with visibility **plain text or sensitive**. **Secret** variables aren't readable while EAS CLI resolves the app config, so the key would be missing.
+- **`.easignore`:** none exists. If one is ever added it must mirror `.gitignore` but must not exclude `.env*`.
+- **Key changes need a new build.** The key is embedded in the native manifest, so changing it is a native change, not something an OTA update can deliver.
 
 ## Setup
 
