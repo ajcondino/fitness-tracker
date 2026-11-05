@@ -6,7 +6,7 @@ import type { HeartRateSample, WorkoutPause } from '@/hooks/use-workout-session'
  * derivations" layer.
  */
 
-export const WORKOUT_RECORD_SCHEMA_VERSION = 4;
+export const WORKOUT_RECORD_SCHEMA_VERSION = 5;
 
 export type HealthConnectWriteStatus = 'notWritten' | 'written' | 'failed';
 
@@ -46,6 +46,14 @@ export type ActivityType = 'run' | 'walk' | 'cycle' | 'strength' | 'other';
 // order is defined once rather than re-declared per consumer.
 export const ACTIVITY_TYPES: ActivityType[] = ['run', 'walk', 'cycle', 'strength', 'other'];
 
+// One GPS fix, stamped with Date.now() when it arrived — same convention as
+// HeartRateSample.timestamp. See docs/specs/foreground-location-gps-sampling.
+export type RoutePoint = {
+  latitude: number; // degrees, WGS84, finite
+  longitude: number; // degrees, WGS84, finite
+  timestamp: number;
+};
+
 /**
  * The full persisted record — enough to reconstruct the session, not just
  * its summary. Deliberately has NO averageBpm/maxBpm/durationMs field: per
@@ -68,6 +76,9 @@ export type WorkoutRecord = {
   // constructs from here on has a concrete ActivityType, because the picker
   // always has a selection (defaulted, never empty).
   activityType: ActivityType | null;
+  // [] = no location was recorded (denied, unavailable, no fix, or a pre-v5
+  // session). Never read by deriveWorkoutSummary or any heart-rate derivation.
+  route: RoutePoint[];
 };
 
 export type WorkoutSummary = {

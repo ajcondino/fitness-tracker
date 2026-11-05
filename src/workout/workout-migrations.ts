@@ -46,6 +46,13 @@ const MIGRATIONS: Record<number, MigrationStep> = {
     activityType: record.activityType ?? null,
     schemaVersion: 4,
   }),
+  // 4 -> 5: this ticket adds `route`. A pre-v5 session recorded no location,
+  // so `[]` ("no location recorded") is the truth, never a guess.
+  4: (record) => ({
+    ...record,
+    route: record.route ?? [],
+    schemaVersion: 5,
+  }),
 };
 
 export function migrateWorkoutRecord(record: LegacyWorkoutRecord): Record<string, unknown> {

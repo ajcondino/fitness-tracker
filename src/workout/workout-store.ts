@@ -5,6 +5,7 @@ import type { LegacyWorkoutRecord } from '@/workout/workout-migrations';
 import type {
   ActivityType,
   HealthConnectWriteInfo,
+  RoutePoint,
   WorkoutRecord,
   WorkoutSource,
 } from '@/workout/workout-record';
@@ -73,6 +74,33 @@ function parseActivityType(raw: unknown): ActivityType | null {
     : null;
 }
 
+// Lenient in the same way as the parsers above — a non-array route is `[]`,
+// and a corrupt point is dropped individually, so one bad entry never
+// invalidates the record (or the rest of its route).
+function parseRoute(raw: unknown): RoutePoint[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const route: RoutePoint[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) {
+      continue;
+    }
+    const { latitude, longitude, timestamp } = entry as Record<string, unknown>;
+    if (
+      typeof latitude === 'number' &&
+      Number.isFinite(latitude) &&
+      typeof longitude === 'number' &&
+      Number.isFinite(longitude) &&
+      typeof timestamp === 'number' &&
+      Number.isFinite(timestamp)
+    ) {
+      route.push({ latitude, longitude, timestamp });
+    }
+  }
+  return route;
+}
+
 function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
   if (raw == null) {
     return null;
@@ -104,6 +132,7 @@ function parseWorkoutRecord(raw: string | null): WorkoutRecord | null {
       healthConnect: parseHealthConnectWriteInfo(migrated.healthConnect),
       source: parseWorkoutSource(migrated.source),
       activityType: parseActivityType(migrated.activityType),
+      route: parseRoute(migrated.route),
     } as WorkoutRecord;
   } catch {
     return null;

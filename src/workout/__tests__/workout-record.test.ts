@@ -19,13 +19,14 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     healthConnect: { status: 'notWritten', recordIds: [] },
     source: 'recorded',
     activityType: 'run',
+    route: [],
     ...overrides,
   };
 }
 
 describe('WORKOUT_RECORD_SCHEMA_VERSION', () => {
-  it('is 4', () => {
-    expect(WORKOUT_RECORD_SCHEMA_VERSION).toBe(4);
+  it('is 5', () => {
+    expect(WORKOUT_RECORD_SCHEMA_VERSION).toBe(5);
   });
 });
 

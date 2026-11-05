@@ -40,12 +40,27 @@ function makeM3Record(): LegacyWorkoutRecord {
   };
 }
 
+function makeM4Record(): LegacyWorkoutRecord {
+  return {
+    schemaVersion: 4,
+    id: 'workout-1',
+    startedAt: 1_000,
+    samples: [{ bpm: 120, timestamp: 1_000 }],
+    device: { id: 'device-1', name: 'Pulse HRM' },
+    pauses: [],
+    healthConnect: { status: 'notWritten', recordIds: [] },
+    source: 'recorded',
+    activityType: 'run',
+    // no route — predates it.
+  };
+}
+
 describe('migrateWorkoutRecord', () => {
-  it('upgrades an M1-shaped record to schemaVersion 4 with healthConnect, source, and activityType defaulted', () => {
+  it('upgrades an M1-shaped record to schemaVersion 5 with healthConnect, source, and activityType defaulted', () => {
     const migrated = migrateWorkoutRecord(makeM1Record());
 
     expect(migrated).toEqual({
-      schemaVersion: 4,
+      schemaVersion: 5,
       id: 'workout-1',
       startedAt: 1_000,
       samples: [{ bpm: 120, timestamp: 1_000 }],
@@ -54,14 +69,15 @@ describe('migrateWorkoutRecord', () => {
       healthConnect: { status: 'notWritten', recordIds: [] },
       source: 'recorded',
       activityType: null,
+      route: [],
     });
   });
 
-  it('upgrades an M2-shaped record to schemaVersion 4, preserving its original healthConnect value', () => {
+  it('upgrades an M2-shaped record to schemaVersion 5, preserving its original healthConnect value', () => {
     const migrated = migrateWorkoutRecord(makeM2Record());
 
     expect(migrated).toEqual({
-      schemaVersion: 4,
+      schemaVersion: 5,
       id: 'workout-1',
       startedAt: 1_000,
       samples: [{ bpm: 120, timestamp: 1_000 }],
@@ -70,14 +86,15 @@ describe('migrateWorkoutRecord', () => {
       healthConnect: { status: 'written', recordIds: ['exercise-1'] },
       source: 'recorded',
       activityType: null,
+      route: [],
     });
   });
 
-  it('upgrades an M3-shaped record to schemaVersion 4 with activityType defaulted to null', () => {
+  it('upgrades an M3-shaped record to schemaVersion 5 with activityType defaulted to null', () => {
     const migrated = migrateWorkoutRecord(makeM3Record());
 
     expect(migrated).toEqual({
-      schemaVersion: 4,
+      schemaVersion: 5,
       id: 'workout-1',
       startedAt: 1_000,
       samples: [{ bpm: 120, timestamp: 1_000 }],
@@ -86,7 +103,14 @@ describe('migrateWorkoutRecord', () => {
       healthConnect: { status: 'notWritten', recordIds: [] },
       source: 'recorded',
       activityType: null,
+      route: [],
     });
+  });
+
+  it('upgrades an M4-shaped record to schemaVersion 5 with route defaulted to []', () => {
+    const migrated = migrateWorkoutRecord(makeM4Record());
+
+    expect(migrated).toEqual({ ...makeM4Record(), schemaVersion: 5, route: [] });
   });
 
   it('is idempotent on the M1-shaped record: migrating its own output again returns a deep-equal result', () => {
@@ -112,7 +136,7 @@ describe('migrateWorkoutRecord', () => {
 
   it('passes through a record already at the current schemaVersion unchanged', () => {
     const current: LegacyWorkoutRecord = {
-      schemaVersion: 4,
+      schemaVersion: 5,
       id: 'workout-1',
       startedAt: 1_000,
       samples: [],
@@ -121,6 +145,7 @@ describe('migrateWorkoutRecord', () => {
       healthConnect: { status: 'notWritten', recordIds: [] },
       source: 'recorded',
       activityType: 'run',
+      route: [{ latitude: 1, longitude: 2, timestamp: 3 }],
     };
 
     expect(migrateWorkoutRecord(current)).toEqual(current);
@@ -128,7 +153,7 @@ describe('migrateWorkoutRecord', () => {
 
   it('passes through a record at a hypothetical future schemaVersion unchanged', () => {
     const future: LegacyWorkoutRecord = {
-      schemaVersion: 5,
+      schemaVersion: 6,
       id: 'workout-1',
       startedAt: 1_000,
       samples: [],
