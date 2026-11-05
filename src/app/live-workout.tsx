@@ -9,6 +9,7 @@ import { usePairingStore } from '@/ble/pairing-store';
 import { selectDeviceDisplayName } from '@/ble/pairing-types';
 import { ActivityTypePicker } from '@/components/activity-type-picker';
 import { DeviceChip, type DeviceChipStatus } from '@/components/device-chip';
+import { LocationStatus } from '@/components/location-status';
 import { SessionSummary } from '@/components/session-summary';
 import { Glow } from '@/components/ui/glow';
 import { HeartRateTrace } from '@/components/ui/heart-rate-trace';
@@ -22,6 +23,7 @@ import { autoSyncWorkoutSessionToHealthConnect } from '@/health/health-connect-s
 import { useTheme } from '@/hooks/use-theme';
 import { useLastActivityType } from '@/hooks/use-last-activity-type';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
+import { useLocationRoute } from '@/hooks/use-location-route';
 import type { LiveHeartRateStatus } from '@/hooks/use-live-heart-rate';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
 import { deriveSessionTitle } from '@/workout/session-title';
@@ -96,6 +98,10 @@ export default function LiveWorkout() {
 
   const { bpm, status, lastReadingAt } = useLiveHeartRate(deviceId, isConnected);
   const session = useWorkoutSession(bpm, lastReadingAt);
+  // Never read by, or allowed to affect, the session's phase machine — every
+  // location failure is a status line, not an interruption. See
+  // docs/specs/foreground-location-gps-sampling/SPEC.md.
+  const location = useLocationRoute(session.phase);
 
   const { activityType: selectedActivityType, setActivityType } = useLastActivityType();
 
@@ -143,6 +149,7 @@ export default function LiveWorkout() {
     if (session.phase !== 'ended' || startedAt == null) return;
     const samples = session.samples;
     const pauses = session.pauses;
+    const route = location.route;
     setRecord((prev) => {
       if (prev != null) return prev;
       return {
@@ -155,6 +162,7 @@ export default function LiveWorkout() {
         healthConnect: { status: 'notWritten', recordIds: [] },
         source: 'recorded',
         activityType: selectedActivityType,
+        route,
       };
     });
   }, [
@@ -164,6 +172,7 @@ export default function LiveWorkout() {
     session.startedAt,
     session.samples,
     session.pauses,
+    location.route,
     selectedActivityType,
   ]);
 
@@ -301,6 +310,17 @@ export default function LiveWorkout() {
             <ThemedText variant="dataSm" color={statusCopy.color} style={styles.status}>
               {statusCopy.text}
             </ThemedText>
+
+            {location.status !== 'idle' && (
+              <View style={styles.locationStatus}>
+                <LocationStatus
+                  status={location.status}
+                  onRequestAccess={location.requestAccess}
+                  onOpenSettings={location.openSettings}
+                  testID="live-workout-location-status"
+                />
+              </View>
+            )}
 
             <View style={styles.readoutContainer}>
               <PulseRing active={session.phase === 'running'} />
@@ -440,7 +460,12 @@ export default function LiveWorkout() {
 
             <Pressable
               accessibilityRole="button"
-              onPress={session.start}
+              onPress={() => {
+                // Fire-and-forget: the session starts immediately and never
+                // waits on the OS dialog.
+                location.requestAccess();
+                session.start();
+              }}
               testID="live-workout-start"
               style={({ pressed }) => [
                 styles.primaryButton,
@@ -588,6 +613,10 @@ const styles = StyleSheet.create({
   status: {
     marginTop: spacing.lg,
     textAlign: 'center',
+    zIndex: 1,
+  },
+  locationStatus: {
+    marginTop: spacing.sm,
     zIndex: 1,
   },
   readoutContainer: {

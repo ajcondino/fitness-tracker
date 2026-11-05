@@ -10,6 +10,7 @@ import { spacing } from '@/constants/theme';
 import { autoSyncWorkoutSessionToHealthConnect } from '@/health/health-connect-sync';
 import { useLastActivityType } from '@/hooks/use-last-activity-type';
 import { useLiveHeartRate } from '@/hooks/use-live-heart-rate';
+import { useLocationRoute } from '@/hooks/use-location-route';
 import { useWorkoutSession } from '@/hooks/use-workout-session';
 import type { WorkoutSessionSnapshot } from '@/hooks/use-workout-session';
 import * as workoutRecord from '@/workout/workout-record';
@@ -30,6 +31,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('@/hooks/use-last-activity-type');
 jest.mock('@/hooks/use-live-heart-rate');
+jest.mock('@/hooks/use-location-route');
 jest.mock('@/hooks/use-workout-session');
 jest.mock('@/workout/workout-store');
 jest.mock('@/health/health-connect-sync');
@@ -39,6 +41,7 @@ const mockedUseNavigation = useNavigation as jest.MockedFunction<typeof useNavig
 const mockedUseLastActivityType = useLastActivityType as jest.MockedFunction<
   typeof useLastActivityType
 >;
+const mockedUseLocationRoute = useLocationRoute as jest.MockedFunction<typeof useLocationRoute>;
 const mockedUseLiveHeartRate = useLiveHeartRate as jest.MockedFunction<typeof useLiveHeartRate>;
 const mockedUseWorkoutSession = useWorkoutSession as jest.MockedFunction<typeof useWorkoutSession>;
 const mockedCancelDeviceConnection = jest.mocked(bleManager.cancelDeviceConnection);
@@ -106,6 +109,12 @@ describe('<LiveWorkout />', () => {
       pause: jest.fn(),
       resume: jest.fn(),
       stop: jest.fn(),
+    });
+    mockedUseLocationRoute.mockReset().mockReturnValue({
+      status: 'idle',
+      route: [],
+      requestAccess: jest.fn(),
+      openSettings: jest.fn(),
     });
     mockedSaveWorkoutSession.mockReset().mockResolvedValue(undefined);
     mockedAutoSyncWorkoutSession.mockReset().mockResolvedValue(undefined);
@@ -357,6 +366,67 @@ describe('<LiveWorkout />', () => {
         expect(back).toHaveBeenCalledTimes(1);
       });
 
+      it('saves route: [] when location was denied, with the heart-rate samples intact', async () => {
+        const samples = [{ bpm: 120, timestamp: 1_000 }];
+        mockedUseLocationRoute.mockReturnValue({
+          status: 'permission-denied',
+          route: [],
+          requestAccess: jest.fn(),
+          openSettings: jest.fn(),
+        });
+        mockedUseWorkoutSession.mockReturnValue({
+          phase: 'ended',
+          startedAt: 500,
+          samples,
+          pauses: [],
+          elapsedMs: 500,
+          averageBpm: 120,
+          maxBpm: 120,
+          start: jest.fn(),
+          pause: jest.fn(),
+          resume: jest.fn(),
+          stop: jest.fn(),
+        });
+
+        await render(<LiveWorkout />);
+        fireEvent.press(screen.getByTestId('live-workout-save'));
+
+        expect(mockedSaveWorkoutSession).toHaveBeenCalledWith(
+          expect.objectContaining({ samples, route: [] }),
+        );
+      });
+
+      it('saves the recorded route points when location was granted', async () => {
+        const route = [
+          { latitude: 14.5995, longitude: 120.9842, timestamp: 1_500 },
+          { latitude: 14.6, longitude: 120.985, timestamp: 6_500 },
+        ];
+        mockedUseLocationRoute.mockReturnValue({
+          status: 'idle',
+          route,
+          requestAccess: jest.fn(),
+          openSettings: jest.fn(),
+        });
+        mockedUseWorkoutSession.mockReturnValue({
+          phase: 'ended',
+          startedAt: 500,
+          samples: [{ bpm: 120, timestamp: 1_000 }],
+          pauses: [],
+          elapsedMs: 500,
+          averageBpm: 120,
+          maxBpm: 120,
+          start: jest.fn(),
+          pause: jest.fn(),
+          resume: jest.fn(),
+          stop: jest.fn(),
+        });
+
+        await render(<LiveWorkout />);
+        fireEvent.press(screen.getByTestId('live-workout-save'));
+
+        expect(mockedSaveWorkoutSession).toHaveBeenCalledWith(expect.objectContaining({ route }));
+      });
+
       it('carries whichever activityType was selected at the moment the record was constructed', async () => {
         mockedUseLastActivityType.mockReturnValue({ activityType: 'cycle', setActivityType });
         mockedUseWorkoutSession.mockReturnValue({
@@ -571,6 +641,71 @@ describe('<LiveWorkout />', () => {
         fireEvent.press(screen.getByTestId('live-workout-start'));
 
         expect(session.start).toHaveBeenCalledTimes(1);
+      });
+
+      it('idle: tapping Start also requests location access, without gating the session start', async () => {
+        const session = sessionMock('idle');
+        const requestAccess = jest.fn();
+        mockedUseWorkoutSession.mockReturnValue(session);
+        mockedUseLocationRoute.mockReturnValue({
+          status: 'idle',
+          route: [],
+          requestAccess,
+          openSettings: jest.fn(),
+        });
+
+        await render(<LiveWorkout />);
+        expect(requestAccess).not.toHaveBeenCalled();
+
+        fireEvent.press(screen.getByTestId('live-workout-start'));
+
+        expect(requestAccess).toHaveBeenCalledTimes(1);
+        expect(session.start).toHaveBeenCalledTimes(1);
+      });
+
+      it('running: hooks location to the session phase', async () => {
+        mockedUseWorkoutSession.mockReturnValue(sessionMock('running'));
+
+        await render(<LiveWorkout />);
+
+        expect(mockedUseLocationRoute).toHaveBeenCalledWith('running');
+      });
+
+      it.each([
+        ['permission-denied', 'Location off — no route will be recorded'],
+        ['permission-denied-permanently', 'Location blocked — no route will be recorded'],
+        ['gps-unavailable', 'GPS unavailable — turn on location services'],
+        ['acquiring-fix', 'Acquiring GPS fix…'],
+        ['sampling', 'Recording route'],
+      ] as const)(
+        'running with location %s: shows a non-blocking status and keeps Pause/Stop enabled',
+        async (status, text) => {
+          mockedUseWorkoutSession.mockReturnValue(sessionMock('running'));
+          mockedUseLocationRoute.mockReturnValue({
+            status,
+            route: [],
+            requestAccess: jest.fn(),
+            openSettings: jest.fn(),
+          });
+
+          await render(<LiveWorkout />);
+
+          expect(screen.getByText(`● ${text}`)).toBeOnTheScreen();
+          expect(
+            screen.getByTestId('live-workout-pause').props.accessibilityState?.disabled,
+          ).toBeFalsy();
+          expect(
+            screen.getByTestId('live-workout-stop').props.accessibilityState?.disabled,
+          ).toBeFalsy();
+        },
+      );
+
+      it('idle location status renders no status line', async () => {
+        mockedUseWorkoutSession.mockReturnValue(sessionMock('running'));
+
+        await render(<LiveWorkout />);
+
+        expect(screen.queryByTestId('live-workout-location-status')).not.toBeOnTheScreen();
       });
 
       it('idle: shows all five activity pills, with the last-persisted choice selected', async () => {

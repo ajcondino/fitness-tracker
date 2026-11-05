@@ -37,6 +37,7 @@ function makeRecord(overrides: Partial<WorkoutRecord> = {}): WorkoutRecord {
     healthConnect: { status: 'notWritten', recordIds: [] },
     source: 'recorded',
     activityType: 'run',
+    route: [],
     ...overrides,
   };
 }

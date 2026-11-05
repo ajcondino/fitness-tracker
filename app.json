@@ -71,6 +71,14 @@
           "neverForLocation": true
         }
       ],
+      [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false,
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to record your workout route while a session is running."
+        }
+      ],
       "react-native-health-connect",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
