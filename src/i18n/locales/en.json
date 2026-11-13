@@ -131,6 +131,16 @@
     },
     "activityPicker": {
       "header": "Activity"
+    },
+    "location": {
+      "requesting": "Waiting for location permission…",
+      "permissionDenied": "Location off — no route will be recorded",
+      "permissionDeniedPermanently": "Location blocked — no route will be recorded",
+      "gpsUnavailable": "GPS unavailable — turn on location services",
+      "acquiringFix": "Acquiring GPS fix…",
+      "sampling": "Recording route",
+      "enableAction": "Enable location",
+      "openSettingsAction": "Open settings"
     }
   },
   "activityType": {

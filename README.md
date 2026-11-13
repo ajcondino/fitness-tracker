@@ -50,6 +50,12 @@ A signed-in user's units preference is synced to Firestore (`src/sync/`) on the 
 - **`.easignore`:** none exists. If one is ever added it must mirror `.gitignore` but must not exclude `.env*`.
 - **Key changes need a new build.** The key is embedded in the native manifest, so changing it is a native change, not something an OTA update can deliver.
 
+## Location permission
+
+While a workout is running, the app samples GPS (foreground only, every `LOCATION_SAMPLE_INTERVAL_MS` in [src/location/location-config.ts](src/location/location-config.ts)) and saves the route on the session. The `expo-location` plugin in `app.json` adds `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION` (background location is off). The permission is requested when the user taps Start; a denial only shows a status line on Live Workout and never affects heart-rate recording.
+
+This is a native change: it needs a **new EAS build** (an OTA update to an existing preview build won't include it), and locally `pnpm exec expo prebuild --clean` since `android/` is generated.
+
 ## Setup
 
 ```bash
