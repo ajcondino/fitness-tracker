@@ -545,6 +545,60 @@ describe('<SessionSummary />', () => {
     });
   });
 
+  describe('route map (course slot)', () => {
+    const route = [
+      { latitude: 1, longitude: 1, timestamp: 1000 },
+      { latitude: 1.001, longitude: 1.001, timestamp: 6000 },
+    ];
+
+    function renderMode(mode: 'review' | 'detail', record: WorkoutRecord) {
+      return render(
+        mode === 'review' ? (
+          <SessionSummary mode="review" record={record} onSave={jest.fn()} onDiscard={jest.fn()} />
+        ) : (
+          <SessionSummary
+            mode="detail"
+            record={record}
+            onBack={jest.fn()}
+            onDone={jest.fn()}
+            onSync={jest.fn()}
+            isSyncing={false}
+          />
+        ),
+      );
+    }
+
+    it.each(['review', 'detail'] as const)('renders the route card in %s mode', async (mode) => {
+      await renderMode(mode, makeRecord({ route }));
+      expect(
+        within(screen.getByTestId('session-summary-scroll')).getByTestId('session-summary-route'),
+      ).toBeOnTheScreen();
+    });
+
+    it.each(['review', 'detail'] as const)(
+      'renders no route card or map for empty and 1-point routes in %s mode',
+      async (mode) => {
+        for (const r of [[], route.slice(0, 1)]) {
+          const { unmount } = await renderMode(mode, makeRecord({ route: r }));
+          expect(screen.queryByTestId('session-summary-route')).toBeNull();
+          expect(screen.queryByTestId('mock-map-view')).toBeNull();
+          const scroll = screen.getByTestId('session-summary-scroll');
+          const sections = (scroll.children[0] as TestInstance).children as TestInstance[];
+          sections.forEach((section) => expect(section.children.length).toBeGreaterThan(0));
+          await unmount();
+        }
+      },
+    );
+
+    it('places the card between the stat row and the sync card', async () => {
+      await renderMode('detail', makeRecord({ route }));
+      const scroll = screen.getByTestId('session-summary-scroll');
+      const sections = (scroll.children[0] as TestInstance).children as TestInstance[];
+      expect(sections).toHaveLength(6);
+      expect(sections[4].props.testID).toBe('session-summary-route');
+    });
+  });
+
   describe('calories', () => {
     const weightBeforeSession = [makeWeightEntry(0, 70)];
 

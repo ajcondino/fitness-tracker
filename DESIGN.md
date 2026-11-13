@@ -657,6 +657,18 @@ an icon font. Screens with scrollable content reserve
 `tabBarClearance` (104px) of bottom padding, in addition to the
 device's safe-area bottom inset, so content never sits under the bar.
 
+**Route map card** — a `SummaryCard` (label `ROUTE`) holding a fixed
+200px-tall, non-interactive map (scroll, zoom, rotate, pitch and the
+toolbar all disabled) clipped to the `md` radius, on a dark map style built
+from existing tokens (`surface`, `surface-muted`, `outline-strong`,
+`background-deep`). The route is a 4px `primary` polyline with round joins
+and caps, auto-fitted with 30% padding and a minimum span of ~220 m. The
+line is **broken, never bridged**, wherever the session paused or lost GPS
+(more than 20 s between fixes). Start is a hollow 16px ring (`success`
+border); end is a filled 16px dot (`primary` fill, `on-primary` border) —
+distinct by shape as well as colour. A record without a usable route (fewer
+than two points) renders no card at all, leaving no gap.
+
 **Toast** — absolutely positioned 24px from each gutter, 110px from the
 bottom so it clears the tab bar. `surface-raised` on `outline-strong`,
 14px radius, a `success` dot plus `body-sm` copy.

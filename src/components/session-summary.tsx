@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { RouteMapCard } from '@/components/route-map-card';
 import { HeartRateTrace } from '@/components/ui/heart-rate-trace';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { ThemedText } from '@/components/ui/themed-text';
@@ -222,6 +223,7 @@ export function SessionSummary(props: SessionSummaryProps) {
         </View>
 
         {/* course — route + altitude tickets insert here */}
+        <RouteMapCard route={record.route} pauses={record.pauses} testID="session-summary-route" />
 
         {props.mode === 'detail' && (
           <SummaryCard>
